@@ -1,5 +1,6 @@
 <?php
 // $Id: $
+// vim:ft=php:ai:si:ts=2:sw=2:et:
 
 /**
  * Return a description of the profile for the initial installation screen.
@@ -25,7 +26,15 @@ function scf_profile_details() {
 function scf_profile_modules() {
   return array(
     // CORE
-    'comment', 'dblog', 'help', 'menu', 'path', 'search', 'taxonomy', 'upload', 'forum', 
+    'comment', 
+    'dblog', 
+    'help', 
+    'menu', 
+    'path', 
+    'search', 
+    'taxonomy', 
+    'upload', 
+    'forum', 
 
     // CONTRIB
     'ajax_pic_preview',
@@ -408,7 +417,7 @@ function scf_profile_tasks(&$task, $url) {
   // Site config
   variable_set('site_name', '');
   variable_set('site_slogan', 'The Science Collaboration Framework (SCF) is a reusable, semantically-aware toolkit for building on-line communities.');
-  variable_set('site_footer', '<p>The <a href="http://iic.harvard.edu/projects/scf.html" title="IIC SCF project">Scientific Collaborative Framework</a> is a project of the <a href="http://iic.harvard.edu/" title="IIC web site">Initiative in Innovative Computing</a> at <a href="http://harvard.edu/">Harvard University</a>.</p>
+  variable_set('site_footer', '<p>The <a href="http://iic.harvard.edu/projects/scf.html" title="IIC SCF project">Science Collaboration Framework</a> is a project of the <a href="http://iic.harvard.edu/" title="IIC web site">Initiative in Innovative Computing</a> at <a href="http://harvard.edu/">Harvard University</a>.</p>
   <p>SCF is licensed under the <a href="http://www.gnu.org/licenses/gpl-3.0.txt">GPL version 3</a> software license.</p>');
   variable_set('site_frontpage', 'node');
 
@@ -446,7 +455,6 @@ function scf_profile_tasks(&$task, $url) {
   db_query("INSERT INTO {blockclone} (blockclone_id, mod_module, mod_delta) VALUES (2, 'pubgroup', 'listing')");
 
   foreach ($themes as $theme) {
-    system_theme_data();
     db_query("UPDATE {system} SET status = 1 WHERE type = 'theme' and name = '%s'", $theme);
     // run this after all the blocks set up above or it conflicts
     system_initialize_theme_blocks($theme);
