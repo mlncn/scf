@@ -1,0 +1,175 @@
+<?php
+// $Id: endnote7_parser.inc,v 1.9.2.4 2008/05/12 01:03:37 rjerome Exp $
+/**
+ *
+ *   Copyright (C) 2006  Ron Jerome
+ *
+ *   This program is free software; you can redistribute it and/or modify
+ *   it under the terms of the GNU General Public License as published by
+ *   the Free Software Foundation; either version 2 of the License, or
+ *   (at your option) any later version.
+ *
+ *   This program is distributed in the hope that it will be useful,
+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *   GNU General Public License for more details.
+ *
+ *   You should have received a copy of the GNU General Public License along
+ *   with this program; if not, write to the Free Software Foundation, Inc.,
+ *   51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+ *
+ *
+ */
+
+function en7_startElement($parser, $name, $attrs) {
+  global $node, $element;
+  switch ($name) {
+    case 'RECORD' :
+      $node = array();
+      $node['biblio_type'] = 102; // we set 102 here because the xml parser won't
+      // process a value of 0 (ZERO) which is the
+      // ref-type 102. if there is a non-zero value it will be overwritten
+      $element = '';
+      break;
+    default:
+      $element = $name;
+  }
+}
+
+function en7_endElement($parser, $name) {
+  global $node, $element, $batch, $session_id, $nids;
+  switch ($name) {
+    case 'RECORD' :
+      $nids[] = biblio_save_node($node, $batch, $session_id);
+      break;
+    default:
+
+  }
+  $element = '';
+}
+
+function en7_characterData($parser, $data) {
+  global $node, $element;
+  if (trim($data)) {
+    switch ($element) {
+      case 'REFERENCE_TYPE':
+        $node['biblio_type'] = en7_type_map((int)$data);
+        break;
+      case 'AUTHOR':
+        $node['biblio_contributors'][] = array(
+            'name' => $data,
+            'auth_type' => _biblio_get_auth_type(1, $node['biblio_type'])
+        );
+        break;
+      case 'SECONDARY_AUTHOR':
+        $node['biblio_contributors'][] = array(
+            'name' => $data,
+            'auth_type' => _biblio_get_auth_type(2, $node['biblio_type'])
+        );
+      case 'TERTIARY_AUTHOR':
+        $node['biblio_contributors'][] = array(
+            'name' => $data,
+            'auth_type' => _biblio_get_auth_type(3, $node['biblio_type'])
+        );
+        break;
+      case 'SUBSIDIARY_AUTHOR':
+        $node['biblio_contributors'][] = array(
+            'name' => $data,
+            'auth_type' => _biblio_get_auth_type(4, $node['biblio_type'])
+        );
+        break;
+      case 'KEYWORD':
+        if ($vid = variable_get('biblio_keyword_vocabulary', 0)) {
+          $node['taxonomy']['tags'][$vid] .= (empty($node['taxonomy']['tags'][$vid])) ? "\"$data\"" : ",\"$data\"";
+          unset($node['biblio_keywords']);
+        }else{
+          $node['biblio_keywords'] .= (empty($node['biblio_keywords'])) ? "\"$data\"" : ",\"$data\"";
+        }
+        break;
+      default:
+        if ($field = en7_field_map($element)){
+          $node[$field] .= $data;
+        }
+    }
+  }
+}
+function en7_field_map($enfield){
+  static $fmap = array();
+
+  if(empty($fmap)){
+    $fmap = array(
+    'REFERENCE_TYPE'  => 'biblio_type',
+    'REFNUM'          => '',
+    'YEAR'            => 'biblio_year',
+    'TITLE'           => 'title',
+    'SECONDARY_TITLE' => 'biblio_secondary_title',
+    'PLACE_PUBLISHED' => 'biblio_place_published',
+    'PUBLISHER'       => 'biblio_publisher',
+    'VOLUME'          => 'biblio_volume',
+    'ISSUE'           => 'biblio_issue',
+    'NUMBER_OF_VOLUMES' => 'biblio_number_of_volumes',
+    'NUMBER'            => 'biblio_number',
+    'PAGES'             => 'biblio_pages',
+    'SECTION'           => 'biblio_section',
+    'TERTIARY_TITLE'    => 'biblio_tertiary_title',
+    'EDITION'           => 'biblio_edition',
+    'DATE'              => 'biblio_date',
+    'TYPE_OF_WORK'      => 'biblio_type_of_work',
+    'SHORT_TITLE'       => 'biblio_short_title',
+    'ALTERNATE_TITLE'   => 'biblio_alternate_title',
+    'ISBN'              => 'biblio_isbn',
+    'ORIGINAL_PUB'      => '', 
+    'REPRINT_EDITION'   => 'biblio_reprint_edition',
+    'REVIEWED_ITEM'     => '',
+    'CUSTOM1'           => 'biblio_custom1',
+    'CUSTOM2'           => 'biblio_custom2',
+    'CUSTOM3'           => 'biblio_custom3',
+    'CUSTOM4'           => 'biblio_custom4',
+    'CUSTOM5'           => 'biblio_custom5',
+    'CUSTOM6'           => 'biblio_custom6',
+    'ACCESSION_NUMBER'  => 'biblio_accession_number',
+    'CALL_NUMBER'       => 'biblio_call_number',
+    'LABEL'             => '',
+    'KEYWORD'           => 'biblio_keywords',
+    'ABSTRACT'          => 'biblio_abst_e',
+    'NOTES'             => 'biblio_notes',
+    'URL'               => 'biblio_url',
+    'AUTHOR_ADDRESS'    => '',
+    'IMAGE'             => '',
+    'CAPTION'           => '',
+    );
+    return (isset($fmap[$enfield]))?$fmap[$enfield]:'';
+  }
+}
+function en7_type_map($entype){
+  static $map = array();
+  if (empty($map)){
+    $map = array(
+    '0' => '102', // Journal Article
+    '1' => '100', // Book
+    '2' => '108', // Thesis
+    '3' => '103', // Conference Proceedings
+    '4' => '120', // Personal Communication
+    '5' => '105', // NewsPaper Article
+    '6' => '113', // Computer Program
+    '7' => '101', // Book Section
+    '8' => '106', // Magazine Article
+    '9' => '100', // Edited Book
+    '10' => '109', // Report
+    '11' => '122', // Map
+    '12' => '114', // Audiovisual Material
+    '13' => '112', // Artwork
+    '15' => '119', // Patent
+    '16' => '107', // Electronic Source
+    '17' => '117', // Bill
+    '18' => '116', // Case
+    '19' => '115', // Hearing
+    '20' => '121', // Manuscript
+    '21' => '110', // Film or Broadcast
+    '22' => '118', // Statute
+    '26' => '123', // Chart or Table
+    '31' => '129' // Generic
+    );
+  }
+  return (isset($map[$entype]))?$map[$entype]:129; //return the biblio type or 129 (Misc) if type not found
+}

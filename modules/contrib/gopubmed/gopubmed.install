@@ -1,0 +1,36 @@
+<?php
+// $Id: 
+
+function gopubmed_install() {
+    drupal_set_message('Installing GopubMed Module');
+
+    switch ($GLOBALS['db_type']) {
+        case 'mysqli':
+        case 'mysql':
+            db_query("CREATE TABLE {gopubmed_term} (
+                term_id int(11) NOT NULL auto_increment,
+                term varchar(32) NOT NULL,
+                num int(11) NOT NULL,
+                PRIMARY KEY  (`term_id`)
+                ) TYPE=MyISAM /*!40100 DEFAULT CHARACTER SET utf8 */"
+            );
+            break;
+    }
+
+    $success = TRUE;
+
+    if ($success) {
+        drupal_set_message(t('GoPubMed module installed successfully.'));
+    }
+    else {
+        drupal_set_message(t('The installation of GoPubMed module was unsuccessful.'), 'error');
+    }
+}
+
+/**
+ * Implmentation of hook_uninstall
+ */
+function gopubmed_uninstall() {
+    db_query("DROP TABLE IF EXISTS {gopubmed_term}");
+    drupal_set_message(t('GoPubMed module uninstalled successfully.'));
+}

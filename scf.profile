@@ -45,6 +45,14 @@ function scf_profile_modules() {
     'simplemenu',    
     'sioc',    
     'taxonomy_csv',
+    'content',
+    'nodereference',
+    'optionwidgets',
+    'text',
+    'popups',
+    'popups_reference',
+    'views',
+    'views_ui',
     
     // image et al. can't be installed here.  see below in scf_profile_tasks()
     //    'image',
