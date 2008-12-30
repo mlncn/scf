@@ -145,8 +145,7 @@ function scf_switch_profile($op) {
   variable_set('install_profile', $op);
   // http://api.drupal.org/api/function/system_modules/6 returns a form
   // but we just want to refresh everything
-  $form = system_modules();
-  system_modules_submit($form);
+  system_modules();
   // NOTE: we can't use l() here because the URL would point to 'update.php?q=admin'.
   $links[] = '<a href="'. $base_url .'">Main page</a>';
   $links[] = '<a href="'. $base_url .'?q=admin">Administration pages</a>';
