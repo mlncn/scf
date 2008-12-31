@@ -1,6 +1,64 @@
 <?php 
 // $Id$
 
+/* TODO FormAPI image buttons are now supported.
+   FormAPI now offers the 'image_button' element type, allowing developers to
+   use icons or other custom images in place of traditional HTML submit buttons.
+
+$form['my_image_button'] = array(
+  '#type'         => 'image_button',
+  '#title'        => t('My button'),
+  '#return_value' => 'my_data',
+  '#src'          => 'my/image/path.jpg',
+); */
+
+/* TODO Remove db_num_rows() method
+   The db_num_rows() method was removed from the database abstraction layer in
+   6.x core, as it was a database dependent method. Developers need to use other
+   handling to replace the needs of this method. */
+
+/* TODO Change 'Submit' to 'Save' on buttons
+   It has been agreed on that the description 'Submit' for a button is not a
+   good choice since it does not indicate what actually happens. While for
+   example on node editing forms, 'Preview' and 'Delete' describe exactly what
+   will happen when the user clicks on the button, 'Submit' only gives a vague
+   idea. When labelling your buttons, make sure that it is clear what this
+   button does when the user clicks on it. */
+
+/* TODO New user_mail_tokens() method may be useful.
+   user.module now provides a user_mail_tokens() function to return an array
+   of the tokens available for the email notification messages it sends when
+   accounts are created, activated, blocked, etc. Contributed modules that
+   wish to make use of the same tokens for their own needs are encouraged
+   to use this function. */
+
+/* TODO
+   There is a new hook_watchdog in core. This means that contributed modules
+   can implement hook_watchdog to log Drupal events to custom destinations.
+   Two core modules are included, dblog.module (formerly known as watchdog.module),
+   and syslog.module. Other modules in contrib include an emaillog.module,
+   included in the logging_alerts module. See syslog or emaillog for an
+   example on how to implement hook_watchdog.
+function example_watchdog($log = array()) {
+  if ($log['severity'] == WATCHDOG_ALERT) {
+    mysms_send($log['user']->uid,
+      $log['type'],
+      $log['message'],
+      $log['variables'],
+      $log['severity'],
+      $log['referer'],
+      $log['ip'],
+      format_date($log['timestamp']));
+  }
+} */
+
+/* TODO Implement the hook_theme registry. Combine all theme registry entries
+   into one hook_theme function in each corresponding module file.
+function gopubmed_theme() {
+  return array(
+  );
+} */
+
 /**
  * @file
  * gopubmed.module for Drupal
@@ -15,7 +73,7 @@
  * module for presenting publication information accepts input formats of RIS, bibText. The current XML output
  * from Pubmed cannot be fed to biblio module directly for display.
 
- * GoPubMed Module pull data from pubmed directly and creates bibtext file and using biblio module, GoPubMed module
+ * GoPubMed Module pulls data from pubmed directly and creates bibtext file and using biblio module, GoPubMed module
  * import this bibtext file directly to drupal site and creates biblio node.
 
  * This program is free software; you can redistribute it and/or modify
@@ -30,7 +88,8 @@
  
  * Sponsored by Joslin Diabetes Center, Harvard Medical School
  * Originally developed by Zaloni (http://www.zaloni.com)
-
+ * Upgraded to Drupal 6 by Agaric Design Collective, http://AgaricDesign.com/
+ * Sponsored by the Science Collaboration Framework project, http://sciencecollaboration.org/
  */
 
 /**
@@ -41,8 +100,8 @@
 * as well. We use it here to provide a description of the module on the
 * module administration page.
 */
-function gopubmed_help($section) {
-  switch ($section) {
+function gopubmed_help($path, $arg) {
+  switch ($path) {
     case 'admin/modules#description':
       $output = '<p>'. t('Help text need to be added');
       return $output;
@@ -59,35 +118,35 @@ function gopubmed_perm() {
 /**
  * Implementation of hook_menu
  */
-function gopubmed_menu($may_cache) { 
+function gopubmed_menu() { 
   $items = array();
   
-  $items[] = array('path' => 'admin/settings/gopubmed/add', 
-    'title' => t('GoPubMed New Search Term'),
-    'description' => t('Create blocks of latest content'),
-    'callback' => 'drupal_get_form',
-    'callback arguments' => 'gopubmed_add',
-    'access' => user_access('administer gopubmed'),
+  $items['admin/settings/gopubmed/add'] = array(
+    'title' => 'GoPubMed New Search Term',
+    'description' => 'Create blocks of latest content',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => 'gopubmed_add',
+    'access arguments' => array('administer gopubmed'),
     'type' => MENU_LOCAL_TASK);
-  $items[] = array('path' => 'admin/settings/gopubmed/list',
-    'title' => t('GoPubMed List Search Term'),
-    'description' => t('Create blocks of latest content'),
-    'callback' => 'gopubmed_list',
-    'access' => user_access('administer gopubmed'),
+  $items['admin/settings/gopubmed/list'] = array(
+    'title' => 'GoPubMed List Search Term',
+    'description' => 'Create blocks of latest content',
+    'page callback' => 'gopubmed_list',
+    'access arguments' => array('administer gopubmed'),
     'type' => MENU_LOCAL_TASK);
-  $items[] = array('path' => 'admin/settings/gopubmed/edit/'.arg(4), 
-    'title' => t('Edit Term'),
-    'description' => t('Create blocks of latest content'),
-    'callback' => 'drupal_get_form',
-    'callback arguments' => array('gopubmed_edit',arg(4)),
-    'access' => user_access('administer gopubmed'),
+  $items['admin/settings/gopubmed/edit/'.'%'] = array(
+    'title' => 'Edit Term',
+    'description' => 'Create blocks of latest content',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('gopubmed_edit',arg(4)),
+    'access arguments' => array('administer gopubmed'),
     'type' => MENU_CALLBACK);
-  $items[] = array('path' => 'admin/settings/gopubmed/delete/'.arg(4), 
-    'title' => t('Edit Term'),
-    'description' => t('Create blocks of latest content'),
-    'callback' => 'drupal_get_form',
-    'callback arguments' => array('gopubmed_delete',arg(4)),
-    'access' => user_access('administer gopubmed'),
+  $items['admin/settings/gopubmed/delete/'.'%'] = array(
+    'title' => 'Edit Term',
+    'description' => 'Create blocks of latest content',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('gopubmed_delete',arg(4)),
+    'access arguments' => array('administer gopubmed'),
     'type' => MENU_CALLBACK);
 
   return $items; 
@@ -129,14 +188,14 @@ function gopubmed_add() {
 /*
  * Submit gopubmed search term
  **/
-function gopubmed_add_submit($form_id, $form_values) {
-  $term = $form_values['gopubmed_term'];
-  $num  = $form_values['gopubmed_num'];
+function gopubmed_add_submit($form, &$form_state) {
+  $term = $form_state['values']['gopubmed_term'];
+  $num  = $form_state['values']['gopubmed_num'];
   if($num == "")
     $num = 10;
   $query = db_query("INSERT INTO `gopubmed_term` (`term`, `num`) VALUES ('$term','$num')");
   
-  return 'admin/settings/gopubmed/list';
+  $form_state['redirect'] = 'admin/settings/gopubmed/list';
 }
 
 /*
@@ -198,12 +257,12 @@ function gopubmed_edit($id = array()) {
 /*
  * Submit edited gopubmed search term
  **/
-function gopubmed_edit_submit($form_id, $form_values) {
-  $term = $form_values['gopubmed_term'];
-  $num  = $form_values['gopubmed_num'];
+function gopubmed_edit_submit($form, &$form_state) {
+  $term = $form_state['values']['gopubmed_term'];
+  $num  = $form_state['values']['gopubmed_num'];
   if($num == "")
     $num = 10;
-  $id   = $form_values['gopubmed_id'];
+  $id   = $form_state['values']['gopubmed_id'];
   $query = db_query("UPDATE `gopubmed_term` SET `term` = '".$term."', `num` = '".$num."' WHERE `term_id` =".$id);
   
   return 'admin/settings/gopubmed/list';
@@ -234,8 +293,8 @@ function gopubmed_delete($id = array()) {
 /*
  * Submit deleted gopubmed search term
  **/
-function gopubmed_delete_submit($form_id, $form_values) {
-  $id = $form_values['gopubmed_id'];
+function gopubmed_delete_submit($form, &$form_state) {
+  $id = $form_state['values']['gopubmed_id'];
   $query = db_query("DELETE FROM `gopubmed_term` WHERE `term_id` =".$id);
   
   return 'admin/settings/gopubmed/list';
@@ -453,7 +512,7 @@ function _gopubmed_import($userid = 1, $filename = null, $type = 'bib', $terms =
       $node['type']     = "biblio";
       $node['created']  = time();
       $node['changed']  = time();
-      $node['comment']  = variable_get('comment_biblio',0);
+      $node['comment']  = variable_get('comment_biblio', 0);
       $node['promote']  = in_array('promote',$options);
       $node['moderate'] = in_array('moderate',$options);
       $node['sticky']   = in_array('sticky',$options);
@@ -478,7 +537,7 @@ function _gopubmed_import($userid = 1, $filename = null, $type = 'bib', $terms =
 }
 
 function _pubbibtex_import(&$data, $node) {
-  require_once(drupal_get_path('module', 'biblio') . '/bibtexParse/PARSEENTRIES.php');
+  module_load_include('php', 'biblio', 'bibtexParse/PARSEENTRIES');
   $node_array = array();
 
   $bibtex = new PARSEENTRIES();
