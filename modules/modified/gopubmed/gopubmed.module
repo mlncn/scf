@@ -125,7 +125,7 @@ function gopubmed_menu() {
     'title' => 'GoPubMed New Search Term',
     'description' => 'Create blocks of latest content',
     'page callback' => 'drupal_get_form',
-    'page arguments' => 'gopubmed_add',
+    'page arguments' => array('gopubmed_add'),
     'access arguments' => array('administer gopubmed'),
     'type' => MENU_LOCAL_TASK);
   $items['admin/settings/gopubmed/list'] = array(
@@ -134,7 +134,7 @@ function gopubmed_menu() {
     'page callback' => 'gopubmed_list',
     'access arguments' => array('administer gopubmed'),
     'type' => MENU_LOCAL_TASK);
-  $items['admin/settings/gopubmed/edit/'.'%'] = array(
+  $items['admin/settings/gopubmed/edit/%'] = array(
     'title' => 'Edit Term',
     'description' => 'Create blocks of latest content',
     'page callback' => 'drupal_get_form',
@@ -314,14 +314,14 @@ function gopubmed_cron() {
   
   /****Now deleting the duplicate entry****/
   $title_arr = array();
-  $sql = db_query("Select `title` From `node` Where `type`='biblio'");
+  $sql = db_query("SELECT title FROM {node} WHERE type = 'biblio'");
   while ($dbresult = db_fetch_array($sql)) {
     $title_arr[] = addslashes($dbresult['title']);    
   }
-  foreach($title_arr as $val) {
-    $sql_count = db_query("Select nid from {node} Where title='$val' And type='biblio'");
-    $cnt = db_num_rows($sql_count);
-    if($cnt>1) {
+  foreach ($title_arr as $val) {
+    $cnt = db_result(db_query("SELECT COUNT(nid) FROM {node} WHERE title = '$val' AND type = 'biblio'"));
+    if ($cnt > 1) {
+      $sql_count = db_query("SELECT nid FROM {node} WHERE title = '$val' AND type = 'biblio'");
       while ($row = db_fetch_array($sql_count)) {
         if($cnt!=1) {
           node_delete($row['nid']);
@@ -348,7 +348,7 @@ function gopubmed_import() {
     if($num_term == "")
       $num_term = 10;
     $db   = "pubmed";
-    watchdog('gopubmed', "Search term is1: ".$search_term, WATCHDOG_INFO);
+    watchdog('gopubmed', "Search term is1: ".$search_term, NULL, WATCHDOG_INFO);
     
     /*
     * ESearch searches and retrieves primary IDs (for use in EFetch, ELink, and ESummary) and term translations
@@ -520,7 +520,7 @@ function _gopubmed_import($userid = 1, $filename = null, $type = 'bib', $terms =
       $node['status']   = in_array('status',$options);
       $node['uid']      = $userid;
           
-      $node_ids  = _pubbibtex_import($file_content ,$node );
+      $node_ids  = _pubbibtex_import($file_content, $node);
       
       if ($terms && count($node_ids)) {
         // set the vocabulary for the returned nodes
@@ -537,6 +537,7 @@ function _gopubmed_import($userid = 1, $filename = null, $type = 'bib', $terms =
 }
 
 function _pubbibtex_import(&$data, $node) {
+  module_load_include('inc', 'biblio', 'biblio.import.export');
   module_load_include('php', 'biblio', 'bibtexParse/PARSEENTRIES');
   $node_array = array();
 
@@ -546,7 +547,7 @@ function _pubbibtex_import(&$data, $node) {
     
   if ($bibtex->count) {
     $bibtex->bib2node($node_array, $node);
-    $node_ids = _biblio_save_imported_nodes($node_array);
+    $node_ids = biblio_save_imported_nodes($node_array);
   }
   return $node_ids;
 }
