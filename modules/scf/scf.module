@@ -99,8 +99,10 @@ function scf_author_rid () {
 function scf_front_page () {
   drupal_set_title('');
 
-  $msg = t('<p>If you are seeing this, then you are using a theme that does not define an SCF-specific front page.</p>');
-  $msg .= t('<p>You should probably disable the <b>!allow</b> checkbox on the !link page</p>', 
+  $msg = t('<p>If you are seeing this, then you are using a theme that does not
+define an SCF-specific front page.</p>');
+  $msg .= t('<p>You should probably disable the <b>!allow</b> checkbox on the
+!link page</p>', 
     array(
       '!allow' => t('Allow SCF to control front page?'),
       '!link' => l(t('SCF settings'), 'admin/settings/scf'),
@@ -122,12 +124,22 @@ function scf_perm() {
 function scf_theme() {
   // these next line attempts to get around the issue where the set theme
   // is unset during update or install.  http://myagaric.com/node/151
-  db_query("UPDATE {system} SET status = 1 WHERE type = 'theme' and name = 'scf_demo'");
+  db_query("UPDATE {system} SET status = 1 WHERE type = 'theme' and name =
+'scf_demo'");
   
   $hooks = array();
   // concepts stolen from views.module
-  $path = drupal_get_path('module', 'scf');  require_once "./$path/theme/theme.inc";  // Some quasi clever array merging here.  $base = array(    'file' => 'theme.inc',    'path' => "$path/theme",  );
-  // @TODO - I don't think I want 'file' in every merge, and perhaps path can be relative (that is, just 'theme')
+  $path = drupal_get_path('module', 'scf');
+  require_once "./$path/theme/theme.inc";
+
+  // Some quasi clever array merging here.
+  $base = array(
+    'file' => 'theme.inc',
+    'path' => "$path/theme",
+  );
+
+  // @TODO - I don't think I want 'file' in every merge, and perhaps path can be
+  // relative (that is, just 'theme')
 
   $hooks['bio_resources'] = $base + array(
     'template' => 'bio-resources',
@@ -163,7 +175,8 @@ function template_preprocess_bio_resources(&$variables) {
     $tables[$mod] = theme($mod . '_' . $format, $mod_nodes, $pagers[$mod]);
   }
   $variables['tables'] = $tables;
-  $variables['search']['gene'] = l(t('Search Entrez Gene'), 'search/sciencecommons_geneproxy');
+  $variables['search']['gene'] = l(t('Search Entrez Gene'),
+'search/sciencecommons_geneproxy');
 }
 
 /**
@@ -186,9 +199,13 @@ function scf_theme_registry_alter(&$theme_registry) {
   );
   // Get the path to this module
   $path = drupal_get_path('module', 'scf') . '/theme';
+// @debug
+drupal_set_message('path: <pre>'.var_export($path,TRUE).'</pre>');
+/*  
   // Add the path paths
   foreach ($theme_hooks AS $theme_hook) {
-    if (!scf_au_stringpart_in_array($theme_registry[$theme_hook]['theme paths'], 'themes')) {
+    if (!scf_au_stringpart_in_array($theme_registry[$theme_hook]['theme paths'],
+'themes')) {
       // if there is no path with 'themes' in the theme registry
       // then replace the template path with our module path
       // if we add this when the theme is in charge, it throws errors
@@ -197,14 +214,17 @@ function scf_theme_registry_alter(&$theme_registry) {
       // and this really is necessary for everything above
       
       // This just gets crazier and crazier.  Must be wrong, but it works.
-      // Transform _ in hook to - to match template naming scheme      $tpl = strtr($theme_hook, '_', '-');
+      // Transform _ in hook to - to match template naming scheme
+      $tpl = strtr($theme_hook, '_', '-');
+
       $theme_registry[$theme_hook]['template'] = $path . '/' . $tpl;
     }
     array_unshift($theme_registry[$theme_hook]['theme paths'], $path);
 //  setting the specific chosen path isn't necessary    
-//  $theme_registry[$theme_hook]['theme path'] = $path . '/' . $theme_hook;
-    // this isn't documented, but it has proven necessary for page at least
   }
+  $theme_registry[$theme_hook]['theme path'] = $path . '/' . 'page'; // $theme_hook;
+    // this isn't documented, but it has proven necessary for page at least
+*/
 }
 
 function scf_au_stringpart_in_array($haystack, $needle) {
@@ -241,18 +261,21 @@ function scf_preprocess(&$variables, $hook) {
     case 'page':
       
       // Provide invoking URL for page templates
-      // - could do in scf_base_preprocess_page - but you seen the size of that sucker!4  (ben-agaric: uh, where?)
+      // - could do in scf_base_preprocess_page - but you seen the size of that
+      // sucker!4  (ben-agaric: uh, where?)
       $variables['url_path'] = $_GET['q'];
       $variables['url_path_token'] = preg_replace('/\//', '-', $_GET['q']);
       $variables['url_path_alias'] = drupal_get_path_alias($_GET['q']);
-      $variables['url_path_alias_token'] = preg_replace('/\//', '-',$variables['url_path_alias']);
+      $variables['url_path_alias_token'] = preg_replace('/\//',
+'-',$variables['url_path_alias']);
       
       // Replace out the Reaserch statement title 
       // @todo This is better placed in the researchstatement.module
       if (isset($variables['node']) && $variables['node']->type) {
         $node = $variables['node'];
         if ($node->type == 'researchstatement') {
-          // Could drupal_set_title too but want search engines to identify the statements
+          // Could drupal_set_title too but want search engines to identify the
+          // statements
           $variables['title'] = 'Research statement';
         } else if (isset($node->display_title)) {
           $variables['display_title'] = $node->display_title;
@@ -263,7 +286,8 @@ function scf_preprocess(&$variables, $hook) {
       }
       
       // Rather than use Conditional Comments, we use this...
-      $user_agent = ( isset( $_SERVER['HTTP_USER_AGENT'] ) ) ? strtolower( $_SERVER['HTTP_USER_AGENT'] ) : '';
+      $user_agent = ( isset( $_SERVER['HTTP_USER_AGENT'] ) ) ? strtolower(
+$_SERVER['HTTP_USER_AGENT'] ) : '';
       switch (true) {
         case strchr($user_agent, 'msie 5.0'):
         case strchr($user_agent, 'msie 5.5'):
@@ -319,63 +343,72 @@ function scf_preprocess_node(&$variables) {
     $links['node_edit'] = array(
       'title' => t('Edit'), 
       'href' => 'node/' . $nid . '/edit', 
-      'attributes' => array('title' => t('Edit this !type', array('!type' => $type))), 
+      'attributes' => array('title' => t('Edit this !type', array('!type' =>
+$type))), 
       'query' => drupal_get_destination());
   }
   if ($add_perm) {
     $links['node_add'] = array(
       'title' => t('Add'), 
       'href' => "node/add/$type", 
-      'attributes' => array('title' => t('Add a new !type', array('!type' => $type))), 
+      'attributes' => array('title' => t('Add a new !type', array('!type' =>
+$type))), 
       'query' => drupal_get_destination());
   }
   if ($del_perm) {
     $links['node_del'] = array(
       'title' => t('Delete'), 
       'href' => 'node/' . $nid . '/delete', 
-      'attributes' => array('title' => t('Delete this !type', array('!type' => $type))), 
+      'attributes' => array('title' => t('Delete this !type', array('!type' =>
+$type))), 
       'query' => drupal_get_destination());
   }
   if ($admin_perm && $published) {
     $links['node_unstatus'] = array(
       'title' => t('Un-publish'), 
       'href' => 'node/' . $nid . '/publish/off', 
-      'attributes' => array('title' => t('Un-publish this !type', array('!type' => $type))), 
+      'attributes' => array('title' => t('Un-publish this !type', array('!type'
+=> $type))), 
       'query' => drupal_get_destination());
   }
   if ($admin_perm && !$promoted) {
     $links['node_promote'] = array(
       'title' => t('Promote'), 
       'href' => 'node/' . $nid . '/promote/on', 
-      'attributes' => array('title' => t('Promote this !type to the front page', array('!type' => $type))), 
+      'attributes' => array('title' => t('Promote this !type to the front page',
+array('!type' => $type))), 
       'query' => 'destination=' . variable_get('site_frontpage','node'));
   }
   if ($admin_perm && $promoted) {
     $links['node_unpromote'] = array(
       'title' => t('Demote'), 
       'href' => 'node/' . $nid . '/promote/off', 
-      'attributes' => array('title' => t('Demote this !type from the front page', array('!type' => $type))), 
+      'attributes' => array('title' => t('Demote this !type from the front
+page', array('!type' => $type))), 
       'query' => drupal_get_destination());
   }
   if ($admin_perm && !$sticky) {
     $links['node_sticky'] = array(
       'title' => t('Feature'), 
       'href' => 'node/' . $nid . '/feature/on', 
-      'attributes' => array('title' => t('Feature this !type at the top of this list', array('!type' => $type))), 
+      'attributes' => array('title' => t('Feature this !type at the top of this
+list', array('!type' => $type))), 
       'query' => drupal_get_destination());
   }
   if ($admin_perm && $sticky) {
     $links['node_unsticky'] = array(
       'title' => t('De-feature'), 
       'href' => 'node/' . $nid . '/feature/off', 
-      'attributes' => array('title' => t('Return this !type to normal list sort order', array('!type' => $type))), 
+      'attributes' => array('title' => t('Return this !type to normal list sort
+order', array('!type' => $type))), 
       'query' => drupal_get_destination());
   }
   if ($admin_perm && !$sticky && !$promoted) {
     $links['node_promotefeature'] = array(
       'title' => t('Feature front'), 
       'href' => 'node/' . $nid . '/promotefeature', 
-      'attributes' => array('title' => t('Feature this !type on the front page', array('!type' => $type))), 
+      'attributes' => array('title' => t('Feature this !type on the front page',
+array('!type' => $type))), 
       'query' => 'destination=' . variable_get('site_frontpage','node'));
   }
 
@@ -388,7 +421,8 @@ function scf_preprocess_node(&$variables) {
   //}
   
   if ($links) {
-    $variables['admin_links'] = theme('links', $links, array('class' => 'action_links links inline'));
+    $variables['admin_links'] = theme('links', $links, array('class' =>
+'action_links links inline'));
   }
 }
 
@@ -415,17 +449,21 @@ function scf_preprocess_block(&$variables) {
   if (user_access('administer blocks')) {
     $links['block_edit'] = array(
       'title' => t('Edit'), 
-      'href' => 'admin/build/block/configure/' . $variables['block']->module .'/'. $variables['block']->delta, 
+      'href' => 'admin/build/block/configure/' . $variables['block']->module
+.'/'. $variables['block']->delta, 
       'attributes' => array('title' => t('Edit this block')), 
       'query' => drupal_get_destination());
   }
   
-  $variables['admin_links'] = theme('links', $links, array('class' => 'action_links links inline'));
+  $variables['admin_links'] = theme('links', $links, array('class' =>
+'action_links links inline'));
   
 }
 
 /**
- * @TODO: this results in drupal 6 invalid foreach forum theme_links, do not bring it back until fixed.  This error certainly occurred before but was masked by hiding notices.
+ * @TODO: this results in drupal 6 invalid foreach forum theme_links, do not
+bring it back until fixed.  This error certainly occurred before but was masked
+by hiding notices.
  * Add to the variables for forums.tpl.php
  *
  * The $variables array contains the following arguments:
@@ -466,7 +504,8 @@ function scf_preprocess_forums(&$variables) {
       'query' => drupal_get_destination());
   }
   // Attach these admin links to the existing links variable
-  $variables['links'] = theme('links', $variables['links'], array('class' => 'links inline'));
+  $variables['links'] = theme('links', $variables['links'], array('class' =>
+'links inline'));
 }
 
 
@@ -489,10 +528,12 @@ function scf_preprocess_forum_list(&$variables) {
       $links['forum_edit'] = array(
         'title' => t('Edit'), 
         'href' => "admin/content/forum/edit/$type/$id", 
-        'attributes' => array('title' => t('Edit this !type', array('!type' => $type))), 
+        'attributes' => array('title' => t('Edit this !type', array('!type' =>
+$type))), 
         'query' => drupal_get_destination());
     }
-    $variables['forums'][$id]->admin_links = theme('links', $links, array('class' => 'action_links links inline'));
+    $variables['forums'][$id]->admin_links = theme('links', $links,
+array('class' => 'action_links links inline'));
   }
 }
 
@@ -518,12 +559,14 @@ function scf_preprocess_forum_topic_list(&$variables) {
         'attributes' => array('title' => t('Edit this topic')), 
         'query' => drupal_get_destination());
     }
-    $variables['topics'][$id]->admin_links = theme('links', $links, array('class' => 'action_links links inline'));
+    $variables['topics'][$id]->admin_links = theme('links', $links,
+array('class' => 'action_links links inline'));
   }
 }
 
 /**
- * Process variables to format submission info for display in the forum list and topic list.
+ * Process variables to format submission info for display in the forum list and
+topic list.
  *
  * $variables will contain: $topic
  *
@@ -540,11 +583,13 @@ function scf_preprocess_forum_submitted(&$variables) {
       $variables['author'] = theme('username', $variables['topic']);
     }
   }
-  $variables['time'] = isset($variables['topic']->timestamp) ? format_interval(time() - $variables['topic']->timestamp) : '';
+  $variables['time'] = isset($variables['topic']->timestamp) ?
+format_interval(time() - $variables['topic']->timestamp) : '';
 }
 
 /**
- * Preprocess variables to format the next/previous forum topic navigation links.
+ * Preprocess variables to format the next/previous forum topic navigation
+links.
  *
  * $variables contains $node.
  *
@@ -558,10 +603,12 @@ function scf_preprocess_forum_topic_navigation(&$variables) {
   $variables['forum_url'] = url('forum/' . $variables['node']->tid);
   
   if (isset($variables['prev_title'])) {
-    $variables['prev_title'] = scf_au_truncate_by_word_count($variables['prev_title'], 12);
+    $variables['prev_title'] =
+scf_au_truncate_by_word_count($variables['prev_title'], 12);
   }
   if (isset($variables['next_title'])) {
-    $variables['next_title'] = scf_au_truncate_by_word_count($variables['next_title'], 12);
+    $variables['next_title'] =
+scf_au_truncate_by_word_count($variables['next_title'], 12);
   }
 }
 ////////// end theme functions //////////
