@@ -1,6 +1,6 @@
 ; $Id$
-name = Go Pubmed
+name = "Go Pubmed"
 description = "GoPubMed Module fetches records from Pubmed and imports bibtex file automatically to biblio module."
-dependencies = biblio
+core = 6.x
+dependencies[] = biblio
 package = Joslin
-core = "6.x"
