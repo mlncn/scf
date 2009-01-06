@@ -9,9 +9,9 @@ function _endnote7_XML_export($results) {
   else {
     $result_array = $results;
   }
-  foreach ($result_array as $rec) {
+  foreach ($result_array as $pub) {
     $xml .= "<RECORD>\n";
-    switch ($rec->biblio_type) {
+    switch ($pub->biblio_type) {
       case 1 :
         $reftype = 0;
       case 102 :
@@ -47,8 +47,8 @@ function _endnote7_XML_export($results) {
     }
     $xml .= "\t<REFERENCE_TYPE>$reftype</REFERENCE_TYPE>\n";
     $a = $e = $t = '';
-    foreach ($rec->biblio_contributors as $auth) {
-      switch ($auth['ctid']) {
+    foreach ($pub->biblio_contributors as $auth) {
+      switch ($auth['auth_catagory']) {
         case 1 :
           $a .= "\t\t<AUTHOR>". trim($auth['name']) ."</AUTHOR>\n";
           break;
@@ -66,19 +66,19 @@ function _endnote7_XML_export($results) {
       $xml .= "\t<SECONDARY_AUTHORS>\n$e\t</SECONDARY_AUTHORS>\n";
     if (!empty ($t))
       $xml .= "\t<TERTIARY_AUTHORS>\n$t\t</TERTIARY_AUTHORS>\n";
-    $xml .= (!empty ($rec->biblio_year)) ? "\t<YEAR>$rec->biblio_year</YEAR>\n" : "";
-    $xml .= (!empty ($rec->title)) ? "\t<TITLE>$rec->title</TITLE>\n" : "";
-    $xml .= (!empty ($rec->biblio_secondary_title)) ? "\t<SECONDARY_TITLE>". htmlentities($rec->biblio_secondary_title) ."</SECONDARY_TITLE>\n" : "";
-    $xml .= (!empty ($rec->biblio_place_published)) ? "\t<PLACE_PUBLISHED>". htmlentities($rec->biblio_place_published) ."</PLACE_PUBLISHED>\n" : "";
-    $xml .= (!empty ($rec->biblio_publisher)) ? "\t<PUBLISHER>". htmlentities($rec->biblio_publisher) ."</PUBLISHER>\n" : "";
-    $xml .= (!empty ($rec->biblio_volume)) ? "\t<VOLUME>$rec->biblio_volume</VOLUME>\n" : "";
+    $xml .= (!empty ($pub->biblio_year)) ? "\t<YEAR>$pub->biblio_year</YEAR>\n" : "";
+    $xml .= (!empty ($pub->title)) ? "\t<TITLE>$pub->title</TITLE>\n" : "";
+    $xml .= (!empty ($pub->biblio_secondary_title)) ? "\t<SECONDARY_TITLE>". htmlentities($pub->biblio_secondary_title) ."</SECONDARY_TITLE>\n" : "";
+    $xml .= (!empty ($pub->biblio_place_published)) ? "\t<PLACE_PUBLISHED>". htmlentities($pub->biblio_place_published) ."</PLACE_PUBLISHED>\n" : "";
+    $xml .= (!empty ($pub->biblio_publisher)) ? "\t<PUBLISHER>". htmlentities($pub->biblio_publisher) ."</PUBLISHER>\n" : "";
+    $xml .= (!empty ($pub->biblio_volume)) ? "\t<VOLUME>$pub->biblio_volume</VOLUME>\n" : "";
     //        <NUMBER_OF_VOLUMES>number of volumes</NUMBER_OF_VOLUMES>
-    $xml .= (!empty ($rec->biblio_issue)) ? "\t<NUMBER>$rec->biblio_issue</NUMBER>\n" : "";
-    $xml .= (!empty ($rec->biblio_pages)) ? "\t<PAGES>$rec->biblio_pages</PAGES>\n" : "";
+    $xml .= (!empty ($pub->biblio_issue)) ? "\t<NUMBER>$pub->biblio_issue</NUMBER>\n" : "";
+    $xml .= (!empty ($pub->biblio_pages)) ? "\t<PAGES>$pub->biblio_pages</PAGES>\n" : "";
     //        <SECTION>section</SECTION>
-    $xml .= (!empty ($rec->biblio_tertiary_title)) ? "\t<TERTIARY_TITLE>$rec->biblio_tertiary_title</TERTIARY_TITLE>\n" : "";
-    $xml .= (!empty ($rec->biblio_edition)) ? "\t<EDITION>$rec->biblio_edition</EDITION>\n" : "";
-    $xml .= (!empty ($rec->biblio_date)) ? "\t<DATE>$rec->biblio_date</DATE>\n" : "";
+    $xml .= (!empty ($pub->biblio_tertiary_title)) ? "\t<TERTIARY_TITLE>$pub->biblio_tertiary_title</TERTIARY_TITLE>\n" : "";
+    $xml .= (!empty ($pub->biblio_edition)) ? "\t<EDITION>$pub->biblio_edition</EDITION>\n" : "";
+    $xml .= (!empty ($pub->biblio_date)) ? "\t<DATE>$pub->biblio_date</DATE>\n" : "";
     //    <TYPE_OF_WORK>type of work</TYPE_OF_WORK>
     //    <SUBSIDIARY_AUTHORS>
     //        <SUBSIDIARY_AUTHOR>lastname1, firstname1</SUBSIDIARY_AUTHOR>
@@ -86,7 +86,7 @@ function _endnote7_XML_export($results) {
     //    </SUBSIDIARY_AUTHORS>
     //    <SHORT_TITLE>short title</SHORT_TITLE>
     //    <ALTERNATE_TITLE>alternate title</ALTERNATE_TITLE>
-    $xml .= (!empty ($rec->biblio_isbn)) ? "\t<ISBN>$rec->biblio_isbn</ISBN>\n" : "";
+    $xml .= (!empty ($pub->biblio_isbn)) ? "\t<ISBN>$pub->biblio_isbn</ISBN>\n" : "";
     //    <ORIGINAL_PUB>original publication</ORIGINAL_PUB>
     //    <REPRINT_EDITION>reprint edition</REPRINT_EDITION>
     //    <REVIEWED_ITEM>reviewed item</REVIEWED_ITEM>
@@ -96,21 +96,31 @@ function _endnote7_XML_export($results) {
     //    <CUSTOM4>custom 4</CUSTOM4>
     //    <CUSTOM5>custom 5</CUSTOM5>
     //    <CUSTOM6>custom 6</CUSTOM6>
-    $xml .= (!empty ($rec->biblio_accession_number)) ? "\t<ACCESSION_NUMBER>$rec->biblio_accession_number</ACCESSION_NUMBER>\n" : "";
-    $xml .= (!empty ($rec->biblio_call_number)) ? "\t<CALL_NUMBER>$rec->biblio_call_number</CALL_NUMBER>\n" : "";
+    $xml .= (!empty ($pub->biblio_accession_number)) ? "\t<ACCESSION_NUMBER>$pub->biblio_accession_number</ACCESSION_NUMBER>\n" : "";
+    $xml .= (!empty ($pub->biblio_call_number)) ? "\t<CALL_NUMBER>$pub->biblio_call_number</CALL_NUMBER>\n" : "";
     //    <LABEL>label</LABEL>
-    if (!empty ($rec->biblio_keywords)) {
+    if (!empty($pub->terms)){
       $xml .= "\t<KEYWORDS>\n";
-      $splitchar = (strstr($rec->biblio_keywords, ";")) ? ";" : " ";
-      $kw_array = explode($splitchar, $rec->biblio_keywords);
+      $kw='';
+      foreach($pub->terms as $term){
+        $xml .= "\t\t<KEYWORD>". trim($term->name) ."</KEYWORD>\n";
+      }
+      $xml .= "\t</KEYWORDS>\n";
+      if (!empty($pub->biblio_keywords)) unset($pub->biblio_keywords);
+    }
+      
+    if (!empty ($pub->biblio_keywords)) {
+      $xml .= "\t<KEYWORDS>\n";
+      $splitchar = (strstr($pub->biblio_keywords, ";")) ? ";" : " ";
+      $kw_array = explode($splitchar, $pub->biblio_keywords);
       foreach ($kw_array as $kw) {
         $xml .= "\t\t<KEYWORD>". trim($kw) ."</KEYWORD>\n";
       }
       $xml .= "\t</KEYWORDS>\n";
     }
-    $xml .= (!empty ($rec->biblio_abst_e)) ? "\t<ABSTRACT>". htmlentities($rec->biblio_abst_e) ."</ABSTRACT>\n" : "";
-    $xml .= (!empty ($rec->biblio_notes)) ? "\t<NOTES>$rec->biblio_notes</NOTES>\n" : "";
-    $xml .= (!empty ($rec->biblio_url)) ? "\t<URL>". htmlentities($rec->biblio_url) ."</URL>\n" : "";
+    $xml .= (!empty ($pub->biblio_abst_e)) ? "\t<ABSTRACT>". htmlentities($pub->biblio_abst_e) ."</ABSTRACT>\n" : "";
+    $xml .= (!empty ($pub->biblio_notes)) ? "\t<NOTES>$pub->biblio_notes</NOTES>\n" : "";
+    $xml .= (!empty ($pub->biblio_url)) ? "\t<URL>". htmlentities($pub->biblio_url) ."</URL>\n" : "";
     //    <AUTHOR_ADDRESS>author address</AUTHOR_ADDRESS>
     //    <CAPTION>caption</CAPTION>
     $xml .= "</RECORD>\n";
