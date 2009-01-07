@@ -1,0 +1,13 @@
+; $Id: content_profile_registration.info,v 1.1.2.3 2008/07/24 10:16:40 fago Exp $
+name = "Content Profile User Registration"
+description = "Enable content profile features during user registration"
+package = "Content Profile"
+core = 6.x
+dependencies[] = content_profile
+dependencies[] = content
+; Information added by drupal.org packaging script on 2009-01-06
+version = "6.x-1.x-dev"
+core = "6.x"
+project = "content_profile"
+datestamp = "1231200232"
+

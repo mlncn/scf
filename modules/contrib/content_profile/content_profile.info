@@ -1,0 +1,11 @@
+; $Id: content_profile.info,v 1.1.2.1 2008/02/01 16:00:24 fago Exp $
+name = "Content Profile"
+description = "Use content types for user profiles."
+package = "Content Profile"
+core = 6.x
+; Information added by drupal.org packaging script on 2009-01-06
+version = "6.x-1.x-dev"
+core = "6.x"
+project = "content_profile"
+datestamp = "1231200232"
+
