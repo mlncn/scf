@@ -1,5 +1,5 @@
 <?php
-// $Id: content_profile.theme_vars.inc,v 1.1.2.2 2009/01/04 20:16:15 fago Exp $
+// $Id: content_profile.theme_vars.inc,v 1.1.2.4 2009/01/07 10:49:39 fago Exp $
 
 /**
  * @file
@@ -13,18 +13,18 @@ class content_profile_theme_variables {
 
   var $uid;
   var $_cache = array();
-  
+
   function content_profile_theme_variables($uid) {
     $this->uid = $uid;
   }
-  
+
   /**
    * Gets the user id of the profiles owner.
    */
   function get_uid() {
     return $uid;
   }
-  
+
   /**
    * Gets all type names keyed with their machine readable names.
    */
@@ -39,10 +39,10 @@ class content_profile_theme_variables {
    *   The type of the user's content profile
    *
    * @return
-   *   An object of variables available for the profile node
-   *   or if FALSE if there has been no profile created yet.
+   *   An array of variables available for the profile node
+   *   or FALSE if there has been no profile created yet.
    */
-  function get_vars($type) {
+  function get_variables($type) {
     if (!isset($this->_cache['type'])) {
       $this->_cache['type'] = FALSE;
       if ($node = content_profile_load($type, $this->uid)) {
@@ -54,12 +54,31 @@ class content_profile_theme_variables {
             call_user_func_array($function, $args);
           }
         }
-        $this->_cache['type'] = (object)$vars;
+        $this->_cache['type'] = (array)$vars;
       }
     }
     return $this->_cache['type'];
   }
-  
+
+  /**
+   * Gets a single template variable for the content profile of this type.
+   *
+   * @param $type
+   *   The type of the user's content profile
+   * @param $name
+   *   The name of the variable to get.
+   *
+   * @return
+   *   The variable or FALSE if there has been no profile created yet.
+   */
+  function get_variable($type, $name) {
+    if ($vars = $this->get_variables($type)) {
+      return $vars[$name];
+    }
+    return FALSE;
+  }
+
+
   /**
    * Generate a display of the given node.
    *
@@ -82,7 +101,7 @@ class content_profile_theme_variables {
     return FALSE;
   }
 
-  
+
   function _get_node_preprocessors() {
     $hooks = theme_get_registry();
     $functions = $hooks['node']['preprocess functions'];

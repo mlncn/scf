@@ -1,5 +1,5 @@
 <?php
-// $Id: content_profile_registration.module,v 1.1.2.24 2008/11/04 03:52:58 jgraham Exp $
+// $Id: content_profile_registration.module,v 1.1.2.25 2009/01/07 11:02:28 fago Exp $
 
 /**
  * @file
@@ -10,7 +10,8 @@
  * Implementation of hook_form_alter().
  */
 function content_profile_registration_form_alter(&$form, &$form_state, $form_id) {
-  if ($form_id == 'user_register' && module_exists('content')) {
+  // Note: We don't add the registration form to the admin create user form.
+  if ($form_id == 'user_register' && module_exists('content') && arg(0) != 'admin') {
     require_once drupal_get_path('module', 'node') .'/node.pages.inc';
     $profile_types = content_profile_get_types('names', 'registration_use');
     $form += array('#field_info' => array());

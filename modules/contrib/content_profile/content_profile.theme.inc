@@ -1,5 +1,5 @@
 <?php
-// $Id: content_profile.theme.inc,v 1.1.2.7 2009/01/04 11:46:29 fago Exp $
+// $Id: content_profile.theme.inc,v 1.1.2.8 2009/01/07 10:58:05 fago Exp $
 
 /**
  * @file
@@ -11,7 +11,9 @@
  */
 function theme_content_profile_display_add_link($element) {
   $type = $element['#content_type'];
-  return l(t("Create your @profile_node.", array('@profile_node' => node_get_types('name', $type))), content_profile_get_add_path($type, $element['#uid']), array('query' => drupal_get_destination()));
+  $uid = $element['#admin'] ? 'uid='. intval($element['#uid']) .'&' : '';
+  $text = t($element['#admin'] ? "Create the user's @profile_node." : "Create your @profile_node.", array('@profile_node' => node_get_types('name', $type)));
+  return l($text, content_profile_get_add_path($type, $element['#uid']), array('query' => $uid . drupal_get_destination()));
 }
 
 /**

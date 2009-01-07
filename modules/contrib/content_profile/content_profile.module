@@ -1,5 +1,5 @@
 <?php
-// $Id: content_profile.module,v 1.1.2.30 2009/01/05 17:05:16 fago Exp $
+// $Id: content_profile.module,v 1.1.2.32 2009/01/07 10:58:05 fago Exp $
 
 /**
  * @file
@@ -377,7 +377,7 @@ function content_profile_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
       form_set_error('name', t('This user has already a content profile of this type. You can only create one profile per user.'));
     }
   }
-  elseif ($op == 'prepare translation') {
+  elseif ($op == 'prepare translation' && is_content_profile($node->translation_source)) {
     // Make sure the translated profile belongs to the same user.
     $node->uid = $node->translation_source->uid;
     $node->name = $node->translation_source->name;
@@ -501,8 +501,9 @@ function content_profile_show_profiles($uid) {
       // Working around the bug described at http://drupal.org/node/302873
       module_load_include('inc', 'content_profile', 'content_profile.theme');
     }
-    elseif ($uid == $user->uid && user_access('create '. $type .' content') && content_profile_get_settings($type, 'add_link') && !$node) {
+    elseif (user_access('create '. $type .' content') && content_profile_get_settings($type, 'add_link') && !$node && ($uid == $user->uid || user_access('administer nodes'))) {
       $content['content_profile_'. $type] = array(
+        '#admin' => $uid != $user->uid,
         '#theme' => 'content_profile_display_add_link',
         '#uid' => $uid,
         '#content_type' => $type,
