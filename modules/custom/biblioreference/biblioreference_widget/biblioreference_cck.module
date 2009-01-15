@@ -1,0 +1,321 @@
+<?php
+// $Id: biblioreference_cck.module,v 1.138.2.45 2008/11/05 19:40:19 yched Exp $
+
+/**
+ * @file
+ * Defines a field type for referencing one node from another.
+ */
+
+
+// performance optimization: if not using a formatter, comment out the line.
+// @TODO - is include_once deprecated across the board for module load?
+include_once('biblioreference_formatter.inc');
+
+/**
+ * Implementation of hook_theme().
+ */
+function biblioreference_cck_theme() {
+  return array(
+    'biblioreference_autocomplete' => array(
+      'arguments' => array('element' => NULL),
+    ),
+    'biblioreference_cck_formatter_pubmed' => array(
+      'arguments' => array('element' => NULL),
+    ),
+  );
+}
+
+/**
+ * Implementation of hook_widget_info().
+ *
+ * We need custom handling of multiple values for the biblioreference_cck_select
+ * widget because we need to combine them into a options list rather
+ * than display multiple elements.
+ *
+ * We will use the content module's default handling for default value.
+ *
+ * Callbacks can be omitted if default handing is used.
+ * They're included here just so this module can be used
+ * as an example for custom modules that might do things
+ * differently.
+ */
+function biblioreference_cck_widget_info() {
+  return array(
+    'biblioreference_autocomplete' => array(
+      'label' => t('Biblo autocomplete text field'),
+      'field types' => array('nodereference'),
+      'multiple values' => CONTENT_HANDLE_CORE,
+      'callbacks' => array(
+        'default value' => CONTENT_CALLBACK_DEFAULT,
+      ),
+    ),
+  );
+}
+
+/**
+ * Implementation of FAPI hook_elements().
+ *
+ * Any FAPI callbacks needed for individual widgets can be declared here,
+ * and the element will be passed to those callbacks for processing.
+ *
+ * Drupal will automatically theme the element using a theme with
+ * the same name as the hook_elements key.
+ *
+ * Autocomplete_path is not used by text_widget but other widgets can use it
+ * (see biblioreference_cck and userreference).
+ */
+function biblioreference_cck_elements() {
+  return array(
+    'biblioreference_autocomplete' => array(
+      '#input' => TRUE,
+      '#columns' => array('name'),
+      '#delta' => 0,
+      '#process' => array('biblioreference_cck_autocomplete_process'),
+      '#autocomplete_path' => FALSE,
+      ),
+    );
+}
+
+/**
+ * Implementation of hook_widget_settings().
+ */
+function biblioreference_cck_widget_settings($op, $widget) {
+  switch ($op) {
+    case 'form':
+      $form = array();
+      $match = isset($widget['autocomplete_match']) ? $widget['autocomplete_match'] : 'contains';
+      if ($widget['type'] == 'biblioreference_autocomplete') {
+        $form['autocomplete_match'] = array(
+          '#type' => 'select',
+          '#title' => t('Autocomplete matching'),
+          '#default_value' => $match,
+          '#options' => array(
+            'starts_with' => t('Starts with'),
+            'contains' => t('Contains'),
+          ),
+          '#description' => t('Select the method used to collect autocomplete suggestions. Note that <em>Contains</em> can cause performance issues on sites with thousands of nodes.'),
+        );
+      }
+      else {
+        $form['autocomplete_match'] = array('#type' => 'hidden', '#value' => $match);
+      }
+      return $form;
+
+    case 'save':
+      return array('autocomplete_match');
+  }
+}
+
+/**
+ * Implementation of hook_widget().
+ *
+ * Attach a single form element to the form. It will be built out and
+ * validated in the callback(s) listed in hook_elements. We build it
+ * out in the callbacks rather than here in hook_widget so it can be
+ * plugged into any module that can provide it with valid
+ * $field information.
+ *
+ * Content module will set the weight, field name and delta values
+ * for each form element. This is a change from earlier CCK versions
+ * where the widget managed its own multiple values.
+ *
+ * If there are multiple values for this field, the content module will
+ * call this function as many times as needed.
+ *
+ * @param $form
+ *   the entire form array, $form['#node'] holds node information
+ * @param $form_state
+ *   the form_state, $form_state['values'][$field['field_name']]
+ *   holds the field's form values.
+ * @param $field
+ *   the field array
+ * @param $items
+ *   array of default values for this field
+ * @param $delta
+ *   the order of this item in the array of subelements (0, 1, 2, etc)
+ *
+ * @return
+ *   the form item for a single element for this field
+ */
+function biblioreference_cck_widget(&$form, &$form_state, $field, $items, $delta = 0) {
+
+  switch ($field['widget']['type']) {
+    case 'biblioreference_autocomplete':
+      $element = array(
+        '#type' => 'biblioreference_autocomplete',
+        '#default_value' => isset($items[$delta]) ? $items[$delta] : NULL,
+        '#value_callback' => 'biblioreference_cck_autocomplete_value',
+      );
+      break;
+  }
+  return $element;
+}
+
+/**
+ * Value for a biblioreference_cck autocomplete element.
+ *
+ * Substitute in the node title for the node nid.
+ */
+function biblioreference_cck_autocomplete_value($element, $edit = FALSE) {
+  $field_key  = $element['#columns'][0];
+  if (!empty($element['#default_value'][$field_key])) {
+    $nid = $element['#default_value'][$field_key];
+    $value = db_result(db_query(db_rewrite_sql('SELECT n.title FROM {node} n WHERE n.nid = %d'), $nid));
+    $value .= ' --> to remove [nid:'. $nid .']';
+    return array($field_key => $value);
+  }
+  return array($field_key => NULL);
+}
+
+/**
+ * Process an individual element.
+ *
+ * Build the form element. When creating a form using FAPI #process,
+ * note that $element['#value'] is already set.
+ *
+ */
+function biblioreference_cck_autocomplete_process($element, $edit, $form_state, $form) {
+  // The biblioreference_cck autocomplete widget doesn't need to create its own
+  // element, it can wrap around the text_textfield element and add an autocomplete
+  // path and some extra processing to it.
+  // Add a validation step where the value can be unwrapped.
+  $field_key  = $element['#columns'][0];  // 'nid' (always?)
+
+  $element[$field_key] = array(
+    '#type' => 'text_textfield',
+    '#default_value' => isset($element['#value']) ? $element['#value'] : '',
+    // all biblioreferences are processed the same - from the same pool
+    // so we do not need the . $element['#field_name'] in our callback
+    '#autocomplete_path' => 'biblioreference/autocomplete/title',
+    // The following values were set by the content module and need
+    // to be passed down to the nested element.
+    '#title' => $element['#title'],
+    '#required' => $element['#required'],
+    '#description' => $element['#description'],
+    '#field_name' => $element['#field_name'],
+    '#type_name' => $element['#type_name'],
+    '#delta' => $element['#delta'],
+    '#columns' => $element['#columns'],
+  );
+  if (empty($element[$field_key]['#element_validate'])) {
+    $element[$field_key]['#element_validate'] = array();
+  }
+  array_unshift($element[$field_key]['#element_validate'], 'biblioreference_cck_autocomplete_validate');
+ $element['author'] = array(
+   '#type' => 'textfield',
+   '#autocomplete_path' => 'biblioreference/autocomplete/author',
+   '#maxlength' => '255',
+   '#title' => t('Author'),
+   '#required' => FALSE,
+   '#default_value' => isset($element['#value']['author']) ? $element['#value']['author'] : NULL,
+ );
+
+  // Used so that hook_field('validate') knows where to flag an error.
+  $element['_error_element'] = array(
+    '#type' => 'value',
+    // Wrapping the element around a text_textfield element creates a
+    // nested element, so the final id will look like 'field-name-0-nid-nid'.
+    '#value' => implode('][', array_merge($element['#parents'], array($field_key, $field_key))),
+  );
+
+  return $element;
+}
+
+/**
+ * Validate an autocomplete element.
+ *
+ * Remove the wrapper layer and set the right element's value.
+ * This will move the nested value at 'field-name-0-nid-nid'
+ * back to its original location, 'field-name-0-nid'.
+ */
+function biblioreference_cck_autocomplete_validate($element, &$form_state) {
+  $field_name = $element['#field_name'];
+  $type_name = $element['#type_name'];
+  $field = content_fields($field_name, $type_name);
+  $field_key  = $element['#columns'][0];
+  $delta = $element['#delta'];
+  $value = $element['#value'][$field_key];
+  $nid = NULL;
+  if (!empty($value)) {
+    preg_match('/^(?:\s*|(.*) )?\[\s*nid\s*:\s*(\d+)\s*\]$/', $value, $matches);
+    if (!empty($matches)) {
+      // Explicit [nid:n].
+      list(, $title, $nid) = $matches;
+      if (!empty($title) && ($n = node_load($nid)) && $title != $n->title) {
+        form_error($element[$field_key], t('%name: title mismatch. Please check your selection.', array('%name' => t($field['widget']['label']))));
+      }
+    }
+    else {
+      // No explicit nid.
+      $reference = _biblioreference_cck_potential_references($field, $value, 'equals', NULL, 1);
+      if (empty($reference)) {
+        form_error($element[$field_key], t('%name: found no valid post with that title.', array('%name' => t($field['widget']['label']))));
+      }
+      else {
+        // TODO:
+        // the best thing would be to present the user with an additional form,
+        // allowing the user to choose between valid candidates with the same title
+        // ATM, we pick the first matching candidate...
+        $nid = key($reference);
+      }
+    }
+  }
+  form_set_value($element, $nid, $form_state);
+}
+
+/**
+ * Implementation of hook_allowed_values().
+ */
+function biblioreference_cck_allowed_values($field) {
+// @debug
+drupal_set_message('does this get called? <pre>'.var_export($field,TRUE).'</pre>');
+
+  $references = _nodereference_widget_potential_references($field);
+// see developer notes if _biblioreference_potential_references wanted
+  $options = array();
+  foreach ($references as $key => $value) {
+    // Views theming runs check_plain (htmlentities) on the values.
+    // We reverse that with html_entity_decode.
+    $options[$key] = html_entity_decode(strip_tags($value['rendered']), ENT_QUOTES);
+  }
+  return $options;
+}
+
+
+/**
+ * Implementation of hook_node_types.
+ */
+function biblioreference_cck_node_type($op, $info) {
+  switch ($op) {
+    case 'update':
+      // Reflect type name changes to the 'referenceable types' settings.
+      if (!empty($info->old_type) && $info->old_type != $info->type) {
+        // content.module's implementaion of hook_node_type() has already
+        // refreshed _content_type_info().
+        $fields = content_fields();
+        foreach ($fields as $field_name => $field) {
+          if ($field['type'] == 'nodereference' && isset($field['referenceable_types'][$info->old_type])) {
+            $field['referenceable_types'][$info->type] = empty($field['referenceable_types'][$info->old_type]) ? 0 : $info->type;
+            unset($field['referenceable_types'][$info->old_type]);
+            content_field_instance_update($field);
+          }
+        }
+      }
+      break;
+  }
+}
+
+/**
+ * FAPI theme for an individual elements.
+ *
+ * The textfield or select is already rendered by the
+ * textfield or select themes and the html output
+ * lives in $element['#children']. Override this theme to
+ * make custom changes to the output.
+ *
+ * $element['#field_name'] contains the field name
+ * $element['#delta]  is the position of this element in the group
+ */
+function theme_biblioreference_autocomplete($element) {
+  return $element['#children'];
+}

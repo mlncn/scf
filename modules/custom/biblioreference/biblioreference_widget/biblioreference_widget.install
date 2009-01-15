@@ -1,0 +1,46 @@
+<?php
+// $Id$
+
+/**
+ * @file
+ * nodereference.install
+ * Installation and database schema functions for biblioreference.
+ */
+
+
+/**
+ * @file
+ * Implementation of hook_install().
+ */
+function biblioreference_widget_install() {
+  drupal_load('module', 'content');
+  content_notify('install', 'biblioreference_widget');
+}
+
+/**
+ * Implementation of hook_uninstall().
+ */
+function biblioreference_widget_uninstall() {
+  drupal_load('module', 'content');
+  content_notify('uninstall', 'biblioreference_widget');
+}
+
+/**
+ * Implementation of hook_enable().
+ *
+ * Notify content module when this module is enabled.
+ */
+function biblioreference_widget_enable() {
+  drupal_load('module', 'content');
+  content_notify('enable', 'biblioreference_widget');
+}
+
+/**
+ * Implementation of hook_disable().
+ *
+ * Notify content module when this module is disabled.
+ */
+function biblioreference_widget_disable() {
+  drupal_load('module', 'content');
+  content_notify('disable', 'biblioreference_widget');
+}

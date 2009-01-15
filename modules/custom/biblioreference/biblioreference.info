@@ -1,0 +1,9 @@
+name = "Biblio Reference"
+description = "[biblioreference] Add Biblio citation to a node (with special PubMed integration)"
+core = 6.x
+dependencies[] = biblio
+dependencies[] = content
+dependencies[] = nodereference
+dependencies[] = search
+; only to use some helper functions, but requiring a core module to be enabled seems a fair trade for avoiding code duplication
+package = Biblio

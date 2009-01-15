@@ -543,7 +543,7 @@ class PARSEENTRIES
   }
 
 
-  function bib2node($batch = FALSE, $session_id = NULL, $start = 0, $limit = 0){
+  function bib2node($batch = FALSE, $session_id = NULL, $start = 0, $limit = 0, $uid = NULL) {
     //list($preamble, $strings, $entries, $undefinedStrings) = $this->returnArrays();
     $limit = ($limit) ? $limit : count($this->entries);
     if (($start + $limit) > count($this->entries)) $limit = count($this->entries) - $start;
@@ -650,8 +650,10 @@ class PARSEENTRIES
       }
       $node['biblio_isbn']            = (!empty($entry['isbn'])) ? $entry['isbn'] : NULL;
       $node['biblio_url']             = (!empty($entry['url'])) ? $entry['url'] : NULL;
+// @debug
+drupal_set_message('<pre>'.var_export($node,TRUE).'</pre>');
 
-      $nids[] = biblio_save_node($node, $batch, $session_id);
+      $nids[] = biblio_save_node($node, $batch, $session_id, $uid);
     }
     return (!empty($nids)) ? $nids : NULL;
   }

@@ -1,0 +1,471 @@
+<?php
+// $Id$ 
+
+/**
+ * @file biblioreference.module
+ * [biblioreference] Add Biblio citation to a node (with special PubMed integration)
+ * Originally called the add_citation module.  It replaces the
+ * generic nodereference autocomplete widget with one specialized to use 
+ * additional Bibliography module specific fields to find biblio nodes.
+ * 
+ * In addition to nodereference, we used noderefcreate.module (not in CVS)
+ * as a module showing what must be taken to create a new nodereference widget.
+ */
+
+/**
+ * Implementation of hook_menu().
+ */
+function biblioreference_menu() {
+  $items = array();
+  $items['biblioreference/autocomplete'] = array(
+    'title' => 'Biblioreference autocomplete',
+    'page callback' => 'biblioreference_autocomplete',
+    'access arguments' => array('access content'),
+    'type' => MENU_CALLBACK,
+  );
+  
+  // @TODO - this should probably be in a separate module
+  $items['admin/settings/biblio/import_pubmed'] = array(
+    'title' => t('Import Pubmed'),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('biblioreference_pubmed_import_form'),
+    'access arguments' => array('create biblio'),  // not using the somewhat silly biblio_access wrapper function
+//    'file' => 'biblio.import.export.inc',
+    'type' => MENU_LOCAL_TASK,
+    'weight' => -7,
+  );
+
+  $items['biblioreference/add/citation'] = array(
+    'title' => 'Add Citation',
+    'page callback' => 'biblioreference_add_citation',
+    'type' => MENU_NORMAL_ITEM,
+    'access arguments' => array('create biblio'),
+    'file' => 'node.pages.inc',
+    'file path' => drupal_get_path('module', 'node'),
+  );
+  
+  return $items;
+}
+
+
+/**
+ * Menu callback; Retrieve a pipe delimited string of autocomplete suggestions for existing users
+ */
+function biblioreference_autocomplete($field_name, $string = '') {
+  $fields = content_fields();
+  $field = $fields[$field_name];
+  $match = isset($field['widget']['autocomplete_match']) ? $field['widget']['autocomplete_match'] : 'contains';
+  $matches = array();
+
+  $references = biblioreference_match_nodes($string, $match = 'starts_with', 10);
+  foreach ($references as $id => $row) {
+    // Add a class wrapper for a few required CSS overrides.
+    $matches[$row['title'] ." [nid:$id]"] = '<div class="reference-autocomplete">'. $row['rendered'] . '</div>';
+  }
+  drupal_json($matches);
+}
+
+
+/**
+ * Menu callback for biblioreference add citation.
+ */
+function biblioreference_add_citation() {
+  $output = '';
+  $output .= '<h2>' . t('Reference Source') . '</h2>';
+  $output .= '<ul>';
+  $output .= '<li><h3>';
+  $output .= t('Import Citations from PubMed');
+  $output .= '</h3>';
+  $output .= drupal_get_form('biblioreference_pubmed_import_form');
+  $output .= '</li>';
+  $output .= '<li><h3>';
+  $output .= t('<a href="@url">Create a Reference that is not in PubMed</a>', array('@url' => url('node/add/biblio')));
+  $output .= '</h3>';
+  
+  // @TODO  - of no use here, the choose reference type refreshes and leaves
+  // the user on the same page -- which works, but is a confusing UI
+//  $output .= drupal_get_form('biblioreference_embed_node_form_reuse', 'biblio');
+  
+  return $output;
+}
+
+/**
+ *
+ */
+function biblioreference_embed_node_form_reuse(&$form_state, $type = 'page') {
+  global $user;
+
+  $form = array();
+  // Custom form top
+  $form['biblioreference_top'] = array(
+    '#type' => 'markup',
+    '#title' => '<fieldset class=" collapsible">
+    <legend>Create a Reference that is not in PubMed</legend>',
+    '#default_value' => isset($form_state['values']['top_example']) ? $form_state['values']['top_example'] : '',
+  );
+  // Custom form bottom
+  $form['biblioreference_bottom'] = array(
+    '#type' => 'markup',
+    '#title' => '</fieldset>',
+    '#default_value' => isset($form_state['values']['bottom_example']) ? $form_state['values']['bottom_example'] : '',
+    '#required' => TRUE,
+  );
+  
+  if (node_access('create', $type)) {
+
+    // Initialize new node:
+    $node = array('uid' => $user->uid, 'name' => $user->name, 'type' => $type);
+
+    $form += drupal_retrieve_form($type .'_node_form', $form_state, $node);
+    drupal_prepare_form($type .'_node_form', $form, $form_state);
+  }
+
+  // Preserve the old #theme property.
+  $form['#theme_saved'] = $form['#theme'];
+  $form['#theme'] = 'embed_example_node_form_reuse';
+
+  // Register an after build callback
+// see https://more.zites.net/embed-a-node-form-with-drupal-6 
+// if we want to add our own submit handler to the form - using for markup now
+// which means it wasn't necessary to add it to the form in the first place
+//  $form['#after_build'][] = 'embed_example_after_build';
+
+  return $form;
+}
+
+
+/**
+ * Implementation of hook_theme().
+ */
+function embed_example_theme() {
+  return array(
+    'embed_example_node_form_reuse' => array(
+      'arguments' => array('elements' => NULL),
+    ),
+  );
+}
+
+/**
+ * Themes the form to put the custom parts of the form to the top and the bottom.
+ */
+function theme_biblioreference_node_form_reuse($form) {
+  $top = drupal_render($form['biblioreference_top']);
+  $bottom = drupal_render($form['biblioreference_bottom']);
+
+  if (isset($form['#theme_saved'])) {
+    // Apply the theme of the embedded form
+    $form['#theme'] = $form['#theme_saved'];
+    unset($form['#theme_used']);
+  }
+
+  return $top . drupal_render($form) . $bottom;
+}
+
+
+
+
+/**
+ * Match biblio nodes based on index of words from title.
+ *
+ * Used in autocomplete function.
+ *
+ * The index could be extended to include words from the abstract or a keywords
+ * field.
+ */
+function biblioreference_match_nodes($string, $match = 'starts_with', $limit = 10) {
+  $words = search_index_split($string);
+  // the difference with these match operators is that they apply per word
+  $match_operators = array(
+    'contains' => "LIKE '%%%s%%'",
+    'equals' => "= '%s'",
+    'starts_with' => "LIKE '%s%%'",
+  );
+  
+  $where[] = "n.type = 'biblio'";
+  $where[] = 'btk.word ' . $match_operators[$match];
+// for multiple words we're going to have to string a bunch of these together with "OR"
+// for now we'll take only the first word as a proof of concept
+  $args[] = $words[0];
+  
+  $where_clause = $where ? 'WHERE ('. implode(') AND (', $where) .')' : '';
+
+// right way -- actually, no need for db_rewrite_sql 'cause we aren't honoring node access-- or are we?  I guess we have n.nid in there and that can be acted on
+//    $sql = db_rewrite_sql("SELECT n.nid, n.title AS node_title, n.type AS node_type FROM {node} n $where_clause ORDER BY n.title, n.type");
+//  $result = db_query( LIMIT %d", $limit);
+  $sql = db_rewrite_sql("SELECT COUNT(btk.nid) as nidcount, btk.nid, n.title FROM {biblioreference_title_keyword} btk LEFT JOIN {node} n ON n.nid=btk.nid $where_clause GROUP BY nid ORDER BY nidcount DESC");
+  $result = $limit ? db_query_range($sql, $args, 0, $limit) : db_query($sql, $args);
+  
+  $references = array();
+  while ($node = db_fetch_object($result)) {
+    $references[$node->nid] = array(
+      'title' => $node->node_title,
+      'rendered' => $node->node_title,
+    );
+  }
+
+  return $references;
+}
+
+
+
+function biblioreference_form_alter(&$form, $form_state, $form_id) {
+  if (isset($form['type'])) {
+    $node = $form['#node'];
+    if ($form['type']['#value'] .'_node_form' == $form_id) {  
+      $fields = content_fields();
+      foreach ($form as $key => $item) {
+        if (is_array($item)) {
+        //  firep($item['#type'], $key);
+          $type = $item['#type'];
+          if ($type == 'fieldset') { // loop through all the subitems.
+            foreach ($form[$key] as $subkey => $subitem) {
+              biblioreference_alter_item($form[$key], $subkey, $subitem, $fields);
+            }
+          }
+          else {
+            biblioreference_alter_item($form, $key, $item, $fields);
+          }
+        }
+        
+      }
+    }
+  }
+
+  if (isset($form['type']) && $form['type']['#value'] .'_node_settings' == $form_id) {
+// @debug
+drupal_set_message('<pre>'.var_export($form,TRUE).'</pre>');
+
+    $form['workflow']['upload_'. $form['type']['#value']] = array(
+      '#type' => 'radios',
+      '#title' => t('Attachments'),
+      '#default_value' => variable_get('upload_'. $form['type']['#value'], 1),
+      '#options' => array(t('Disabled'), t('Enabled')),
+    );
+  }
+}
+
+
+
+// accept multiple pubmed IDs
+// 
+/////////////////////////////////////////////////////////////////////////////
+// Indexing related functions (for faster, more comprehensive autocomplete)
+/////////////////////////////////////////////////////////////////////////////
+
+
+/**
+ * Implementation of hook_cron().
+ *
+ * If this module is enabled on a site with a large number of existing biblio
+ * nodes, there is a chance the first cron run will fail.  If this proves to be
+ * a problem, follow the practice of node_update_index().  Another option would
+ * be to piggyback on hook_nodeapi's 'update index' op, and not do our own 
+ * hook_cron implementation at all.
+ */
+function biblioreference_cron() {
+  $cron_last = variable_get('cron_last', NULL);  // returns timestamp
+  $result = db_query("SELECT title, nid FROM {node} WHERE type = 'biblio' AND changed >= $cron_last");
+  while ($biblio = db_fetch_object($result)) {
+    $words = search_index_split($node->title);
+    foreach ($words as $word) {
+      // pity PostgreSQL doesn't have INSERT ... ON DUPLICATE KEY UPDATE
+      // although we never want to update... only add if not already there
+      if (!db_result(db_query("SELECT nid FROM {biblioreference_title_keyword} btk WHERE word = '%s' AND nid = %d", $word, $biblio-nid))) {
+        db_query("INSERT INTO {biblioreference_title_keyword} (word, nid) VALUES ('%s', %d)", $word, $biblio-nid);
+      }
+    }
+  }  
+}
+
+
+/**
+ * Implementation of hook_nodeapi().
+ *
+ * We never remove words from a biblio's index, even though it may be edited
+ * to change the title.  This is a feature, not a bug  ;-)
+ */
+function biblioreference_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
+  if ($node->type != 'biblio') {
+    return;  // if it's not a biblio node, we're done with this
+  }
+  switch ($op) {
+    case 'delete':
+      db_query("DELETE FROM {biblioreference_title_keyword} WHERE nid = %d", $node->nid);
+      break;
+  }
+}
+
+
+/**
+ * Return a form used to import files into biblio.
+ *
+ * @return
+ *   An array which will be used by the form builder to build the import form
+ */
+function biblioreference_pubmed_import_form() {
+  global $user;
+  $form['biblioreference_pubmed_id'] = array(
+    '#type' => 'textfield',
+    '#title' => t('PubMed ID'),
+    '#description' => t('The PubMed ID of an article.'),
+    '#required' => TRUE,
+  );
+
+  // this matches the check in biblio.import.export.inc's biblio_save_node().
+  if (user_access('administer nodes')) {
+    module_load_include('inc', 'biblio', 'biblio.import.export');
+    if (function_exists('_biblio_admin_build_user_select')) {
+    // redundant if statement; no need to risk a parse error for this gravy
+      $form['userid'] = _biblio_admin_build_user_select($user->uid);
+    }
+  }
+  // Get the vocabularies  attached to the biblio node type ...
+  $vocabularies = module_invoke('taxonomy', 'get_vocabularies', 'biblio');
+  // ... and print a form to select the terms in each of them
+  $form['import_taxonomy'] = array (
+    '#type' => 'fieldset',
+    '#collapsible' => TRUE,
+    '#collapsed' => TRUE,
+    '#title' => t('Taxonomy Settings'),
+    '#description' => t('Typically you don\'t have to do anything here, however if you wish, you may select terms to be assigned to imported records, this effectively adds a key word to all entries being imported. By default, all incoming key words are added to the Biblio Keywords vcabulary, you may either relate incoming entires to an existing key word OR select a term(s) from another vocabulary to relate all incoming entires to.')
+  );
+  if (count($vocabularies)) {
+    $i = 0;
+    foreach ($vocabularies as $vocabulary) {
+      $form['import_taxonomy']['vocabulary'. $i] = module_invoke('taxonomy', 'form', $vocabulary->vid, 0);
+      $form['import_taxonomy']['vocabulary'. $i++]['#description'] = t("Select taxonomy term to assigned to imported entries");
+    }
+  } else {
+    $vocab_msg = t('There are currently no vocabularies assigned to the biblio node type, please go the the !url page to change this', array ('!url' => l(t('admin/content/taxonomy'), 'admin/content/taxonomy')));
+    $form['import_taxonomy']['vocabulary_message'] = array (
+      '#value' => '<p><div>'. $vocab_msg .'</div></p>'
+    );
+  }
+  $form['button'] = array ('#type' => 'submit', '#value' => t('Import from PubMed'));
+  return $form;
+}
+
+/**
+ * Implementation of hook_validate() for biblioreference_pubmed_import_form.
+ */
+function biblioreference_pubmed_import_form_validate($form, &$form_state) {
+  // @TODO
+}
+
+
+/**
+ * Implementation of hook_submit() for the biblio_import_form.
+ */
+function biblioreference_pubmed_import_form_submit($form, &$form_state) {
+  $pmid = $form_state['values']['biblioreference_pubmed_id'];
+  $uid = $form_state['values']['userid'];
+  // @TODO - can you add vocabularies?  What happens to 'vocabulary0' then?
+  $term_ids[] = $form_state['values']['vocabulary0'];
+
+  $efetch_url = 'http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=' . $pmid . '&retmode=xml';
+
+// @debug
+//  $efetch_load = simplexml_load_file($efetch_url);
+// drupal_set_message('<pre>'.var_export($efetch_load,TRUE).'</pre>');
+
+  $result = gopubmed_load_bibtext_by_pmid($pmid);
+  $watchdog_level = (isset($result['watchdog_level'])) ? $result['watchdog_level'] : WATCHDOG_INFO;
+  watchdog('biblioreference', $result['watchdog_status'], $watchdog_level);
+  $article_bib = $result['article_bib'];
+  
+  $data = $result['article_bib'];
+
+  $nids = biblioreference_bibtex_import($data);
+
+  foreach ($nids as $node_id) {
+    if (count($tid)) {
+      module_invoke('taxonomy', 'node_save', $node_id, $term_ids);
+    }
+    db_query('UPDATE {node} SET uid = %d WHERE nid = %d', $uid, $node_id);
+    db_query('UPDATE {node_revisions} SET uid = %d WHERE nid = %d', $uid, $node_id);
+    
+    // Not worth the db query to get the title, but here's the link.
+    drupal_set_message(t('Imported <a href="@url">bibliographic citation</a>.', array('@url' => url('node/' . $node_id))));
+  }
+
+}
+
+/**
+ * Import bibtex data.
+ *
+ * @param $data
+ *   the contents of a bibtex file passed as one big string
+ * @param $node
+ *   an array (populated in biblio_import() ), containing the boiler plate
+ *   information common to all nodes
+ * @return
+ *   an array of node ids
+ */
+function biblioreference_bibtex_import($data, $batch = NULL, $session_id = NULL) {
+  $nids = array();
+  module_load_include('php', 'biblio', 'bibtexParse/PARSEENTRIES');
+  $bibtex = new PARSEENTRIES();  
+  $bibtex->loadBibtexString($data);
+  
+//  $bibtex->openBib($file->filepath);
+  $bibtex->extractEntries();
+  if ($bibtex->count) {
+    $nids = $bibtex->bib2node($batch, $session_id);
+  }
+  return $nids;
+
+}
+
+
+
+function biblioreference_alter_item(&$form, $key, $item, $fields) {  
+  $field_name = strstr($key, 'field_');
+  if (isset($fields[$field_name]) && $fields[$field_name]['type'] == 'nodereference') {
+    $type = $form['type']['#value'];
+    $field = content_fields($field_name, $form['type']['#value']);
+    
+    if ($field['widget']['type'] == 'nodereference_autocomplete') {
+      $suffix = '<div>';
+      $suffix .= t('* If your reference is not in PD Biblio, <a href="@url" target="_BLANK">add a new citation in PDBiblio</a> manually.  This link will take you to a new window. After creating the reference, please remember to add it to the article.', array('@url' => url('biblioreference/add/citation')));
+      $suffix .= '</div>';
+      $form[$key]['#suffix'] = $suffix;
+    }
+    
+  }
+}
+
+
+/**
+ * Implementation of hook_theme_registry_alter().
+ */
+function biblioreference_theme_registry_alter($theme_registry) {
+  if (!empty($theme_registry['biblio_tagged_link'])) {
+    $theme_registry['biblio_tagged_link']['function'] = 'biblioreference_theme_biblio_tagged_link';
+  }  
+}
+
+/** 
+ * Creates a link to export a node (or view) in EndNote Tagged format.
+ *
+ * Overrides biblio/biblio_theme.inc's theme_biblio_tagged_link().
+ * 
+ * @param $base this is the base url (defaults to /biblio)
+ * @param $nid  the node id, if NULL then the current view is exported
+ * @return  a link (<a href=...>Endnote</a>)
+ */
+function biblioreference_theme_biblio_tagged_link($base, $nid = NULL) {
+  if (module_exists('popups') && !empty($nid)) {
+    $output .= l(t("Endnote"), "$base/export/tagged/$nid/popup", array('attributes'=>array('class' => 'popups', 'title' => t("Click to get the EndNote Tagged output "))));
+  } else {
+    $output .= l(t("Endnote"), "$base/export/tagged/$nid", array('attributes'=>array('title' => t("Click to download the EndNote Tagged formated file"))));
+  }
+  return $output;
+}
+
+
+
+/**
+ * Pubmed style formatter.  See biblioreference_cck.module
+ */
+
+

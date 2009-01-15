@@ -1,64 +1,6 @@
 <?php 
 // $Id$
 
-/* TODO FormAPI image buttons are now supported.
-   FormAPI now offers the 'image_button' element type, allowing developers to
-   use icons or other custom images in place of traditional HTML submit buttons.
-
-$form['my_image_button'] = array(
-  '#type'         => 'image_button',
-  '#title'        => t('My button'),
-  '#return_value' => 'my_data',
-  '#src'          => 'my/image/path.jpg',
-); */
-
-/* TODO Remove db_num_rows() method
-   The db_num_rows() method was removed from the database abstraction layer in
-   6.x core, as it was a database dependent method. Developers need to use other
-   handling to replace the needs of this method. */
-
-/* TODO Change 'Submit' to 'Save' on buttons
-   It has been agreed on that the description 'Submit' for a button is not a
-   good choice since it does not indicate what actually happens. While for
-   example on node editing forms, 'Preview' and 'Delete' describe exactly what
-   will happen when the user clicks on the button, 'Submit' only gives a vague
-   idea. When labelling your buttons, make sure that it is clear what this
-   button does when the user clicks on it. */
-
-/* TODO New user_mail_tokens() method may be useful.
-   user.module now provides a user_mail_tokens() function to return an array
-   of the tokens available for the email notification messages it sends when
-   accounts are created, activated, blocked, etc. Contributed modules that
-   wish to make use of the same tokens for their own needs are encouraged
-   to use this function. */
-
-/* TODO
-   There is a new hook_watchdog in core. This means that contributed modules
-   can implement hook_watchdog to log Drupal events to custom destinations.
-   Two core modules are included, dblog.module (formerly known as watchdog.module),
-   and syslog.module. Other modules in contrib include an emaillog.module,
-   included in the logging_alerts module. See syslog or emaillog for an
-   example on how to implement hook_watchdog.
-function example_watchdog($log = array()) {
-  if ($log['severity'] == WATCHDOG_ALERT) {
-    mysms_send($log['user']->uid,
-      $log['type'],
-      $log['message'],
-      $log['variables'],
-      $log['severity'],
-      $log['referer'],
-      $log['ip'],
-      format_date($log['timestamp']));
-  }
-} */
-
-/* TODO Implement the hook_theme registry. Combine all theme registry entries
-   into one hook_theme function in each corresponding module file.
-function gopubmed_theme() {
-  return array(
-  );
-} */
-
 /**
  * @file
  * gopubmed.module for Drupal
@@ -357,13 +299,52 @@ function gopubmed_import() {
     $esearch_url = "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=$db&retmax=$num_term&term=$search_term";
     watchdog('gopubmed', "Querying the pubmed server: .<br />".$esearch_url, WATCHDOG_INFO);
     $esearch_load = simplexml_load_file($esearch_url);
+    if (!is_object($esearch_load)) {
+      drupal_set_message(t("Failed to fetch object from eutils.ncbi.nlm.nih.gov."), 'error');
+// @debug
+drupal_set_message('<pre>'.var_export($esearch_load,TRUE).'</pre>');
+      
+      return;
+    }
+    $article_bib = '';
     foreach ($esearch_load->xpath("//Id") as $primaryId) {
-      $sql_pmid = db_result(db_query("Select COUNT(*) from `biblio` Where `biblio_custom3` = '$primaryId'"));
-      if($sql_pmid == 0) {
-        watchdog('gopubmed', "This is new primary ID: ". $primaryId, WATCHDOG_INFO);
-        /*
-        * ESummary Retrieves document summaries from a list of primary IDs which we got from the ESearch
-        **/
+      $result = gopubmed_load_bibtext_by_pmid($primaryId, $db);
+      $watchdog_level = (isset($result['watchdog_level'])) ? $result['watchdog_level'] : WATCHDOG_INFO;
+      watchdog('gopubmed1', $result['watchdog_status'], $watchdog_level);
+      $article_bib .= $result['article_bib'];
+    }
+    $bibtex_filename = drupal_get_path('module', 'gopubmed') . '/'.$term.'pubmed.bib';
+    
+    if (!$handle = fopen($bibtex_filename, 'w+')) {
+      printf("Cannot open file (%s)", $bibtex_filename);
+      exit;
+    }
+    
+    if (fwrite($handle, $article_bib) === FALSE) {
+      printf("Cannot write to (%s)", $bibtex_filename);
+      exit;
+    }
+    
+    fclose($handle);
+   }
+    /***Importing pubmed.bib file to biblio module****/
+    $content = _gopubmed_import("1", $bibtex_filename, "bib", $terms);
+}
+
+
+/**
+ * Load a single 
+ * 
+ */
+function gopubmed_load_bibtext_by_pmid($primaryId, $db = 'pubmed') {
+  $results = array();
+  $article_bib = '';
+// @TODO - security here
+      $sql_pmid = db_result(db_query("SELECT COUNT(*) from {biblio} WHERE `biblio_custom3` = '$primaryId'"));
+      if ($sql_pmid == 0) {
+        $results['watchdog_status'] = t("This is new primary ID: @pmid", array('@pmid' => $primaryId));
+        // ESummary Retrieves document summaries from a list of primary IDs
+        // which we got from the ESearch
         $esummary_url = "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=$db&id=$primaryId&retmode=xml";
         $esummary_load = simplexml_load_file($esummary_url);
         $summaryid = $esummary_load->DocSum[0]->Id;
@@ -372,7 +353,7 @@ function gopubmed_import() {
         $article_bib .= '@article{' . $summaryid . ',' . "\n";
 
         foreach ($esummary_load->DocSum[0]->Item as $summary) {
-	  $authorlist="";
+	        $authorlist="";
           $author_all="";
           if($summary['Name'] == "AuthorList") {
             foreach ($summary->Item as $authorlist) {
@@ -430,19 +411,29 @@ function gopubmed_import() {
          **/
         $llink_url = "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=pubmed&id=$primaryId&cmd=prlinks";
         $llink_load = simplexml_load_file($llink_url);
+    if (!is_object($llink_load)) {
+      drupal_set_message(t("Failed to fetch object from eutils.ncbi.nlm.nih.gov."), 'error');
+// @debug
+drupal_set_message('<pre>'.var_export($llink_load,TRUE).'</pre>');
+      
+      return;
+    }
+        
         $llink_array = $llink_load->ObjUrl->xpath("//Url");
         $article_link = $llink_array[0];
           
-        /***Creating pubmed url***/
+        // Creating pubmed url
         $custom1 = "http://www.ncbi.nlm.nih.gov/pubmed/$primaryId?dopt=Abstract";
         
-        /*
-         * Getting abstract through EFetch.
-         * Retrieves records in the requested format from a list of one or more primary IDs or from the user's
-         * environment.
-         **/
+        // Getting abstract through EFetch.
+        // Retrieves records in the requested format from a list of one or 
+        // more primary IDs or from the user's environment.
         $efetch = "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=$primaryId&retmode=xml";
         $efetch_load = simplexml_load_file($efetch);
+        if (!is_object($efetch_load)) {
+          drupal_set_message(t("Failed to fetch object from <em>@url</em>.", array('@url' => $efetch)), 'error');      
+          return;
+        }
       
         $abstract = $efetch_load->Abstract->xpath("//AbstractText");
         $final_abstract = $abstract[0];
@@ -466,30 +457,14 @@ function gopubmed_import() {
         $article_bib .= 'custom2 = {' . $search_term . '},' . "\n";
         $article_bib .= 'custom3 = {' . $primaryId . '}' . "\n";
         $article_bib .= '}';
-  
-        $x++;                  
+
+        $results['article_bib'] = $article_bib;      
       }
       else {
-        watchdog('gopubmed1', "Publication not entered. PMID: .<br />".$primaryId . " Already there.", WATCHDOG_INFO);
+        $results['watchdog_status'] = t("Publication not entered. PMID @pmid already there.", array('@pmid' => $primaryId));
       }
-    }
-    $bibtex_filename = drupal_get_path('module', 'gopubmed') . '/'.$term.'pubmed.bib';
-    
-    if (!$handle = fopen($bibtex_filename, 'w+')) {
-      printf("Cannot open file (%s)", $bibtex_filename);
-      exit;
-    }
-    
-    if (fwrite($handle, $article_bib) === FALSE) {
-      printf("Cannot write to (%s)", $bibtex_filename);
-      exit;
-    }
-    
-    fclose($handle);
-   }
-    /***Importing pubmed.bib file to biblio module****/
-    $content = _gopubmed_import("1", $bibtex_filename, "bib", $terms);
-  
+
+  return $results;
 }
 
 /*
@@ -551,4 +526,13 @@ function _pubbibtex_import(&$data, $node) {
   }
   return $node_ids;
 }
-?>
+
+/**
+ * Implementation of hook_theme().
+ *
+ * Combines all theme registry entries into one hook_theme function.
+ * @TODO
+function gopubmed_theme() {
+  return array(
+  );
+} */
