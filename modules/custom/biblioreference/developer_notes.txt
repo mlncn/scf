@@ -1,0 +1,25 @@
+We should be able to do without a widget_settings at all; Eaton's asin (Amazon submodule) doesn't implement it.
+
+/** * Implementation of hook_widget_settings().
+ *
+ * From noderefcreate module (not on Drupal's CVS). */function biblioreference_widget_settings($op, $widget) {  switch ($op) {    case 'form':      $form = array();      $match = isset($widget['autocomplete_match']) ? $widget['autocomplete_match'] : 'contains';      if ($widget['type'] == 'biblioreference_autocomplete') {        $form['autocomplete_match'] = array(          '#type' => 'select',          '#title' => t('Autocomplete matching'),          '#default_value' => $match,          '#options' => array(            'starts_with' => t('Starts with'),            'contains' => t('Contains'),          ),          '#description' => t('Select the method used to collect autocomplete suggestions. Note that <em>Contains</em> can cause performance issues on sites with thousands of nodes.'),        );      }      else {        $form['autocomplete_match'] = array('#type' => 'hidden', '#value' => $match);      }      return $form;    case 'save':      return array('autocomplete_match');  }}
+
+
+Modeled on:
+function nodereference_widget_settings($op, $widget) {  switch ($op) {    case 'form':      $form = array();      $match = isset($widget['autocomplete_match']) ? $widget['autocomplete_match'] : 'contains';      if ($widget['type'] == 'nodereference_autocomplete') {        $form['autocomplete_match'] = array(          '#type' => 'select',          '#title' => t('Autocomplete matching'),          '#default_value' => $match,          '#options' => array(            'starts_with' => t('Starts with'),            'contains' => t('Contains'),          ),          '#description' => t('Select the method used to collect autocomplete suggestions. Note that <em>Contains</em> can cause performance issues on sites with thousands of nodes.'),        );      }      else {        $form['autocomplete_match'] = array('#type' => 'hidden', '#value' => $match);      }      return $form;    case 'save':      return array('autocomplete_match');  }}
+
+
+
+
+@TODO - follow KarenS' lead on moving code not needed every page load:
+
+/** * Implementation of hook_widget(). * * This code and all the processes it uses are in a separate file, * included only when processing forms. */function date_widget(&$form, &$form_state, &$field, $items, $delta) {  require_once('./'. drupal_get_path('module', 'date') .'/date_elements.inc');  return _date_widget($form, $form_state, $field, $items, $delta);}/** * Implementation of hook_elements(). * * This code and all the processes it uses are in a separate file, * included only when processing forms. */function date_elements() {  require_once('./'. drupal_get_path('module', 'date') .'/date_elements.inc');  return _date_elements();}
+
+
+
+
+
+
+CUT:
+
+/** * Implementation of hook_content_is_empty(). */function biblioreference_content_is_empty($item, $field) {  if (empty($item['nid'])) {    return TRUE;  }  return FALSE;}fairly certain this is for fields, not widgets.

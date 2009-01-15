@@ -1,0 +1,48 @@
+<?php
+// $Id$
+
+/**
+ * @file
+ * Installation and database schema functions for biblioreference.
+ */
+
+function biblioreference_install() {
+  drupal_install_schema('biblioreference');
+}
+
+function biblioreference_schema() {
+  $schema = array();
+  $schema['biblioreference_title_keyword'] = array(
+    'fields' => array(
+      'word' => array('type' => 'varchar', 'length' => 64, 'not null' => TRUE),
+      'nid' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE),
+  ),
+  'primary key' => array('word', 'nid'),
+  );
+  
+/*  
+  $schema['amazon_item_node'] = array(
+  'fields' => array(
+    'vid' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE),
+    'asin' => array('type' => 'varchar', 'length' => 64, 'not null' => TRUE),
+    'notes' => array('type' => 'text','not null' => FALSE),
+    'module' => array('type' => 'varchar', 'length' => 64, 'not null' => TRUE, 'default' => 'amazon'),
+    'delta' => array('type' => 'int', 'default' => 0),
+  ),
+  'primary key' => array('vid, asin, module'),
+  'indexes' => array(
+    'nid' => array('nid'),
+    'vid' => array('vid'),
+    'vid_module' => array('vid', 'module'),
+    'asin' => array('asin'),
+  ),
+  );
+*/  
+  return $schema;
+}
+
+
+function biblioreference_uninstall() {
+  drupal_uninstall_schema('biblioreference');
+  // variable_del('example_var');
+}

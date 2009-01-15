@@ -596,12 +596,19 @@ function biblio_save_imported_nodes(& $node_array) {
 */
   return $node_ids;
 }
-function biblio_save_node($node, $batch = FALSE, $session_id = NULL) {
+
+
+function biblio_save_node($node, $batch = FALSE, $session_id = NULL, $uid = NULL) {
   $options = variable_get('node_options_biblio', array ('status'));
   if (module_exists('i18n') && variable_get('i18n_node_biblio', 0)) {
     $node['language'] = module_invoke('i18n', 'default_language');
   }
-  $account = user_load($userid);
+  if (!user_access('administer nodes') || !$account = user_load($uid)) {
+    // If the user saving the biblio both has access and provided a valid uid
+    // then it has just had an account object created.  Otherwise, use $user.
+    global $user;
+    $account = $user;
+  }
   $node_template = array (
       'type' => 'biblio',
       'comment' => variable_get('comment_biblio', 0),
@@ -610,8 +617,8 @@ function biblio_save_node($node, $batch = FALSE, $session_id = NULL) {
       'sticky' => in_array('sticky', $options),
       'format' => 0,
       'status' => in_array('status', $options),
-      'uid' => user_access('administer nodes') ? $account->uid : $user->uid,
-      'name' => user_access('administer nodes') ? $account->name : $user->name
+      'uid' =>  $account->uid,
+      'name' => $account->name,
   );
   
   $node = (object) array_merge($node, $node_template);

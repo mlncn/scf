@@ -1,0 +1,11 @@
+; $Id$
+name = Biblio Reference Widget
+description = Defines a widget for referencing bibilography content from other content.
+dependencies[] = biblio
+dependencies[] = content
+dependencies[] = nodereference
+dependencies[] = text
+; dependencies[] = optionwidgets
+package = Biblio
+core = 6.x
+
