@@ -58,11 +58,11 @@ function biblioreference_cck_field_formatter_info() {
 function theme_biblioreference_cck_formatter_pubmed($element) {
 // @debug
   $output = '';
-/*
+
   foreach ($element as $section) {
-    $output .= 
+    $output .= $section;
   }
-*/  
+
 //  $output = $element; // '<pre>'.var_export($element,TRUE).'</pre>';
   $output .= array_keys($element);
   return $output;
