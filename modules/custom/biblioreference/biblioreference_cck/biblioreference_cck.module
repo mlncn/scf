@@ -62,7 +62,7 @@ function biblioreference_cck_widget_info() {
  * the same name as the hook_elements key.
  *
  * Autocomplete_path is not used by text_widget but other widgets can use it
- * (see biblioreference_cck and userreference).
+ * (see nodereference and userreference).
  */
 function biblioreference_cck_elements() {
   return array(

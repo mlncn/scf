@@ -1,6 +1,6 @@
 ; $Id$
-name = Biblio Reference Widget
-description = Defines a widget for referencing bibilography content from other content.
+name = Biblio Reference CCK 
+description = "[biblioreference_cck] Defines CCK elements for referencing bibilography content from other content."
 dependencies[] = biblio
 dependencies[] = content
 dependencies[] = nodereference
