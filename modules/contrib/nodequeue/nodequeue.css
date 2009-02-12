@@ -1,0 +1,52 @@
+/* Animated throbber */
+html.js a.nodequeue-ajax-toggle.throbbing {
+  background:url(images/status-active.gif) no-repeat right center;
+  padding-right:18px;
+}
+
+html.js td.throbbing {
+  background:url(images/status-active.gif) no-repeat left center;
+  padding-left:18px;
+}
+
+.nodequeue-hide-if-not-js {
+  display: none;
+}
+
+html.js .nodequeue-hide-if-not-js {
+  display: block;
+}
+
+.nodequeue-operation {
+  width: 30%;
+  text-align: right;
+  padding-right: .2em;
+}
+
+.nodequeue-in-queue {
+  width: 20%;
+  text-align: right;
+  padding-right: .2em;
+}
+
+.nodequeue-max-nodes {
+  text-align: right;
+  padding-right: .2em;
+}
+
+#nodequeue-table tbody,
+#nodequeue-table th {
+  border: none;
+}
+
+#nodequeue-table .nodequeue-author {
+  width: 100px;
+}
+#nodequeue-table .nodequeue-date {
+  width: 175px;
+}
+
+#nodequeue-table .nodequeue-operation {
+  width: 79px;
+}
+
