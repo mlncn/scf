@@ -64,6 +64,7 @@ function theme_biblioreference_cck_formatter_pubmed($element) {
 // $output .= '<pre>' . var_export($biblio, TRUE) . '</pre>';
 //    $authors = _biblioreference_authors($nid);
     $contributors = $biblio->biblio_contributors;
+    module_load_include('inc', 'biblio', 'biblio.pages');
     usort($contributors, 'biblioreference_au_compare_author_level');
     // contributor/author presentation adopted from theme_biblio_long().
     foreach ($contributors as $auth) {

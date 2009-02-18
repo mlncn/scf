@@ -32,7 +32,18 @@ function biblioreference_menu() {
     'access arguments' => array('create biblio'),  // not using the somewhat silly biblio_access wrapper function
 //    'file' => 'biblio.import.export.inc',
     'type' => MENU_LOCAL_TASK,
-    'weight' => -7,
+    'weight' => 8,
+  );
+
+  // @TODO - other location for menu?  change access arg.  admin include?
+  $items['admin/settings/biblio/biblioreference'] = array(
+    'title' => t('Biblioreference settings'),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('biblioreference_settings_form'),
+    'file' => 'biblioreference.admin.inc',
+    'access arguments' => array('administer biblio'),
+    'type' => MENU_LOCAL_TASK,
+    'weight' => 7,
   );
 
   $items['biblioreference/add/citation'] = array(
@@ -137,9 +148,9 @@ function biblioreference_embed_node_form_reuse(&$form_state, $type = 'page') {
 /**
  * Implementation of hook_theme().
  */
-function embed_example_theme() {
+function biblioreference_theme() {
   return array(
-    'embed_example_node_form_reuse' => array(
+    'biblioreference_node_form_reuse' => array(
       'arguments' => array('elements' => NULL),
     ),
   );
@@ -196,6 +207,10 @@ function biblioreference_match_nodes($string, $match = 'starts_with', $limit = 1
   $result = $limit ? db_query_range($sql, $args, 0, $limit) : db_query($sql, $args);
   
   $references = array();
+$references[666] = array(
+  'title' => 'Curses it does not really work.',
+  'rendered' => $sql,
+);
   while ($node = db_fetch_object($result)) {
     $references[$node->nid] = array(
       'title' => $node->node_title,
@@ -244,13 +259,12 @@ drupal_set_message('<pre>'.var_export($form,TRUE).'</pre>');
   }
 }
 
+// @TODO - accept multiple pubmed IDs
 
 
-// accept multiple pubmed IDs
-// 
-/////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////
 // Indexing related functions (for faster, more comprehensive autocomplete)
-/////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////
 
 
 /**
@@ -263,18 +277,21 @@ drupal_set_message('<pre>'.var_export($form,TRUE).'</pre>');
  * hook_cron implementation at all.
  */
 function biblioreference_cron() {
-  $cron_last = variable_get('cron_last', NULL);  // returns timestamp
-  $result = db_query("SELECT title, nid FROM {node} WHERE type = 'biblio' AND changed >= $cron_last");
+  $cron_last = variable_get('cron_last', 0);  // returns timestamp
+  $result = db_query("SELECT title, nid, changed FROM {node} WHERE type = 'biblio' AND changed >= $cron_last");
   while ($biblio = db_fetch_object($result)) {
-    $words = search_index_split($node->title);
+// @debug
+// drupal_set_message('in cron result: <pre>'.var_export($biblio,TRUE).'</pre>');
+
+    $words = search_index_split($biblio->title);
     foreach ($words as $word) {
       // pity PostgreSQL doesn't have INSERT ... ON DUPLICATE KEY UPDATE
       // although we never want to update... only add if not already there
-      if (!db_result(db_query("SELECT nid FROM {biblioreference_title_keyword} btk WHERE word = '%s' AND nid = %d", $word, $biblio-nid))) {
+      if (!db_result(db_query("SELECT nid FROM {biblioreference_title_keyword} btk WHERE word = '%s' AND nid = %d", $word, $biblio->nid))) {
         db_query("INSERT INTO {biblioreference_title_keyword} (word, nid) VALUES ('%s', %d)", $word, $biblio-nid);
       }
     }
-  }  
+  }
 }
 
 
@@ -290,9 +307,18 @@ function biblioreference_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
   }
   switch ($op) {
     case 'delete':
-      db_query("DELETE FROM {biblioreference_title_keyword} WHERE nid = %d", $node->nid);
+      db_query("DELETE FROM {biblioreference_keyword} WHERE nid = %d", $node->nid);
       break;
   }
+}
+
+
+/**
+ * Clears the index of biblioreference nodes and sets re-indexing to start.
+ */
+function biblioreference_index_wipe() {
+  db_query('DELETE FROM {biblioreference_keyword}');
+  variable_set('biblioreference_cron_last', 0);
 }
 
 
@@ -368,7 +394,7 @@ function biblioreference_pubmed_import_form_submit($form, &$form_state) {
 //  $efetch_load = simplexml_load_file($efetch_url);
 // drupal_set_message('<pre>'.var_export($efetch_load,TRUE).'</pre>');
 
-  $result = gopubmed_load_bibtext_by_pmid($pmid);
+  $result = biblioreference_load_bibtext_by_pmid($pmid);
   $watchdog_level = (isset($result['watchdog_level'])) ? $result['watchdog_level'] : WATCHDOG_INFO;
   watchdog('biblioreference', $result['watchdog_status'], $watchdog_level);
   $article_bib = $result['article_bib'];
@@ -389,6 +415,149 @@ function biblioreference_pubmed_import_form_submit($form, &$form_state) {
   }
 
 }
+
+
+/**
+ * Load a single bubtext by pubmed ID.
+ *
+ * Taken directly from gopubmed.module (our upgraded to D6 version), function
+ * gopubmed_load_bibtext_by_pmid($primaryId, $db = 'pubmed').
+ * 
+ * @TODO: break into smaller functions, maybe move to another module
+ * or best get changes incorporated into gopubmed and keep dependency.
+ */
+function biblioreference_load_bibtext_by_pmid($primaryId, $db = 'pubmed') {
+  $results = array();
+  $article_bib = '';
+// @TODO - security here
+      $sql_pmid = db_result(db_query("SELECT COUNT(*) from {biblio} WHERE `biblio_custom3` = '$primaryId'"));
+      if ($sql_pmid == 0) {
+        $results['watchdog_status'] = t("This is new primary ID: @pmid", array('@pmid' => $primaryId));
+        // ESummary Retrieves document summaries from a list of primary IDs
+        // which we got from the ESearch
+        $esummary_url = "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=$db&id=$primaryId&retmode=xml";
+        $esummary_load = simplexml_load_file($esummary_url);
+        $summaryid = $esummary_load->DocSum[0]->Id;
+      
+        /***Now creating the pubmed.bib file***/
+        $article_bib .= '@article{' . $summaryid . ',' . "\n";
+
+        foreach ($esummary_load->DocSum[0]->Item as $summary) {
+	        $authorlist="";
+          $author_all="";
+          if($summary['Name'] == "AuthorList") {
+// @TODO I think this is what must change for proper author import            
+            foreach ($summary->Item as $authorlist) {
+              $author_all .=  $authorlist . ' , '. "\n";
+            }
+            $article_bib .= 'author = {' . $author_all . '},'. "\n";
+          }
+          else {
+            if($summary['Name'] == "Author")
+              $article_bib .= 'author = {' . $summary . '},'. "\n";
+          }
+          if($summary['Name'] == "Title")
+            $title           = $summary;
+          else if($summary['Name'] == "PubDate")
+            $pubdate         = $summary;
+          else if($summary['Name'] == "ePubDate")
+            $epubdate        = $summary;
+          else if($summary['Name'] == "Source")
+            $journal         = $summary;
+          else if($summary['Name'] == "Volume")
+            $volume          = $summary;
+          else if($summary['Name'] == "Pages")
+            $pages	     = $summary;
+          else if($summary['Name'] == "Issue")
+            $issue           = $summary;
+          else if($summary['Name'] == "Pagination")
+            $pagination      = $summary;
+          else if($summary['Name'] == "PmId")
+            $pmid            = $summary;
+          else if($summary['Name'] == "SortDate")
+            $sortdate        = $summary;
+          else if($summary['Name'] == "Links")
+            $links           = $summary;
+          else if($summary['Name'] == "PmcLiveDate")
+            $pmclivedate     = $summary;
+          else if($summary['Name'] == "Abstract")
+            $Abstract        = $summary;
+          else if($summary['Name'] == "XmlData")
+            $xmldata         = $summary;
+          else if($summary['Name'] == "FullJournalName")
+            $fullJournalName = $summary;
+        
+          if($fullJournalName == "")
+            $journalname = $journal;
+          else
+            $journalname = $fullJournalName;
+        }
+          
+        /*
+         * Now getting the full article link through ELink.
+         * ELink Checks for the existence of an external or Related Articles link from a list of one or more primary
+         * IDs.  Retrieves primary IDs and relevancy scores for links to Entrez databases or Related Articles;  creates
+         * a hyperlink to the primary LinkOut provider for a specific ID and database, or lists LinkOut URLs and
+         * Attributes for multiple IDs
+         **/
+        $llink_url = "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=pubmed&id=$primaryId&cmd=prlinks";
+        $llink_load = simplexml_load_file($llink_url);
+    if (!is_object($llink_load)) {
+      drupal_set_message(t("Failed to fetch object from eutils.ncbi.nlm.nih.gov."), 'error');
+// @debug
+drupal_set_message('<pre>'.var_export($llink_load,TRUE).'</pre>');
+      
+      return;
+    }
+        
+        $llink_array = $llink_load->ObjUrl->xpath("//Url");
+        $article_link = $llink_array[0];
+          
+        // Creating pubmed url
+        $custom1 = "http://www.ncbi.nlm.nih.gov/pubmed/$primaryId?dopt=Abstract";
+        
+        // Getting abstract through EFetch.
+        // Retrieves records in the requested format from a list of one or 
+        // more primary IDs or from the user's environment.
+        $efetch = "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=$primaryId&retmode=xml";
+        $efetch_load = simplexml_load_file($efetch);
+        if (!is_object($efetch_load)) {
+          drupal_set_message(t("Failed to fetch object from <em>@url</em>.", array('@url' => $efetch)), 'error');      
+          return;
+        }
+      
+        $abstract = $efetch_load->Abstract->xpath("//AbstractText");
+        $final_abstract = $abstract[0];
+        
+        $title = str_replace("{"," ",$title);
+        $title = str_replace("}"," ",$title);
+        
+        $article_bib .= 'title = {' . $title  . '},'. "\n";
+        $article_bib .= 'year = {' . $pubdate . '},'. "\n";
+        $article_bib .= 'journal = {' . $journalname . '},'. "\n";
+        $article_bib .= 'volume = {' . $volume . '},'. "\n";
+        if($number !=''){$article_bib .= 'number = {' . $number . '},'. "\n";}
+        $article_bib .= 'pages={' . $pages . '},'. "\n";
+        if($note !=''){$article_bib .= 'note = {' . $note . ' Additional Keywords: ' . $keywordlist . '},'. "\n";}
+        $article_bib .= 'keywords = {' . $keywords . '},'. "\n";  
+        $article_bib .= 'isbn={' . $isbn . '},'. "\n";
+        $article_bib .= 'language = {' . $language . '},'. "\n";
+        $article_bib .= 'abstract = {' . $final_abstract . '},'. "\n";
+        $article_bib .= 'url = {' . $article_link . '},' . "\n";
+        $article_bib .= 'custom1 = {' . $custom1 . '},' . "\n";
+        $article_bib .= 'custom2 = {' . $search_term . '},' . "\n";
+        $article_bib .= 'custom3 = {' . $primaryId . '}' . "\n";
+        $article_bib .= '}';
+
+        $results['article_bib'] = $article_bib;      
+      }
+      else {
+        $results['watchdog_status'] = t("Publication not entered. PMID @pmid already there.", array('@pmid' => $primaryId));
+      }
+
+  return $results;
+}
+
 
 /**
  * Import bibtex data.
@@ -417,7 +586,9 @@ function biblioreference_bibtex_import($data, $batch = NULL, $session_id = NULL)
 }
 
 
-
+/**
+ * Implementation of hook_alter_item().
+ */
 function biblioreference_alter_item(&$form, $key, $item, $fields) {  
   $field_name = strstr($key, 'field_');
   if (isset($fields[$field_name]) && $fields[$field_name]['type'] == 'nodereference') {
@@ -462,7 +633,67 @@ function biblioreference_theme_biblio_tagged_link($base, $nid = NULL) {
   return $output;
 }
 
+/**
+ * Apply a bibliographic style to the node
+ *
+ *
+ * @param $node
+ *   An object containing the node data to render
+ * @param $base
+ *   The base URL of the biblio module (defaults to /biblio)
+ * @param $inline
+ *   A logical value indicating if this is being rendered within the
+ *   Drupal framwork (false) or we are just passing back the html (true)
+ * @return
+ *   The styled biblio entry
+ */
+function biblioreference_style_biblio($node, $base = 'biblio', $inline = false) {
+  $contrib_array = _biblioreference_format_authors($node->biblio_contributors, $inline);
+  $authors = $contrib_array[1];
+  $output .= '<span class="biblio-authors">' . $authors . "</span>.&nbsp; \n";
+  switch ($node->biblio_type) {
 
+    default :
+      if (isset ($node->biblio_year)) {
+        $output .= check_plain($node->biblio_year) . ".&nbsp;&nbsp;";
+      }
+      $output .= '<span class="biblio-title">';
+      $output .= $inline ? l("$node->title", "$base/viewinline/$node->nid") : l("$node->title", "node/$node->nid");
+      $output .= ". </span> \n";
+      $output .= (!empty ($node->biblio_secondary_title)) ? check_plain($node->biblio_secondary_title) . '. ' : '';
+      $output .= (!empty ($node->biblio_volume)) ? check_plain($node->biblio_volume) : '';
+      $output .= (!empty ($node->biblio_issue)) ? '(' . check_plain($node->biblio_issue) . ')' : '';
+      $output .= (!empty ($node->biblio_pages)) ? ':' . str_replace(" ", "", check_plain($node->biblio_pages)) . '.' : '';
+      break; // generic
+  }
+  /*  if ($node->biblio_date) $output .= ', '. check_plain($node->biblio_date);
+    if ($node->biblio_number) $output .= ', Number '. check_plain($node->biblio_number);
+  
+    if ($node->biblio_place_published) $output .= ', '. check_plain($node->biblio_place_published);
+  */
+  return $output;
+}
+function _biblioreference_format_authors($contributors, $inline = FALSE) {
+  if (count($contributors)) {
+    foreach ($contributors as $key => $author) {
+      $format = $author['prefix'] . ' ' . $author['lastname'] . ' ';
+      $format .= !empty ($author['firstname']) ? ' ' . drupal_substr($author['firstname'], 0, 1) : '';
+      $format .= !empty ($author['initials']) ? str_replace(' ', '', $author['initials']) : '';
+      if (variable_get('biblio_author_links', 1)) {
+        $base = variable_get('biblio_base', 'biblio');
+        $format = _biblio_author_link($format, $author['cid'], $base, $inline);
+      }
+      $author_array[$author['auth_catagory']] .= (!empty ($author_array[$author['auth_catagory']])) ? ', ' . $format : $format;
+    }
+  }
+  if (count($author_array)) {
+    return $author_array;
+  } else {
+    return array (
+      1 => t('No author information available')
+    );
+  }
+}
 
 /**
  * Pubmed style formatter.  See biblioreference_cck.module

@@ -12,7 +12,7 @@ function biblioreference_install() {
 
 function biblioreference_schema() {
   $schema = array();
-  $schema['biblioreference_title_keyword'] = array(
+  $schema['biblioreference_keyword'] = array(
     'fields' => array(
       'word' => array('type' => 'varchar', 'length' => 64, 'not null' => TRUE),
       'nid' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE),
