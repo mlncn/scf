@@ -77,8 +77,10 @@ function scf_profile_modules() {
     'researchstatement',
     
     // node proxying
-    'nodeproxy',
-    'rdf', 
+// just didn't load up; may have been due to other errors on install
+// but for now added to explicit call later
+//    'nodeproxy',
+//    'rdf', 
   );
 }
 
@@ -148,6 +150,10 @@ function scf_profile_task_list() {
 function scf_profile_tasks(&$task, $url) {
 
   $themes = array('scf_stub', 'scf_demo');
+
+  // modules that did not seem to install in hook_install directly.
+  drupal_install_modules(array('rdf'));
+  drupal_install_modules(array('nodeproxy'));
 
   // forum
   variable_set('node_options_forum', array('status'));

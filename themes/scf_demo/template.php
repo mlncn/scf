@@ -7,6 +7,8 @@ function phptemplate_lt_loggedinblock() {
   global $user;
 
   // Tom to provide member_user hook to attache this infor to the user object
+  // ben-agaric: oh dear.  This should be in preprocess.  And not use _member..
+  if (!function_exists('_member_get_node'))  return;
   $usernode = _member_get_node($user);
   $content = 'Logged in as <span class="fn">' . ($usernode ? check_plain($usernode->firstname) : $user->name) . '</span> ';
   $content .= '<span class="link">' . l(t('Profile'), ($usernode ? 'node/' . check_plain($usernode->nid) : 'user/' . $user->uid), array('title' => 'View this use profile')) . '</span> ';

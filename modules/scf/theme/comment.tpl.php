@@ -26,7 +26,8 @@
  * @see theme_comment()
  */
 $date = t('@time ago', array('@time' => format_interval(time() - $comment->timestamp)));
-if ($author = _member_get_node($comment->uid)) {
+// this should a) be in template.php and b) not be using member module functions
+if (function_exists('_member_get_node') && $author = _member_get_node($comment->uid)) {
   $capacity = ($author->jobtitle === '' ? '' : $author->jobtitle . ', ') . ($author->affiliation === '' ? '' : $author->affiliation);
   $author = theme('member_link', $author);
 }
