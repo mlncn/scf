@@ -1,0 +1,39 @@
+<?php
+// $Id: nodereference_url.install,v 1.1 2009/01/22 02:25:29 quicksketch Exp $
+
+/**
+ * @file
+ * Implementation of hook_install().
+ */
+function nodereference_url_install() {
+  drupal_load('module', 'content');
+  content_notify('install', 'nodereference_url');
+}
+
+/**
+ * Implementation of hook_uninstall().
+ */
+function nodereference_url_uninstall() {
+  drupal_load('module', 'content');
+  content_notify('uninstall', 'nodereference_url');
+}
+
+/**
+ * Implementation of hook_enable().
+ *
+ * Notify content module when this module is enabled.
+ */
+function nodereference_url_enable() {
+  drupal_load('module', 'content');
+  content_notify('enable', 'nodereference_url');
+}
+
+/**
+ * Implementation of hook_disable().
+ *
+ * Notify content module when this module is disabled.
+ */
+function nodereference_url_disable() {
+  drupal_load('module', 'content');
+  content_notify('disable', 'nodereference_url');
+}
