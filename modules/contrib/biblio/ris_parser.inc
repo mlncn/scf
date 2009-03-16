@@ -1,5 +1,5 @@
 <?php
-// $Id: ris_parser.inc,v 1.4.2.12 2008/12/15 02:22:06 rjerome Exp $
+// $Id: ris_parser.inc,v 1.4.2.17 2009/02/23 22:04:11 rjerome Exp $
 /**
  *   Copyright (C) 2006  Ron Jerome
  *
@@ -18,21 +18,21 @@
  *   51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  *
  */
-function _ris_tagged_import($file, $batch = FALSE, $session_id = NULL) {
+function _ris_tagged_import($file, $terms = array(), $batch = FALSE, $session_id = NULL) {
   if (!($fp = fopen($file->filepath, "r"))) {
-    drupal_set_message("could not open RIS input file",'error');
+    drupal_set_message("could not open RIS input file", 'error');
     return;
   }
-  $incite = false;
+  $incite = FALSE;
   $nids = array();
-  $contributors = null;
+  $contributors = NULL;
   $node=array();
   while (!feof($fp)) {
     $line = fgets($fp);
     $line_len = strlen($line);
      if ($line_len > 3) {
        $start = strpos($line, '  - '); // There could be some unprintables at the beginning of the line so fine the location of the %
-       if ($start !== false) {
+       if ($start !== FALSE) {
         $tag = drupal_substr($line, $start -2, 2);
         $value = trim(drupal_substr($line, $start +4));
      }
@@ -42,17 +42,21 @@ function _ris_tagged_import($file, $batch = FALSE, $session_id = NULL) {
     }
     if ($line_len > 3) { // if this is not a blank line
       switch ($tag) {
-        case 'ER' :         
+        case 'ER' :
           if (!empty($node)) {
             if (empty ($node['title'])) $node['title'] = t("Untitled");
+            if (!empty($terms)) {
+              if (!isset($node['taxonomy'])) $node['taxonomy'] = array();
+              $node['taxonomy'] = array_merge($terms, $node['taxonomy']);
+            }
             $nids[] = biblio_save_node($node, $batch, $session_id);
           }
           $node = array();
-          $incite = false;
+          $incite = FALSE;
           break;
         case 'TY' :
           $node['biblio_contributors'] = array();
-          $incite = true;
+          $incite = TRUE;
           switch ($value) {
             case "ART" : // art work
               $node['biblio_type'] = 112;
@@ -125,10 +129,9 @@ function _ris_tagged_import($file, $batch = FALSE, $session_id = NULL) {
           break;
             case 'A1' :
             case 'AU' :
-              $node['biblio_contributors'][] = array(
-            'name' => $value,
-            'auth_type' => _biblio_get_auth_type(1, $node['biblio_type'])
-              );
+              $node['biblio_contributors'][1][] = array(
+                'name' => $value,
+                'auth_type' => _biblio_get_auth_type(1, $node['biblio_type']));
               break;
             case 'JF' :
               $node['biblio_secondary_title'] = $value;
@@ -143,10 +146,9 @@ function _ris_tagged_import($file, $batch = FALSE, $session_id = NULL) {
               break;
             case 'A2' :
             case 'ED' :
-              $node['biblio_contributors'][] = array(
-            'name' => $value,
-            'auth_type' => _biblio_get_auth_type(2, $node['biblio_type'])
-              );
+              $node['biblio_contributors'][2][] = array(
+                'name' => $value,
+                'auth_type' => _biblio_get_auth_type(2, $node['biblio_type']));
               break;
             case 'PB' :
               $node['biblio_publisher'] = $value;
@@ -155,12 +157,11 @@ function _ris_tagged_import($file, $batch = FALSE, $session_id = NULL) {
               $node['biblio_secondary_title'] = $value;
               break;
             case 'KW' :
-              if ($vid = variable_get('biblio_keyword_vocabulary', 0)) {
+              $vid = variable_get('biblio_keyword_vocabulary', 0);
+              if ($vid && variable_get('biblio_keyword_freetagging', 0)) {
                 $node['taxonomy']['tags'][$vid] .= (empty($node['taxonomy']['tags'][$vid])) ? "\"$value\"" : ",\"$value\"";
-                unset($node['biblio_keywords']);
-              }else{
-                $node['biblio_keywords'] .= (empty($node['biblio_keywords'])) ? "\"$value\"" : ",\"$value\"";
               }
+              $node['biblio_keywords'][] = $value;
               break;
             case 'IS' :
             case 'CP' :
@@ -190,10 +191,9 @@ function _ris_tagged_import($file, $batch = FALSE, $session_id = NULL) {
               $node['biblio_abst_e'] .= $value;
               break;
             case 'A3' :
-              $node['biblio_contributors'][] = array(
-            'name' => $value,
-            'auth_type' => _biblio_get_auth_type(5, $node['biblio_type'])
-              );
+              $node['biblio_contributors'][5][] = array(
+                'name' => $value,
+                'auth_type' => _biblio_get_auth_type(5, $node['biblio_type']));
               break;
             case 'N1' :
               $node['biblio_notes'] .= $value;
@@ -221,8 +221,8 @@ function _ris_tagged_import($file, $batch = FALSE, $session_id = NULL) {
       } //end switch
     }
     else {
-      //$incite=false;
-    } // end if ($start !== false)
+      //$incite=FALSE;
+    } // end if ($start !== FALSE)
   } // end while
   fclose($fp);
   return (!empty($nids)) ? $nids : array();

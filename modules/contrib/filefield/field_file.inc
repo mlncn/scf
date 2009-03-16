@@ -1,5 +1,5 @@
 <?php
-// $Id: field_file.inc,v 1.22 2008/12/03 23:22:11 drewish Exp $
+// $Id: field_file.inc,v 1.25 2009/03/15 06:21:21 quicksketch Exp $
 /**
  * @file
  * Common functionality for file handling CCK field modules.
@@ -75,15 +75,11 @@ function field_file_load($fid, $reset = NULL) {
  * @param $dest
  *   A string containing the directory $source should be copied to. If this is
  *   not provided or is not writable, the temporary directory will be used.
- * @param $replace
- *   A boolean indicating whether an existing file of the same name in the
- *   destination directory should overwritten. A false value will generate a
- *   new, unique filename in the destination directory.
  * @return
  *   An array containing the file information, or 0 in the event of an error.
  */
-function field_file_save_upload($source, $validators = array(), $dest = FALSE, $replace = FILE_EXISTS_RENAME) {
-  if (!$file = file_save_upload($source, $validators, $dest, $replace)) {
+function field_file_save_upload($source, $validators = array(), $dest = FALSE) {
+  if (!$file = file_save_upload($source, $validators, $dest, FILE_EXISTS_RENAME)) {
     return 0;
   }
   if (!@chmod($file->filepath, 0664)) {
@@ -112,15 +108,11 @@ function field_file_save_upload($source, $validators = array(), $dest = FALSE, $
  * @param $dest
  *   A string containing the directory $source should be copied to. If this is
  *   not provided or is not writable, the temporary directory will be used.
- * @param $replace
- *   A boolean indicating whether an existing file of the same name in the
- *   destination directory should overwritten. A false value will generate a
- *   new, unique filename in the destination directory.
  * @return
  *   An array containing the file information, or 0 in the event of an error.
  *
  */
-function field_file_save_file($filepath, $validators = array(), $dest = FALSE, $replace = FILE_EXISTS_RENAME) {
+function field_file_save_file($filepath, $validators = array(), $dest = FALSE) {
   global $user;
 
   // Add in our check of the the file name length.
@@ -155,7 +147,7 @@ function field_file_save_file($filepath, $validators = array(), $dest = FALSE, $
   }
 
   $file->source = 'field_file_save_file';
-  $file->destination = file_destination(file_create_path($dest .'/'. $file->filename), $replace);
+  $file->destination = file_destination(file_create_path($dest .'/'. $file->filename), FILE_EXISTS_RENAME);
   $file->filesize = filesize($filepath);
 
   // Call the validation functions.
@@ -187,6 +179,7 @@ function field_file_save_file($filepath, $validators = array(), $dest = FALSE, $
   // If we made it this far it's safe to record this file in the database.
   $file->status = FILE_STATUS_TEMPORARY;
   $file->timestamp = time();
+  // Insert new record to the database.
   drupal_write_record('files', $file);
 
   // Let modules add additional properties to the yet barebone file object.
@@ -209,7 +202,7 @@ function field_file_save_file($filepath, $validators = array(), $dest = FALSE, $
  */
 function field_file_save($node, &$file) {
   // If this item is marked for deletion.
-  if (!empty($file['delete'])) {
+  if (!empty($file['delete']) || !empty($file['_remove'])) {
     // If we're creating a new revision, return an empty array so CCK will
     // remove the item.
     if (!empty($node->old_vid)) {
@@ -374,13 +367,16 @@ function field_file_strip_path($path) {
 
 function field_file_references($file, $field) {
   $db_info = content_database_info($field);
-  $references += db_result(db_query(
+  $references = db_result(db_query(
     'SELECT count('. $db_info['columns']['fid']['column'] .')
       FROM {'. $db_info['table'] .'}
       WHERE '. $db_info['columns']['fid']['column'] .' = %d', $file->fid
   ));
+
+  // If a field_name is present in the file object, the file is being deleted
+  // from this field, decrement the number of total references by one.
   if (isset($file->field_name) && $field['field_name'] == $file->field_name) {
-    --$references; // doesn't count as it's being deleted
+    --$references;
   }
   return $references;
 }

@@ -1,5 +1,5 @@
 <?php
-// $Id: tagged_parser.inc,v 1.8.2.13 2008/12/15 02:22:06 rjerome Exp $
+// $Id: tagged_parser.inc,v 1.8.2.17 2009/02/23 22:04:12 rjerome Exp $
 /**
  *   Copyright (C) 2006  Ron Jerome
  *
@@ -18,7 +18,7 @@
  *   51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  *
  */
-function _endnote_tagged_import($file, $batch = FALSE, $session_id = NULL) {
+function _endnote_tagged_import($file, $terms = array(), $batch = FALSE, $session_id = NULL) {
   if (!($fp = fopen($file->filepath, "r"))) {
     drupal_set_message("could not open EndNote Tagged input",'error');
     return;
@@ -79,10 +79,9 @@ function _endnote_tagged_import($file, $batch = FALSE, $session_id = NULL) {
           }
           break;
             case '%A' :
-              $node['biblio_contributors'][] = array(
+              $node['biblio_contributors'][1][] = array(
             'name' => $value,
-            'auth_type' => _biblio_get_auth_type(1, $node['biblio_type'])
-              );
+            'auth_type' => _biblio_get_auth_type(1, $node['biblio_type']));
               break;
             case '%B' :
               $node['biblio_secondary_title'] = $value;
@@ -94,10 +93,9 @@ function _endnote_tagged_import($file, $batch = FALSE, $session_id = NULL) {
               $node['biblio_year'] = $value;
               break;
             case '%E' :
-              $node['biblio_contributors'][] = array(
+              $node['biblio_contributors'][2][] = array(
             'name' => $value,
-            'auth_type' => _biblio_get_auth_type(2, $node['biblio_type'])
-              );
+            'auth_type' => _biblio_get_auth_type(2, $node['biblio_type']));
               break;
             case '%F' :
               $node['biblio_label'] = $value;
@@ -109,12 +107,11 @@ function _endnote_tagged_import($file, $batch = FALSE, $session_id = NULL) {
               $node['biblio_secondary_title'] = $value;
               break;
             case '%K' :
-              if ($vid = variable_get('biblio_keyword_vocabulary', 0)) {
+              $vid = variable_get('biblio_keyword_vocabulary', 0);
+              if ($vid && variable_get('biblio_keyword_freetagging', 0)) {
                 $node['taxonomy']['tags'][$vid] .= (empty($node['taxonomy']['tags'][$vid])) ? "\"$value\"" : ",\"$value\"";
-                unset($node['biblio_keywords']);
-              }else{
-                $node['biblio_keywords'] .= (empty($node['biblio_keywords'])) ? "\"$value\"" : ",\"$value\"";
               }
+              $node['biblio_keywords'][] = $value;
               break;
             case '%L' :
               $node['biblio_call_number'] = $value;
@@ -147,10 +144,9 @@ function _endnote_tagged_import($file, $batch = FALSE, $session_id = NULL) {
               $node['biblio_abst_e'] .= $value;
               break;
             case '%Y' :
-              $node['biblio_contributors'][] = array(
+              $node['biblio_contributors'][3][] = array(
             'name' => $value,
-            'auth_type' => _biblio_get_auth_type(3, $node['biblio_type'])
-              );
+            'auth_type' => _biblio_get_auth_type(3, $node['biblio_type']));
               break;
             case '%Z' :
               $node['biblio_notes'] .= $value;
@@ -208,6 +204,10 @@ function _endnote_tagged_import($file, $batch = FALSE, $session_id = NULL) {
     else {
       $incite = false;
       if (!empty($node)) {
+        if (!empty($terms)) {
+          if (!isset($node['taxonomy'])) $node['taxonomy'] = array();
+          $node['taxonomy'] = array_merge($terms,$node['taxonomy']);
+        }
         $nids[] = biblio_save_node($node, $batch, $session_id);
       }
 

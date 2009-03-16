@@ -11,54 +11,19 @@ function _endnote7_XML_export($results) {
   }
   foreach ($result_array as $pub) {
     $xml .= "<RECORD>\n";
-    switch ($pub->biblio_type) {
-      case 1 :
-        $reftype = 0;
-      case 102 :
-        $reftype = 0;
-        break; // journal
-      case 2 : // 2,3 and 4
-      case 3 : // are all
-      case 4 : // are all
-      case 103 :
-        $reftype = 3;
-        break; // conference proceedings
-      case 5 :
-      case 109 :
-        $reftype = 10;
-        break; // report
-      case 5 :
-      case 100 :
-        $reftype = 7;
-        break; // book section
-      case 7 :
-      case 108 :
-        $reftype = 2;
-        break; // thesis
-      case 8 :
-      case 119 :
-        $reftype = 15;
-        break; // patent
-      case 9 :
-      case 129 :
-      default :
-        $reftype = 31;
-        break; // generic
+    $xml .= "\t<REFERENCE_TYPE>". _endnote7_type_map($pub->biblio_type) ."</REFERENCE_TYPE>\n";
+    $a = $e = $t = $s = '';
+    foreach ((array)$pub->biblio_contributors[1] as $auth) {
+      $a .= "\t\t<AUTHOR>". trim($auth['name']) ."</AUTHOR>\n";
     }
-    $xml .= "\t<REFERENCE_TYPE>$reftype</REFERENCE_TYPE>\n";
-    $a = $e = $t = '';
-    foreach ($pub->biblio_contributors as $auth) {
-      switch ($auth['auth_catagory']) {
-        case 1 :
-          $a .= "\t\t<AUTHOR>". trim($auth['name']) ."</AUTHOR>\n";
-          break;
-        case 2 :
-          $e .= "\t\t<SECONDARY_AUTHOR>". (trim($auth['name'])) ."</SECONDARY_AUTHOR>\n";
-          break;
-        case 3 :
-          $t .= "\t\t<TERTIARY_AUTHOR>". (trim($auth['name'])) ."</TERTIARY_AUTHOR>\n";
-          break;
-      }
+    foreach ((array)$pub->biblio_contributors[2] as $auth) {
+      $e .= "\t\t<SECONDARY_AUTHOR>". (trim($auth['name'])) ."</SECONDARY_AUTHOR>\n";
+    }
+    foreach ((array)$pub->biblio_contributors[3] as $auth) {
+      $t .= "\t\t<TERTIARY_AUTHOR>". (trim($auth['name'])) ."</TERTIARY_AUTHOR>\n";
+    }
+    foreach ((array)$pub->biblio_contributors[4] as $auth) {
+      $s .= "\t\t<SUBSIDIARY_AUTHOR>". (trim($auth['name'])) ."</SUBSIDIARY_AUTHOR>\n";
     }
     if (!empty ($a))
       $xml .= "\t<AUTHORS>\n$a\t</AUTHORS>\n";
@@ -66,55 +31,54 @@ function _endnote7_XML_export($results) {
       $xml .= "\t<SECONDARY_AUTHORS>\n$e\t</SECONDARY_AUTHORS>\n";
     if (!empty ($t))
       $xml .= "\t<TERTIARY_AUTHORS>\n$t\t</TERTIARY_AUTHORS>\n";
+    if (!empty ($s))
+      $xml .= "\t<SUBSIDIARY_AUTHORS>\n$s\t</SUBSIDIARY_AUTHORS>\n";
     $xml .= (!empty ($pub->biblio_year)) ? "\t<YEAR>$pub->biblio_year</YEAR>\n" : "";
     $xml .= (!empty ($pub->title)) ? "\t<TITLE>$pub->title</TITLE>\n" : "";
     $xml .= (!empty ($pub->biblio_secondary_title)) ? "\t<SECONDARY_TITLE>". htmlentities($pub->biblio_secondary_title) ."</SECONDARY_TITLE>\n" : "";
     $xml .= (!empty ($pub->biblio_place_published)) ? "\t<PLACE_PUBLISHED>". htmlentities($pub->biblio_place_published) ."</PLACE_PUBLISHED>\n" : "";
     $xml .= (!empty ($pub->biblio_publisher)) ? "\t<PUBLISHER>". htmlentities($pub->biblio_publisher) ."</PUBLISHER>\n" : "";
     $xml .= (!empty ($pub->biblio_volume)) ? "\t<VOLUME>$pub->biblio_volume</VOLUME>\n" : "";
-    //        <NUMBER_OF_VOLUMES>number of volumes</NUMBER_OF_VOLUMES>
+    $xml .= (!empty ($pub->biblio_number_of_volumes)) ? "\t<NUMBER_OF_VOLUMES>$pub->biblio_number_of_volumes</NUMBER_OF_VOLUMES>\n":'';
     $xml .= (!empty ($pub->biblio_issue)) ? "\t<NUMBER>$pub->biblio_issue</NUMBER>\n" : "";
     $xml .= (!empty ($pub->biblio_pages)) ? "\t<PAGES>$pub->biblio_pages</PAGES>\n" : "";
-    //        <SECTION>section</SECTION>
+    $xml .= (!empty ($pub->biblio_section)) ? "\t<SECTION>$pub->biblio_section</SECTION>\n" : "";
     $xml .= (!empty ($pub->biblio_tertiary_title)) ? "\t<TERTIARY_TITLE>$pub->biblio_tertiary_title</TERTIARY_TITLE>\n" : "";
     $xml .= (!empty ($pub->biblio_edition)) ? "\t<EDITION>$pub->biblio_edition</EDITION>\n" : "";
     $xml .= (!empty ($pub->biblio_date)) ? "\t<DATE>$pub->biblio_date</DATE>\n" : "";
-    //    <TYPE_OF_WORK>type of work</TYPE_OF_WORK>
-    //    <SUBSIDIARY_AUTHORS>
-    //        <SUBSIDIARY_AUTHOR>lastname1, firstname1</SUBSIDIARY_AUTHOR>
-    //        <SUBSIDIARY_AUTHOR>lastname2, firstname2</SUBSIDIARY_AUTHOR>
-    //    </SUBSIDIARY_AUTHORS>
-    //    <SHORT_TITLE>short title</SHORT_TITLE>
-    //    <ALTERNATE_TITLE>alternate title</ALTERNATE_TITLE>
+    $xml .= (!empty ($pub->biblio_type_of_work)) ? "\t<TYPE_OF_WORK>$pub->biblio_type_of_work</TYPE_OF_WORK>\n" : "";
+    $xml .= (!empty ($pub->biblio_short_title)) ? "\t<SHORT_TITLE>$pub->biblio_short_title</SHORT_TITLE>\n" : "";
+    $xml .= (!empty ($pub->biblio_alternate_title)) ? "\t<ALTERNATE_TITLE>$pub->biblio_alternate_title</ALTERNATE_TITLE>\n" : "";
     $xml .= (!empty ($pub->biblio_isbn)) ? "\t<ISBN>$pub->biblio_isbn</ISBN>\n" : "";
-    //    <ORIGINAL_PUB>original publication</ORIGINAL_PUB>
-    //    <REPRINT_EDITION>reprint edition</REPRINT_EDITION>
+    $xml .= (!empty ($pub->biblio_original_publication)) ? "\t<ORIGINAL_PUB>$pub->biblio_original_publication</ORIGINAL_PUB>\n" : "";
+    $xml .= (!empty ($pub->biblio_reprint_edition)) ? "\t<REPRINT_EDITION>reprint edition</REPRINT_EDITION>\n" : "";
     //    <REVIEWED_ITEM>reviewed item</REVIEWED_ITEM>
-    //    <CUSTOM1>custom 1</CUSTOM1>
-    //    <CUSTOM2>custom 2</CUSTOM2>
-    //    <CUSTOM3>custom 3</CUSTOM3>
-    //    <CUSTOM4>custom 4</CUSTOM4>
-    //    <CUSTOM5>custom 5</CUSTOM5>
-    //    <CUSTOM6>custom 6</CUSTOM6>
+    $xml .= (!empty ($pub->biblio_custom1)) ? "\t<CUSTOM1>$pub->biblio_custom1</CUSTOM1>\n" : "";
+    $xml .= (!empty ($pub->biblio_custom2)) ? "\t<CUSTOM2>$pub->biblio_custom2</CUSTOM2>\n" : "";
+    $xml .= (!empty ($pub->biblio_custom3)) ? "\t<CUSTOM3>$pub->biblio_custom3</CUSTOM3>\n" : "";
+    $xml .= (!empty ($pub->biblio_custom4)) ? "\t<CUSTOM4>$pub->biblio_custom4</CUSTOM4>\n" : "";
+    $xml .= (!empty ($pub->biblio_custom5)) ? "\t<CUSTOM5>$pub->biblio_custom5</CUSTOM5>\n" : "";
+    $xml .= (!empty ($pub->biblio_custom6)) ? "\t<CUSTOM6>$pub->biblio_custom6</CUSTOM6>\n" : "";
     $xml .= (!empty ($pub->biblio_accession_number)) ? "\t<ACCESSION_NUMBER>$pub->biblio_accession_number</ACCESSION_NUMBER>\n" : "";
     $xml .= (!empty ($pub->biblio_call_number)) ? "\t<CALL_NUMBER>$pub->biblio_call_number</CALL_NUMBER>\n" : "";
-    //    <LABEL>label</LABEL>
-    if (!empty($pub->terms)){
-      $xml .= "\t<KEYWORDS>\n";
-      $kw='';
-      foreach($pub->terms as $term){
-        $xml .= "\t\t<KEYWORD>". trim($term->name) ."</KEYWORD>\n";
+    $xml .= (!empty ($pub->biblio_label)) ? "\t<LABEL>$pub->biblio_label</LABEL>\n" : "";
+    $kw_xml = '';
+    $kw_array = array();
+    if (!empty($pub->terms)) {
+      foreach($pub->terms as $term) {
+        $kw_array[] =  trim($term->name) ;
       }
-      $xml .= "\t</KEYWORDS>\n";
-      if (!empty($pub->biblio_keywords)) unset($pub->biblio_keywords);
     }
-      
-    if (!empty ($pub->biblio_keywords)) {
+    if (!empty($pub->biblio_keywords)) {
+      foreach($pub->biblio_keywords as $term) {
+        $kw_array[] = trim($term->word);
+      }
+    }
+    if (!empty($kw_array)) {
+      $kw_array = array_unique($kw_array);
       $xml .= "\t<KEYWORDS>\n";
-      $splitchar = (strstr($pub->biblio_keywords, ";")) ? ";" : " ";
-      $kw_array = explode($splitchar, $pub->biblio_keywords);
-      foreach ($kw_array as $kw) {
-        $xml .= "\t\t<KEYWORD>". trim($kw) ."</KEYWORD>\n";
+      foreach($kw_array as $word) {
+        $xml .= "\t\t<KEYWORD>". trim($word) ."</KEYWORD>\n";
       }
       $xml .= "\t</KEYWORDS>\n";
     }
@@ -127,4 +91,37 @@ function _endnote7_XML_export($results) {
   } //end while
   $xml .= "</RECORDS></XML>";
   return $xml;
+}
+
+function _endnote7_type_map($bibliotype) {
+  static $map = array();
+  if (empty($map)) {
+    $map = array(
+    '0' => '102', // Journal Article
+    '1' => '100', // Book
+    '2' => '108', // Thesis
+    '3' => '103', // Conference Proceedings
+    '4' => '120', // Personal Communication
+    '5' => '105', // NewsPaper Article
+    '6' => '113', // Computer Program
+    '7' => '101', // Book Section
+    '8' => '106', // Magazine Article
+    '9' => '100', // Edited Book
+    '10' => '109', // Report
+    '11' => '122', // Map
+    '12' => '114', // Audiovisual Material
+    '13' => '112', // Artwork
+    '15' => '119', // Patent
+    '16' => '107', // Electronic Source
+    '17' => '117', // Bill
+    '18' => '116', // Case
+    '19' => '115', // Hearing
+    '20' => '121', // Manuscript
+    '21' => '110', // Film or Broadcast
+    '22' => '118', // Statute
+    '26' => '123', // Chart or Table
+    '31' => '129' // Generic
+    );
+  }
+  return ($en7_type = array_search($bibliotype, $map)) ? $en7_type : 31; //return the biblio type or 129 (Misc) if type not found
 }

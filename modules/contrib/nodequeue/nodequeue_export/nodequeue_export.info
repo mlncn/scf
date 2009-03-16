@@ -1,8 +1,0 @@
-; $Id$
-
-name = Nodequeue exporter
-description = Allows exporting multiple queues at once.
-package = "Nodequeue"
-dependencies[] = nodequeue
-core = 6.x
-

@@ -1,7 +1,7 @@
 <?php
 
 
-// $Id: biblio_style_apa.inc,v 1.9.2.7 2008/12/04 03:39:29 rjerome Exp $
+// $Id: biblio_style_apa.inc,v 1.9.2.11 2009/03/01 01:59:10 rjerome Exp $
 /**
  * Get the style information
  *
@@ -9,10 +9,29 @@
  *   The name of the style
  */
 function biblio_style_apa_info() {
-  return array (
+  return array(
     'apa' => 'American Psychological Association (APA)'
   );
 }
+
+function biblio_style_apa_author_options() {
+  $author_options = array(
+    'BetweenAuthorsDelimStandard'     =>  ', ',      //4
+    'BetweenAuthorsDelimLastAuthor'   =>  ', & ',    //5
+    'AuthorsInitialsDelimFirstAuthor' =>  ', ',      //7
+    'AuthorsInitialsDelimStandard'    =>  ' ',       //8
+    'betweenInitialsDelim'            =>  '. ',      //9
+    'initialsBeforeAuthorFirstAuthor' =>  FALSE,     //10
+    'initialsBeforeAuthorStandard'    =>  TRUE,      //11
+    'shortenGivenNames'               =>  FALSE,     //12
+    'numberOfAuthorsTriggeringEtAl'   =>  6,         //13
+    'includeNumberOfAuthors'          =>  6,         //14
+    'customStringAfterFirstAuthors'   =>  ', et al.',//15
+    'encodeHTML'                      =>  true
+  );
+  return $author_options;
+}
+
 /**
  * Apply a bibliographic style to the node
  *
@@ -23,13 +42,18 @@ function biblio_style_apa_info() {
  *   The base URL of the biblio module (defaults to /biblio)
  * @param $inline
  *   A logical value indicating if this is being rendered within the
- *   Drupal framwork (false) or we are just passing back the html (true)
+ *   Drupal framwork (FALSE) or we are just passing back the html (true)
  * @return
  *   The styled biblio entry
  */
-function biblio_style_apa($node, $base = 'biblio', $inline = false) {
-  $contrib_array = _apa_format_authors($node->biblio_contributors, $inline);
-  $authors = $contrib_array[1];
+function biblio_style_apa($node, $base = 'biblio', $inline = FALSE) {
+  $author_options = biblio_style_apa_author_options();
+  $authors = theme('biblio_format_authors', $node->biblio_contributors[1], $author_options, $inline);
+  if (empty($authors)) $authors = theme('biblio_format_authors', $node->biblio_contributors[5], $author_options, $inline);  // if no authors substitute corp author if available
+  if (empty($authors)) $authors = '[' . t('Anonymous') . ']';  // use anonymous if we still have nothing.
+  if (!empty ($node->biblio_citekey)&&(variable_get('biblio_display_citation_key',0))) {
+    $output .= '[' . check_plain($node->biblio_citekey) . '] ';
+  }
   $output .= '<span class="biblio-authors">' . $authors . "</span> \n";
   $output .= (strrpos($authors, '.') == strlen($authors)) ? ".&nbsp;&nbsp;" : " ";
   switch ($node->biblio_type) {
@@ -49,7 +73,7 @@ function biblio_style_apa($node, $base = 'biblio', $inline = false) {
       $output .= '<span class="biblio-title-apa">';
       $output .= $inline ? l("$node->title", "$base/viewinline/$node->nid") : l("$node->title", "node/$node->nid");
       $output .= ". </span> \n";
-      $output .= !empty ($contrib_array[2]) ? '(' . $contrib_array[2] . ', Ed.).' : "";
+      $output .= !empty ($node->biblio_contributors[2]) ? '(' . theme('biblio_authors', $node->biblio_contributors[2], 'apa', 2, $inline) . ', Ed.).' : "";
       $output .= ($node->biblio_secondary_title) ? '<u>' . check_plain($node->biblio_secondary_title) . '. ' : '<u>';
       $output .= ($node->biblio_volume) ? check_plain($node->biblio_volume) . ($node->biblio_issue ? '</u>(' . check_plain($node->biblio_issue) . '),&nbsp;' : ',</u> ') : '</u> ';
       //  $output .= ($node->biblio_issue) ? '('. check_plain($node->biblio_issue).')' :'';
@@ -66,24 +90,9 @@ function biblio_style_apa($node, $base = 'biblio', $inline = false) {
 /**
  * 
  */
-function _apa_format_authors($contributors, $inline = FALSE) {
-  if (count($contributors)) {
-    foreach ($contributors as $key => $author) {
-      $format = $author['prefix'] . ' ' . $author['lastname'];
-      $format .= !empty ($author['firstname']) ? ' ' . drupal_substr($author['firstname'], 0, 1) . '.' : '';
-      $format .= !empty ($author['initials']) ? $author['initials'] . '.' : '';
-      if (variable_get('biblio_author_links', 1)) {
-        $base = variable_get('biblio_base', 'biblio');
-        $format = _biblio_author_link($format, $author['cid'], $base, $inline);
-      }
-      $author_array[$author['auth_catagory']] .= (!empty ($author_array[$author['auth_catagory']])) ? ', ' . $format : $format;
-    }
-  }
-  if (count($author_array)) {
-    return $author_array;
-  } else {
-    return array (
-      1 => t('No author information available')
-    );
-  }
+function _apa_format_author($author) {
+  $format = $author['prefix'] . ' ' . $author['lastname'];
+  $format .= !empty ($author['firstname']) ? ' ' . drupal_substr($author['firstname'], 0, 1) . '.' : '';
+  $format .= !empty ($author['initials']) ? $author['initials'] . '.' : '';
+  return $format;
 }
