@@ -12,11 +12,6 @@ function ontology_schema() {
 	$schema = array();
   	$schema['ontology_relationships'] = array(
   		'fields' => array(
-  			'trid' => array(
-  				'type' => 'serial',
-  				'unsigned' => TRUE,
-  				'not null' => TRUE
-  			),
   			'subject_id' => array(
   				'type' => 'int',
   				'unsigned' => TRUE,
@@ -33,8 +28,8 @@ function ontology_schema() {
   				'not null' => TRUE
   			)
   		),
-  		'primary key' => array('trid'),
-  		'indexes' > array(
+  		'primary key' => array('subject_id','object_id','predicate'),
+  		'indexes' => array(
   			'subject' => array('subject_id'),
   			'object' => array('object_id')
   		)
