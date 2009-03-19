@@ -12,6 +12,9 @@
  * as a module showing what must be taken to create a new nodereference widget.
  */
 
+// functions in this include will move to gopubmed.module when Zaloni commits
+require_once('pubmed_import.inc');
+
 /**
  * Implementation of hook_menu().
  */
@@ -30,7 +33,7 @@ function biblioreference_menu() {
     'page callback' => 'drupal_get_form',
     'page arguments' => array('biblioreference_pubmed_import_form'),
     'access arguments' => array('create biblio'),  // not using the somewhat silly biblio_access wrapper function
-//    'file' => 'biblio.import.export.inc',
+    'file' => 'pubmed_import.inc',
     'type' => MENU_LOCAL_TASK,
     'weight' => 8,
   );
@@ -221,8 +224,9 @@ $references[666] = array(
   return $references;
 }
 
-
-
+/**
+ * Implementation of hook_form_alter().
+ */
 function biblioreference_form_alter(&$form, $form_state, $form_id) {
   if (isset($form['type'])) {
     $node = $form['#node'];
@@ -259,13 +263,9 @@ drupal_set_message('<pre>'.var_export($form,TRUE).'</pre>');
   }
 }
 
-// @TODO - accept multiple pubmed IDs
-
-
 ////////////////////////////////////////////////////////////////////////////
 // Indexing related functions (for faster, more comprehensive autocomplete)
 ////////////////////////////////////////////////////////////////////////////
-
 
 /**
  * Implementation of hook_cron().
@@ -296,7 +296,6 @@ function biblioreference_cron() {
     }
   }
 }
-
 
 /**
  * Return array of single words from the contributor fields of biblio content.
@@ -340,7 +339,6 @@ function biblioreference_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
   }
 }
 
-
 /**
  * Clears the index of biblioreference nodes and sets re-indexing to start.
  */
@@ -348,271 +346,6 @@ function biblioreference_index_wipe() {
   db_query('DELETE FROM {biblioreference_keyword}');
   variable_set('biblioreference_cron_last', 0);
 }
-
-
-/**
- * Return a form used to import files into biblio.
- *
- * @return
- *   An array which will be used by the form builder to build the import form
- */
-function biblioreference_pubmed_import_form() {
-  global $user;
-  $form['biblioreference_pubmed_id'] = array(
-    '#type' => 'textfield',
-    '#title' => t('PubMed ID'),
-    '#description' => t('The PubMed ID of an article.'),
-    '#required' => TRUE,
-  );
-
-  // this matches the check in biblio.import.export.inc's biblio_save_node().
-  if (user_access('administer nodes')) {
-    module_load_include('inc', 'biblio', 'biblio.import.export');
-    if (function_exists('_biblio_admin_build_user_select')) {
-    // redundant if statement; no need to risk a parse error for this gravy
-      $form['userid'] = _biblio_admin_build_user_select($user->uid);
-    }
-  }
-  // Get the vocabularies  attached to the biblio node type ...
-  $vocabularies = module_invoke('taxonomy', 'get_vocabularies', 'biblio');
-  // ... and print a form to select the terms in each of them
-  $form['import_taxonomy'] = array (
-    '#type' => 'fieldset',
-    '#collapsible' => TRUE,
-    '#collapsed' => TRUE,
-    '#title' => t('Taxonomy Settings'),
-    '#description' => t('Typically you don\'t have to do anything here, however if you wish, you may select terms to be assigned to imported records, this effectively adds a key word to all entries being imported. By default, all incoming key words are added to the Biblio Keywords vcabulary, you may either relate incoming entires to an existing key word OR select a term(s) from another vocabulary to relate all incoming entires to.')
-  );
-  if (count($vocabularies)) {
-    $i = 0;
-    foreach ($vocabularies as $vocabulary) {
-      $form['import_taxonomy']['vocabulary'. $i] = module_invoke('taxonomy', 'form', $vocabulary->vid, 0);
-      $form['import_taxonomy']['vocabulary'. $i++]['#description'] = t("Select taxonomy term to assigned to imported entries");
-    }
-  } else {
-    $vocab_msg = t('There are currently no vocabularies assigned to the biblio node type, please go the the !url page to change this', array ('!url' => l(t('admin/content/taxonomy'), 'admin/content/taxonomy')));
-    $form['import_taxonomy']['vocabulary_message'] = array (
-      '#value' => '<p><div>'. $vocab_msg .'</div></p>'
-    );
-  }
-  $form['button'] = array ('#type' => 'submit', '#value' => t('Import from PubMed'));
-  return $form;
-}
-
-/**
- * Implementation of hook_validate() for biblioreference_pubmed_import_form.
- */
-function biblioreference_pubmed_import_form_validate($form, &$form_state) {
-  // @TODO
-}
-
-
-/**
- * Implementation of hook_submit() for the biblio_import_form.
- */
-function biblioreference_pubmed_import_form_submit($form, &$form_state) {
-  $pmid = $form_state['values']['biblioreference_pubmed_id'];
-  $uid = $form_state['values']['userid'];
-  // @TODO - can you add vocabularies?  What happens to 'vocabulary0' then?
-  $term_ids[] = $form_state['values']['vocabulary0'];
-
-  $efetch_url = 'http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=' . $pmid . '&retmode=xml';
-
-// @debug
-//  $efetch_load = simplexml_load_file($efetch_url);
-// drupal_set_message('<pre>'.var_export($efetch_load,TRUE).'</pre>');
-
-  $result = biblioreference_load_bibtext_by_pmid($pmid);
-  $watchdog_level = (isset($result['watchdog_level'])) ? $result['watchdog_level'] : WATCHDOG_INFO;
-  watchdog('biblioreference', $result['watchdog_status'], $watchdog_level);
-  $article_bib = $result['article_bib'];
-  
-  $data = $result['article_bib'];
-
-  $nids = biblioreference_bibtex_import($data);
-
-  foreach ($nids as $node_id) {
-    if (count($tid)) {
-      module_invoke('taxonomy', 'node_save', $node_id, $term_ids);
-    }
-    db_query('UPDATE {node} SET uid = %d WHERE nid = %d', $uid, $node_id);
-    db_query('UPDATE {node_revisions} SET uid = %d WHERE nid = %d', $uid, $node_id);
-    
-    // Not worth the db query to get the title, but here's the link.
-    drupal_set_message(t('Imported <a href="@url">bibliographic citation</a>.', array('@url' => url('node/' . $node_id))));
-  }
-
-}
-
-
-/**
- * Load a single bubtext by pubmed ID.
- *
- * Taken directly from gopubmed.module (our upgraded to D6 version), function
- * gopubmed_load_bibtext_by_pmid($primaryId, $db = 'pubmed').
- * 
- * @TODO: break into smaller functions, maybe move to another module
- * or best get changes incorporated into gopubmed and keep dependency.
- */
-function biblioreference_load_bibtext_by_pmid($primaryId, $db = 'pubmed') {
-  $results = array();
-  $article_bib = '';
-// @TODO - security here
-      $sql_pmid = db_result(db_query("SELECT COUNT(*) from {biblio} WHERE `biblio_custom3` = '$primaryId'"));
-      if ($sql_pmid == 0) {
-        $results['watchdog_status'] = t("This is new primary ID: @pmid", array('@pmid' => $primaryId));
-        // ESummary Retrieves document summaries from a list of primary IDs
-        // which we got from the ESearch
-        $esummary_url = "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=$db&id=$primaryId&retmode=xml";
-        $esummary_load = simplexml_load_file($esummary_url);
-        $summaryid = $esummary_load->DocSum[0]->Id;
-      
-        /***Now creating the pubmed.bib file***/
-        $article_bib .= '@article{' . $summaryid . ',' . "\n";
-
-        foreach ($esummary_load->DocSum[0]->Item as $summary) {
-	        $authorlist="";
-          $author_all="";
-          if($summary['Name'] == "AuthorList") {
-// @TODO I think this is what must change for proper author import            
-            foreach ($summary->Item as $authorlist) {
-              $author_all .=  $authorlist . ' , '. "\n";
-            }
-            $article_bib .= 'author = {' . $author_all . '},'. "\n";
-          }
-          else {
-            if($summary['Name'] == "Author")
-              $article_bib .= 'author = {' . $summary . '},'. "\n";
-          }
-          if($summary['Name'] == "Title")
-            $title           = $summary;
-          else if($summary['Name'] == "PubDate")
-            $pubdate         = $summary;
-          else if($summary['Name'] == "ePubDate")
-            $epubdate        = $summary;
-          else if($summary['Name'] == "Source")
-            $journal         = $summary;
-          else if($summary['Name'] == "Volume")
-            $volume          = $summary;
-          else if($summary['Name'] == "Pages")
-            $pages	     = $summary;
-          else if($summary['Name'] == "Issue")
-            $issue           = $summary;
-          else if($summary['Name'] == "Pagination")
-            $pagination      = $summary;
-          else if($summary['Name'] == "PmId")
-            $pmid            = $summary;
-          else if($summary['Name'] == "SortDate")
-            $sortdate        = $summary;
-          else if($summary['Name'] == "Links")
-            $links           = $summary;
-          else if($summary['Name'] == "PmcLiveDate")
-            $pmclivedate     = $summary;
-          else if($summary['Name'] == "Abstract")
-            $Abstract        = $summary;
-          else if($summary['Name'] == "XmlData")
-            $xmldata         = $summary;
-          else if($summary['Name'] == "FullJournalName")
-            $fullJournalName = $summary;
-        
-          if($fullJournalName == "")
-            $journalname = $journal;
-          else
-            $journalname = $fullJournalName;
-        }
-          
-        /*
-         * Now getting the full article link through ELink.
-         * ELink Checks for the existence of an external or Related Articles link from a list of one or more primary
-         * IDs.  Retrieves primary IDs and relevancy scores for links to Entrez databases or Related Articles;  creates
-         * a hyperlink to the primary LinkOut provider for a specific ID and database, or lists LinkOut URLs and
-         * Attributes for multiple IDs
-         **/
-        $llink_url = "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=pubmed&id=$primaryId&cmd=prlinks";
-        $llink_load = simplexml_load_file($llink_url);
-    if (!is_object($llink_load)) {
-      drupal_set_message(t("Failed to fetch object from eutils.ncbi.nlm.nih.gov."), 'error');
-// @debug
-drupal_set_message('<pre>'.var_export($llink_load,TRUE).'</pre>');
-      
-      return;
-    }
-        
-        $llink_array = $llink_load->ObjUrl->xpath("//Url");
-        $article_link = $llink_array[0];
-          
-        // Creating pubmed url
-        $custom1 = "http://www.ncbi.nlm.nih.gov/pubmed/$primaryId?dopt=Abstract";
-        
-        // Getting abstract through EFetch.
-        // Retrieves records in the requested format from a list of one or 
-        // more primary IDs or from the user's environment.
-        $efetch = "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=$primaryId&retmode=xml";
-        $efetch_load = simplexml_load_file($efetch);
-        if (!is_object($efetch_load)) {
-          drupal_set_message(t("Failed to fetch object from <em>@url</em>.", array('@url' => $efetch)), 'error');      
-          return;
-        }
-      
-        $abstract = $efetch_load->Abstract->xpath("//AbstractText");
-        $final_abstract = $abstract[0];
-        
-        $title = str_replace("{"," ",$title);
-        $title = str_replace("}"," ",$title);
-        
-        $article_bib .= 'title = {' . $title  . '},'. "\n";
-        $article_bib .= 'year = {' . $pubdate . '},'. "\n";
-        $article_bib .= 'journal = {' . $journalname . '},'. "\n";
-        $article_bib .= 'volume = {' . $volume . '},'. "\n";
-        if($number !=''){$article_bib .= 'number = {' . $number . '},'. "\n";}
-        $article_bib .= 'pages={' . $pages . '},'. "\n";
-        if($note !=''){$article_bib .= 'note = {' . $note . ' Additional Keywords: ' . $keywordlist . '},'. "\n";}
-        $article_bib .= 'keywords = {' . $keywords . '},'. "\n";  
-        $article_bib .= 'isbn={' . $isbn . '},'. "\n";
-        $article_bib .= 'language = {' . $language . '},'. "\n";
-        $article_bib .= 'abstract = {' . $final_abstract . '},'. "\n";
-        $article_bib .= 'url = {' . $article_link . '},' . "\n";
-        $article_bib .= 'custom1 = {' . $custom1 . '},' . "\n";
-        $article_bib .= 'custom2 = {' . $search_term . '},' . "\n";
-        $article_bib .= 'custom3 = {' . $primaryId . '}' . "\n";
-        $article_bib .= '}';
-
-        $results['article_bib'] = $article_bib;      
-      }
-      else {
-        $results['watchdog_status'] = t("Publication not entered. PMID @pmid already there.", array('@pmid' => $primaryId));
-      }
-
-  return $results;
-}
-
-
-/**
- * Import bibtex data.
- *
- * @param $data
- *   the contents of a bibtex file passed as one big string
- * @param $node
- *   an array (populated in biblio_import() ), containing the boiler plate
- *   information common to all nodes
- * @return
- *   an array of node ids
- */
-function biblioreference_bibtex_import($data, $batch = NULL, $session_id = NULL) {
-  $nids = array();
-  module_load_include('php', 'biblio', 'bibtexParse/PARSEENTRIES');
-  $bibtex = new PARSEENTRIES();  
-  $bibtex->loadBibtexString($data);
-  
-//  $bibtex->openBib($file->filepath);
-  $bibtex->extractEntries();
-  if ($bibtex->count) {
-    $nids = $bibtex->bib2node($batch, $session_id);
-  }
-  return $nids;
-
-}
-
 
 /**
  * Implementation of hook_alter_item().
@@ -632,7 +365,6 @@ function biblioreference_alter_item(&$form, $key, $item, $fields) {
     
   }
 }
-
 
 /**
  * Implementation of hook_theme_registry_alter().
