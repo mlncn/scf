@@ -7,6 +7,71 @@
  */
 
 /**
+ * Data is ultimately saved by a drupal_write_record() in the node hooks
+ * (hook_insert and hook_update) of biblio.module, so all that is needed to
+ * save an additional piece of information is to add it to the $b array keyed
+ * with the name of a column from the {biblio} table.
+
+ * What are these column names?  We thought you'd never ask:
+ +-----------------------------+--------------+------+-----+---------+-------+
+| Field                       | Type         | Null | Key | Default | Extra |
++-----------------------------+--------------+------+-----+---------+-------+
+| nid                         | int(11)      | NO   | MUL | 0       |       | 
+| vid                         | int(11)      | NO   | PRI | 0       |       | 
+| biblio_type                 | int(11)      | NO   |     | 0       |       | 
+| biblio_number               | varchar(24)  | YES  |     | NULL    |       | 
+| biblio_other_number         | varchar(24)  | YES  |     | NULL    |       | 
+| biblio_secondary_title      | varchar(255) | YES  |     | NULL    |       | 
+| biblio_tertiary_title       | varchar(255) | YES  |     | NULL    |       | 
+| biblio_edition              | varchar(255) | YES  |     | NULL    |       | 
+| biblio_publisher            | varchar(255) | YES  |     | NULL    |       | 
+| biblio_place_published      | varchar(255) | YES  |     | NULL    |       | 
+| biblio_year                 | int(11)      | NO   | MUL | 9999    |       | 
+| biblio_volume               | varchar(24)  | YES  |     | NULL    |       | 
+| biblio_pages                | varchar(128) | YES  |     | NULL    |       | 
+| biblio_date                 | varchar(16)  | YES  |     | NULL    |       | 
+| biblio_isbn                 | varchar(24)  | YES  |     | NULL    |       | 
+| biblio_lang                 | varchar(24)  | YES  |     | eng     |       | 
+| biblio_abst_e               | text         | YES  |     | NULL    |       | 
+| biblio_abst_f               | text         | YES  |     | NULL    |       | 
+| biblio_full_text            | int(11)      | YES  |     | 0       |       | 
+| biblio_url                  | varchar(255) | YES  |     | NULL    |       | 
+| biblio_issue                | varchar(24)  | YES  |     | NULL    |       | 
+| biblio_type_of_work         | varchar(100) | YES  |     | NULL    |       | 
+| biblio_accession_number     | varchar(30)  | YES  |     | NULL    |       | 
+| biblio_call_number          | varchar(30)  | YES  |     | NULL    |       | 
+| biblio_notes                | text         | YES  |     | NULL    |       | 
+| biblio_custom1              | text         | YES  |     | NULL    |       | 
+| biblio_custom2              | text         | YES  |     | NULL    |       | 
+| biblio_custom3              | text         | YES  |     | NULL    |       | 
+| biblio_custom4              | text         | YES  |     | NULL    |       | 
+| biblio_custom5              | text         | YES  |     | NULL    |       | 
+| biblio_custom6              | text         | YES  |     | NULL    |       | 
+| biblio_custom7              | text         | YES  |     | NULL    |       | 
+| biblio_research_notes       | text         | YES  |     | NULL    |       | 
+| biblio_number_of_volumes    | varchar(24)  | YES  |     | NULL    |       | 
+| biblio_short_title          | varchar(255) | YES  |     | NULL    |       | 
+| biblio_alternate_title      | varchar(255) | YES  |     | NULL    |       | 
+| biblio_original_publication | varchar(255) | YES  |     | NULL    |       | 
+| biblio_reprint_edition      | varchar(255) | YES  |     | NULL    |       | 
+| biblio_translated_title     | varchar(255) | YES  |     | NULL    |       | 
+| biblio_section              | varchar(24)  | YES  |     | NULL    |       | 
+| biblio_citekey              | varchar(255) | YES  |     | NULL    |       | 
+| biblio_coins                | text         | YES  |     | NULL    |       | 
+| biblio_doi                  | varchar(255) | YES  |     | NULL    |       | 
+| biblio_issn                 | varchar(24)  | YES  |     | NULL    |       | 
+| biblio_auth_address         | text         | YES  |     | NULL    |       | 
+| biblio_remote_db_name       | varchar(255) | YES  |     | NULL    |       | 
+| biblio_remote_db_provider   | varchar(255) | YES  |     | NULL    |       | 
+| biblio_label                | varchar(255) | YES  |     | NULL    |       | 
+| biblio_access_date          | varchar(255) | YES  |     | NULL    |       | 
+| biblio_md5                  | varchar(32)  | YES  | MUL | NULL    |       | 
++-----------------------------+--------------+------+-----+---------+-------+
+ *
+ * In addition, contributors (authors/editors etc.) save in a separate table.
+ */  
+
+/**
  * Replace all other separators in a string with spaces and split into arary.
  *
  * Agaric Utility function most practical for numeric IDs, rather than text.
@@ -205,12 +270,30 @@ function biblioreference_pubmed_import_form_submit($form, &$form_state) {
  */
 function biblioreference_import_pubmed_by_pmid($pmid, $term_ids = array()) {
   $biblio = biblioreference_parse_pubmed_for_biblio($pmid);
-  $article_bib = $result['article_bib'];
-  
-  $data = $result['article_bib'];
-
-  $nids = biblioreference_bibtex_import($data, $term_ids);
-
+  if (!$biblio)  return;  // error message should already be triggered
+  // need to pass in an object with a version id to get terms, so make nodelet
+  $nodelet = db_result(db_query("SELECT nid, vid from {biblio} WHERE `biblio_citekey` = %d LIMIT 1", $pmid));
+  if (!$nodelet) {
+    $results['watchdog_status'] = t("This is new primary ID: @pmid", array('@pmid' => $pmid));
+  } 
+  else {
+    //@TODO - do a full node_load here to retain all non-biblio info?  such as?
+    $terms = taxonomy_node_get_terms($nodelet);
+    //@DEBUG
+    drupal_set_message('terms:<pre>'.var_export($terms,TRUE).'</pre>');
+    if (!empty($terms)) {
+      if (!isset($biblio['taxonomy'])) $biblio['taxonomy'] = array();
+      $biblio['taxonomy'] = array_merge($terms, $biblio['taxonomy']);
+    }
+  }
+//@DEBUG
+drupal_set_message('taxonomy:<pre>'.var_export($biblio['taxonomy'],TRUE).'</pre>');
+  if (!isset($biblio['taxonomy']))  $biblio['taxonomy'] = array();
+    //@DEBUG
+    drupal_set_message('term_ids:<pre>'.var_export($term_ids,TRUE).'</pre>');
+  $biblio['taxonomy'] = array_merge($term_ids, $biblio['taxonomy']);
+  // biblio_save_node calls node_save which triggers biblio_insert or _update  
+  $nid = biblio_save_node($node, $batch, $session_id);
 /* this is being done by biblio?
   foreach ($nids as $node_id) {
     if (count($tid)) {
@@ -219,16 +302,16 @@ function biblioreference_import_pubmed_by_pmid($pmid, $term_ids = array()) {
     db_query('UPDATE {node} SET uid = %d WHERE nid = %d', $uid, $node_id);
     db_query('UPDATE {node_revisions} SET uid = %d WHERE nid = %d', $uid, $node_id);
 */    
-    // Not worth the db query to get the title, but here's the link.
-  drupal_set_message(t('Imported <a href="@url">bibliographic citation</a>.', array('@url' => url('node/' . $node_id))));
+    // Not worth the db query to get the title, but we have it already still.
+  drupal_set_message(t('Imported bibliographic citation') . l($biblio['title'], 'node/' . $nid));
 
 }
 
 
 /**
- * Load a single bibtext by pubmed ID.
+ * Load a single pubmed article XML by pubmed ID.
  *
- * Taken directly from gopubmed.module (our upgraded to D6 version), function
+ * Heavily modified from gopubmed.module (our upgraded to D6 version), function
  * gopubmed_load_bibtext_by_pmid($primaryId, $db = 'pubmed').
  * 
  * Ideally the fetching the xml would be a different step from parsing it, but
@@ -237,20 +320,35 @@ function biblioreference_import_pubmed_by_pmid($pmid, $term_ids = array()) {
  */
 function biblioreference_parse_pubmed_for_biblio($pmid) {
   $b = array();  // an array of values suitable for import into a biblio node
-  $sql_pmid = db_result(db_query("SELECT COUNT(*) from {biblio} WHERE `biblio_custom3` = %d", $pmid));
-  if ($sql_pmid == 0) {
-    $results['watchdog_status'] = t("This is new primary ID: @pmid", array('@pmid' => $primaryId));
-    // ESummary Retrieves document summaries from a list of primary IDs
-    // which we got from the ESearch
-    $esummary_url = "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=$db&id=$primaryId&retmode=xml";
-    $esummary_load = simplexml_load_file($esummary_url);
-    $summaryid = $esummary_load->DocSum[0]->Id;
-    // @debug
-    drupal_set_message('summaryid: '.$summaryid);
-    $article_link = biblioreference_pubmed_article_link($primaryId);  
+  $db = 'pubmed';
 
+  // ESummary Retrieves document summaries from a list of primary IDs
+  // which we got from the ESearch
+  $esummary_url = "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=$db&id=$pmid&retmode=xml";
+  $esummary_load = simplexml_load_file($esummary_url);
+  if (!is_object($esummary_load)) {
+    drupal_set_message(t("Failed to fetch document summary object from %url.", array('%url' => $esummary_url)), 'error');
+    // use au_alert - watchdog('biblioreference', t("
+    return;
+  }
+  $pmurl = 'http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=' . $pmid . '&retmode=xml';
+  $pmxml = simplexml_load_file($pmurl);
+  //@debug
+  $pm = $pmxml->PubmedArticle->MedlineCitation;
 
+drupal_set_message('summary:<pre>'.var_export($pm,TRUE).'</pre>');
+
+return;
+
+  $summaryid = $esummary_load->DocSum[0]->Id;
+  // @debug
+  drupal_set_message('summaryid: '.$summaryid);
+  $article_link = biblioreference_pubmed_article_link($primaryId);  
+
+//@TODO remove extra 2-space indent below
     foreach ($esummary_load->DocSum[0]->Item as $summary) {
+// @debug
+drupal_set_message('summary:<pre>'.var_export($summary,TRUE).'</pre>');
       $authorlist = "";
       $author_all = "";
       if ($summary['Name'] == "AuthorList") {
@@ -264,7 +362,7 @@ function biblioreference_parse_pubmed_for_biblio($pmid) {
       }
       else {
         if ($summary['Name'] == "Author") {
-          $article_bib .= 'author = {' . $summary . '},'. "\n";
+          $author = $summary;
         // @debug
         drupal_set_message('authorname:<pre>'.var_export($summary,TRUE).'</pre>');
         }
@@ -301,37 +399,58 @@ function biblioreference_parse_pubmed_for_biblio($pmid) {
       else if($summary['Name'] == "FullJournalName")
         $fullJournalName = $summary;
       
-      if($fullJournalName == "") {
-        $journalname = $journal;
-      }
-      else {
-        $journalname = $fullJournalName;
-      }
     }
-    // Creating pubmed url
-    $custom1 = "http://www.ncbi.nlm.nih.gov/pubmed/$primaryId?dopt=Abstract";
-        
-    // Getting abstract through EFetch.
-    // Retrieves records in the requested format from a list of one or 
-    // more primary IDs or from the user's environment.
-    $efetch = "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=$primaryId&retmode=xml";
-    $efetch_load = simplexml_load_file($efetch);
-    if (!is_object($efetch_load)) {
-      drupal_set_message(t("Failed to fetch object from %url.", array('%url' => $efetch)), 'error');      
-      return;
+  if (!$fullJournalName) {
+    $journalname = $journal;
+  }
+  else {
+    $journalname = $fullJournalName;
+  }
+  // Create pubmed url
+  $custom1 = "http://www.ncbi.nlm.nih.gov/pubmed/$primaryId?dopt=Abstract";
+  // fetch abstract
+//  $abstract = biblioreference_pubmed_abstract($pmid);
+
+  // we have all our data, now assemble the biblio node array
+  $b['title'] = $title;
+  $b['biblio_citekey'] = $pmid;
+  // this is perfect for handling mesh terms, which should not be accessible
+  // by the user interface
+  if ($keywords) {
+    $b['biblio_keywords'] = $keywords;  
+    if (strpos($keywords,';')) $keywords = str_replace(';', ',', $keywords);
+    $vid = variable_get('biblio_keyword_vocabulary', 0);
+    if ($vid  && variable_get('biblio_keyword_freetagging', 0)) {
+      $biblio['taxonomy']['tags'][$vid] .= $keywords;
     }
-      
-    $abstract = $efetch_load->Abstract->xpath("//AbstractText");
-    $final_abstract = $abstract[0];
-        
-    $b['title'] = $title;
+    $node['biblio_keywords'] = explode(',', $keywords);
+  }
+  $b['biblio_contributors'] = array();
+  if (!empty($entry['author'])){
+        // split on ' and '
+        $authorArray = preg_split("/\s(and|&)\s/i", trim($entry['author']));
+        foreach ($authorArray as $key => $author)
+        {
+          $node['biblio_contributors'][1][]= array('name' => $author, 'auth_type' => _biblio_get_auth_type(1, $node['biblio_type']));
+        }
+      }
+
+      if (!empty($entry['editor']))
+      {
+        $authorArray = preg_split("/\s(and|&)\s/i", trim($entry['editor']));
+        foreach ($authorArray as $key => $author)
+        {
+          $node['biblio_contributors'][2][]= array('name' => $author, 'auth_type' => _biblio_get_auth_type(2, $node['biblio_type']));
+        }
+      }
 
     // historically this was automatically coded to 'article'
-    // See "Now creating the pubmed.bib file"
+    // See "Now creating the pubmed.bib file" part of gopubmed.module
     //  $article_bib .= '@article{' . $summaryid . ',' . "\n";
     // we can skip the entire switch ($entry['bibtexEntryType'] statement from
     // biblio/bibtexParse/PARSEENTRIES.php but we should review to make sure 
     // "article" is the only type PubMed ever has
+    // (note that changing biblio_type changes the meaning of some fields.
     $b['biblio_type'] = 102; // "article"
     $b['biblio_year'] = biblioreference_au_if($pubdate);
     $b['biblio_secondary_title'] = biblioreference_au_if($journalname);
@@ -341,20 +460,24 @@ function biblioreference_parse_pubmed_for_biblio($pmid) {
     if ($note != '') {  // @TOREVIEW this can result in no keywords if no note?
       $b['biblio_notes'] = $note . ' Additional Keywords: ' . $keywordlist;
     }
-    $b['biblio_keywords'] = $keywords;  
     $b['biblio_isbn'] = $isbn;
 // not used?    $b['language = {' . $language . '},'. "\n";
     $b['biblio_abst_e'] = $final_abstract; // linked by 'abstract' in prev impl
-    $article_bib .= 'url = {' . $article_link . '},' . "\n";
-    $article_bib .= 'custom1 = {' . $custom1 . '},' . "\n";
-    $article_bib .= 'custom2 = {' . $search_term . '},' . "\n";
-    $article_bib .= 'custom3 = {' . $primaryId . '}' . "\n";
-
-    $results['article_bib'] = $article_bib;      
-  }
-  else {
-    // @TODO - override old data by default
-  }
+    $b['biblio_url'] = biblioreference_au_if($article_link);  // 'url'
+// not used!!  PARSEENTRIES, which saves the file, has no saving of custom!
+//    $article_bib .= 'custom1 = {' . $custom1 . '},' . "\n";
+//    $article_bib .= 'custom2 = {' . $search_term . '},' . "\n";
+//    $article_bib .= 'custom3 = {' . $primaryId . '}' . "\n";
+// also not used!  Saved by PARSEENTRIES, but were never entered by gopubmed
+//      if (!empty($entry['booktitle'])) $node['biblio_secondary_title'] =  $entry['booktitle'];
+//      if (!empty($entry['series']))    $node['biblio_secondary_title'] =  $entry['series'];
+//      $node['biblio_date']            = (!empty($entry['month'])) ? $entry['month'] : NULL;
+//      $node['biblio_type_of_work']    .= (!empty($entry['type'])) ? $entry['type'] : NULL;
+//      $node['biblio_edition']         = (!empty($entry['edition'])) ? $entry['edition'] : NULL;
+//      $node['biblio_section']         = (!empty($entry['chapter'])) ? $entry['chapter'] : NULL;
+//      $node['biblio_place_published'] = (!empty($entry['address'])) ? $entry['address'] : NULL;
+//      $node['biblio_doi']             = (!empty($entry['doi'])) ? $entry['doi'] : NULL;
+// @TODO add the above, possibly, and any other values we want
 
 
 // @TODO do warnings right
@@ -397,8 +520,30 @@ function biblioreference_pubmed_article_link($primaryId, $db = 'pubmed') {
 }
 
 /**
- * Import pubmed data modeled on biblio_bibtex_import but using data option.
+ * Get abstract through EFetch given a PubMed Id.
  *
+ * Retrieves records in the requested format from a list of one or 
+ * more primary IDs or from the user's environment.
+ * @TODO - why is this a separate link and load?  abstract is in XML 
+ */
+function biblioreference_pubmed_abstract($pmid) {
+  $efetch = "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=$pmid&retmode=xml";
+  $efetch_load = simplexml_load_file($efetch);
+  if (!is_object($efetch_load)) {
+    drupal_set_message(t("Failed to fetch object from %url.", array('%url' => $efetch)), 'error');      
+    return;
+  }
+      
+  $abstract = $efetch_load->Abstract->xpath("//AbstractText");
+  $final_abstract = $abstract[0];
+  return $final_abstract;
+}
+
+
+/**
+ * Import pubmed data.
+ *
+ * @TODO remove or put it somewhere it makes sense
  * @param $data
  *   the contents of a bibtex file passed as one big string
  * @param $node
@@ -407,57 +552,17 @@ function biblioreference_pubmed_article_link($primaryId, $db = 'pubmed') {
  * @return
  *   an array of node ids
  */
-function biblioreference_bibtex_import($data, $terms, $batch = NULL, $session_id = NULL) {
-  $nids = array();
-  
-  return $nids;
+
+
+//// UTILITY FUNCTIONS - @TODO replace with module dependency
+
+if (!function_exists('au_alert')) {
+
+/**
+ * Triggers a drupal_set_message and a watchdog alert at the same time.
+ */
+function au_alert() {
+// @TODO
 }
 
-
-      $node['biblio_contributors'] = array();
-
-      if (!empty($entry['author'])){
-        // split on ' and '
-        $authorArray = preg_split("/\s(and|&)\s/i", trim($entry['author']));
-        foreach ($authorArray as $key => $author)
-        {
-          $node['biblio_contributors'][1][]= array('name' => $author, 'auth_type' => _biblio_get_auth_type(1, $node['biblio_type']));
-        }
-      }
-
-      $node['biblio_citekey'] = (!empty($entry['bibtexCitation'])) ? $entry['bibtexCitation'] : NULL;
-      if (!empty($entry['editor']))
-      {
-        $authorArray = preg_split("/\s(and|&)\s/i", trim($entry['editor']));
-        foreach ($authorArray as $key => $author)
-        {
-          $node['biblio_contributors'][2][]= array('name' => $author, 'auth_type' => _biblio_get_auth_type(2, $node['biblio_type']));
-        }
-      }
-
-      if (!empty($entry['booktitle'])) $node['biblio_secondary_title'] =  $entry['booktitle'];
-      if (!empty($entry['series']))    $node['biblio_secondary_title'] =  $entry['series'];
-      $node['biblio_date']            = (!empty($entry['month'])) ? $entry['month'] : NULL;
-      $node['title']                  = (!empty($entry['title'])) ? $entry['title'] : NULL;
-      $node['biblio_type_of_work']    .= (!empty($entry['type'])) ? $entry['type'] : NULL;
-      $node['biblio_edition']         = (!empty($entry['edition'])) ? $entry['edition'] : NULL;
-      $node['biblio_section']         = (!empty($entry['chapter'])) ? $entry['chapter'] : NULL;
-      $node['biblio_place_published'] = (!empty($entry['address'])) ? $entry['address'] : NULL;
-      if (!empty($entry['keywords'])){
-        if (strpos($entry['keywords'],';')) $entry['keywords'] = str_replace(';',',',$entry['keywords']);
-        $vid = variable_get('biblio_keyword_vocabulary', 0);
-        if ($vid  && variable_get('biblio_keyword_freetagging', 0)) {
-          $node['taxonomy']['tags'][$vid] .= $entry['keywords'];
-        }
-        $node['biblio_keywords'] = explode(',', $entry['keywords']);
-      }
-      $node['biblio_url']             = (!empty($entry['url'])) ? $entry['url'] : NULL;
-      $node['biblio_doi']             = (!empty($entry['doi'])) ? $entry['doi'] : NULL;
-      if (!empty($terms)) {
-        if (!isset($node['taxonomy'])) $node['taxonomy'] = array();
-        $node['taxonomy'] = array_merge($terms,$node['taxonomy']);
-      }
-      $nids[] = biblio_save_node($node, $batch, $session_id);
-    }
-    return (!empty($nids)) ? $nids : NULL;
-*/ 
+}
