@@ -1,5 +1,5 @@
 <?php
-// $Id: image.module,v 1.270 2008/04/18 00:15:26 drewish Exp $
+// $Id: image.module,v 1.282 2009/01/13 09:39:09 drewish Exp $
 
 define('IMAGE_ORIGINAL', '_original');
 define('IMAGE_PREVIEW', 'preview');
@@ -9,10 +9,6 @@ define('IMAGE_LINK_HIDDEN', 0);
 define('IMAGE_LINK_SHOWN', 1);
 define('IMAGE_LINK_NEW', 2);
 
-if (module_exists('views')) {
-  include(drupal_get_path('module', 'image') .'/views.inc');
-}
-
 /**
  * Implementation of hook_help
  */
@@ -20,15 +16,15 @@ function image_help($path, $arg) {
   switch ($path) {
     case 'admin/help#image':
       $output = '<p>'. t('The image module is used to create and administer images for your site. Each image is stored as a post, with thumbnails of the original generated automatically. There are two default thumbnail sizes, thumbnail and preview. The thumbnail size is shown as the preview for image posts and when browsing image galleries. The preview is the default size when first displaying an image node.') .'</p>';
-      $output .= '<p>'. t('Image administration allows the image directory and the image sizes to be set.</p><p>
-Image galleries are used to organize and display images in galleries.   The list tab allows users to edit existing image gallery names, descriptions, parents and relative position, known as a weight.  The add galleries tab allows you to create a new image gallery defining name, description, parent and weight.') .'</p>';
-      $output .= t('<p>You can</p>
-<ul>
-<li>view image handling messages in <a href="!admin-settings">administer &gt;&gt; settings</a>.</li>
-<li>configure image sizes and file directories at <a href="!admin-settings-image">administer &gt;&gt; settings &gt;&gt; image</a>.</li>
-<li>use the <a href="!external-http-drupal-org-project-img_assist">image assist module</a> to upload and insert images into posts.</li>
-', array('!admin-settings' => url('admin/settings'), '!admin-image-galleries' => url('admin/image/galleries'), '!admin-settings-image' => url('admin/settings/image'), '!external-http-drupal-org-project-img_assist' => 'http://drupal.org/project/img_assist')) .'</ul>';
-      $output .= '<p>'. t('For more information please read the configuration and customization handbook <a href="!image">Image page</a>.', array('!image' => 'http://www.drupal.org/handbook/modules/image/')) .'</p>';
+      $output .= '<p>'. t('Image administration allows the image directory and the image sizes to be set.') .'</p>';
+      $output .= '<p>'. t('Image galleries are used to organize and display images in galleries. The list tab allows users to edit existing image gallery names, descriptions, parents and relative position, known as a weight. The add galleries tab allows you to create a new image gallery defining name, description, parent and weight.') .'</p>';
+      $output .= '<p>'. t('You are able to:') .'</p>';
+      $output .= '<ul>';
+      $output .= '<li>'. t('View image handling messages in <a href="@admin_settings">administer &gt;&gt; settings</a>.', array('@admin_settings' => url('admin/settings'))) .'</li>';
+      $output .= '<li>'. t('Configure image sizes and file directories at <a href="@admin_settings_image">administer &gt;&gt; settings &gt;&gt; image</a>.', array('@admin_settings_image' => url('admin/settings/image'))) .'</li>';
+      $output .= '<li>'. t('Use the <a href="@external_http_drupal_org_project_img_assist">image assist module</a> to upload and insert images into posts.', array('@external_http_drupal_org_project_img_assist' => 'http://drupal.org/project/img_assist')) .'</li>';
+      $output .= '</ul>';
+      $output .= '<p>'. t('For more information, see the online handbook entry for <a href="@image">Image module</a>.', array('@image' => 'http://www.drupal.org/handbook/modules/image/')) .'</p>';
       return $output;
   }
 }
@@ -117,13 +113,20 @@ function image_menu() {
     'page callback' => 'image_fetch',
   );
   $items['admin/settings/image'] = array(
-    'title' => 'Image',
-    'description' => 'Image module settings.',
+    'title' => 'Images',
+    'description' => 'Configure the location of image files and image sizes. Also, if enabled, configure image attachments and options for image galleries and image imports.',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('image_admin_settings'),
     'access arguments' => array('administer site configuration'),
     'type' => MENU_NORMAL_ITEM,
     'file' => 'image.admin.inc',
+  );
+  $items['admin/settings/image/nodes'] = array(
+    'title' => 'Files and sizes',
+    'description' => 'Configure the location of image files and image sizes.',
+    'access arguments' => array('administer site configuration'),
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+    'weight' => '-10',
   );
 
   return $items;
@@ -181,7 +184,7 @@ function image_node_form_submit($form, &$form_state) {
   if (count($_POST) == 0) {
     unset($_SESSION['image_new_files'][$nid]);
   }
-  
+
   // Validators for file_save_upload().
   $validators = array(
     'file_validate_is_image' => array(),
@@ -243,7 +246,7 @@ function image_file_download($filename) {
     if (node_access('view', $node)) {
       // The user either needs to have 'view original images' permission or
       // the path must be listed for something other than the node's original
-      // size. This will be the case when the orignal is smaller than a 
+      // size. This will be the case when the orignal is smaller than a
       // derivative size.
       $images = (array) $node->images;
       unset($images[IMAGE_ORIGINAL]);
@@ -372,7 +375,7 @@ function image_form(&$node, &$param) {
 
   $form['new_file'] = array(
     '#type' => 'value',
-    '#default_value' => isset($node->new_file) ? $node->new_file : FALSE, 
+    '#default_value' => isset($node->new_file) ? $node->new_file : FALSE,
   );
   $form['rebuild_images'] = array(
     '#type' => 'checkbox',
@@ -404,7 +407,6 @@ function image_validate($node) {
 }
 
 function image_submit($node) {
-dsm("image_submit...");
   $nid = ($node->nid) ? $node->nid : 'new_node';
   if (isset($_SESSION['image_new_files'][$nid])) {
     $node->new_file = TRUE;
@@ -423,7 +425,7 @@ function image_view($node, $teaser = 0, $page = 0) {
   if (isset($_GET['size'])) {
     // Invalid size specified.
     if (!isset($sizes[$_GET['size']])) {
-      drupal_goto("node/$node->nid"); 
+      drupal_goto("node/$node->nid");
     }
     $size = $_GET['size'];
     // Not allowed to view the original.
@@ -464,15 +466,17 @@ function image_load(&$node) {
   $needed_sizes = array_keys(image_get_derivative_sizes($original_path));
   $unneeded_sizes = array_diff(array_keys($all_sizes), $needed_sizes);
 
-  // Derivative sizes that are larger than the original get set to the 
+  // Derivative sizes that are larger than the original get set to the
   // original.
   foreach ($unneeded_sizes as $key) {
     if (empty($node->images[$key])) {
       $node->images[$key] = $original_path;
-    } 
+    }
     else {
       // Need to remove an extra derivative image in the database.
-      drupal_set_message(t("%title's has an unneeded %key derivative images. The derivatives will be rebuilt to remove it.", array('%title' => $node->title, '%key' => $key)));
+      if (image_access('update', $node)) {
+        drupal_set_message(t("%title's has an unneeded %key derivative images. The derivatives will be rebuilt to remove it.", array('%title' => $node->title, '%key' => $key)));
+      }
       $node->rebuild_images = TRUE;
     }
   }
@@ -482,11 +486,15 @@ function image_load(&$node) {
     // If the file is missing or created after the last change to the sizes,
     // rebuild the derivatives.
     if (empty($node->images[$key]) || !file_exists($node->images[$key])) {
-      drupal_set_message(t("%title's %key derivative image %filepath was missing. The derivatives will be rebuilt to regenerate it.", array('%title' => $node->title, '%key' => $key, '%filepath' => $node->images[$key])));
-      $node->rebuild_images = TRUE; 
+      if (image_access('update', $node)) {
+        drupal_set_message(t("%title's %key derivative image %filepath was missing. The derivatives will be rebuilt to regenerate it.", array('%title' => $node->title, '%key' => $key, '%filepath' => isset($node->images[$key]) ? $node->images[$key] : '')));
+      }
+      $node->rebuild_images = TRUE;
     }
     else if (filemtime($node->images[$key]) < variable_get('image_updated', 0)) {
-      drupal_set_message(t("%title's %key derivative image had a timestamp (%filetime) that predates the last changes to the image size settings (%vartime). The derivatives will be rebuilt to regenerate it.", array('%title' => $node->title, '%key' => $key, '%filetime' => format_date(filemtime($node->images[$key])), '%vartime' => format_date(variable_get('image_updated', 0)))));
+      if (image_access('update', $node)) {
+        drupal_set_message(t("%title's %key derivative image had a timestamp (%filetime) that predates the last changes to the image size settings (%vartime). The derivatives will be rebuilt to regenerate it.", array('%title' => $node->title, '%key' => $key, '%filetime' => format_date(filemtime($node->images[$key])), '%vartime' => format_date(variable_get('image_updated', 0)))));
+      }
       $node->rebuild_images = TRUE;
     }
   }
@@ -527,19 +535,19 @@ function image_insert($node) {
  * rebuilding derivatives.
  */
 function image_update(&$node) {
-  if ($node->new_file || $node->rebuild_images) {
+  if (!empty($node->new_file) || !empty($node->rebuild_images)) {
     // Derivative images that aren't needed are set to the original file. Make
     // note of the current path before calling _image_insert() because if it's
     // in the temp directory it'll be moved. We'll need it later to determine
     // which derivative images need to be saved with _image_insert().
     $original_path = $node->images[IMAGE_ORIGINAL];
 
-    if ($node->new_file) {
-      // The derivative images were built during image_prepare() or 
+    if (!empty($node->new_file)) {
+      // The derivative images were built during image_prepare() or
       // image_create_node_from() so all we need to do is remove all the old,
       // existing images.
 
-      // Remove all the existing images. 
+      // Remove all the existing images.
       $result = db_query("SELECT f.fid, f.filepath FROM {image} i INNER JOIN {files} f ON i.fid = f.fid WHERE i.nid = %d", $node->nid);
       while ($file = db_fetch_object($result)) {
         file_delete(file_create_path($file->filepath));
@@ -551,7 +559,7 @@ function image_update(&$node) {
       // placed in the correct directory.
       _image_insert($node, IMAGE_ORIGINAL, $original_path);
     }
-    else if ($node->rebuild_images) {
+    else if (!empty($node->rebuild_images)) {
       // Find the original image.
       $original_file = db_fetch_object(db_query("SELECT i.fid, f.filepath FROM {image} i INNER JOIN {files} f ON i.fid = f.fid WHERE i.nid = %d AND image_size = '%s'", $node->nid, IMAGE_ORIGINAL));
 
@@ -571,7 +579,7 @@ function image_update(&$node) {
       // Display a message to the user if they're be able to modify the node
       // (this might have been called as part of a rebuild by a visitor).
       if (image_access('update', $node)) {
-        drupal_set_message(t('The derivative images for <a href="!link">%title</a> have been regenerated.', array('!link' => url('node/'. $node->nid), '%title' => $node->title)));
+        drupal_set_message(t('The derivative images for <a href="@link">@title</a> have been regenerated.', array('@link' => url('node/'. $node->nid), '@title' => $node->title)));
       }
 
       // Clear the flag so that we don't some how rebuild the images twice.
@@ -716,19 +724,20 @@ function image_get_latest($count = 1, $tid = 0) {
  */
 function _image_check_settings() {
   // File paths
-  $image_path = file_create_path(file_directory_path() .'/'. variable_get('image_default_path', 'images'));
-  $temp_path = rtrim($image_path, '/') .'/temp';
+  $image_path = rtrim(variable_get('image_default_path', 'images'), '/');
+  $image_path = file_create_path(file_directory_path() .'/'. $image_path);
+  $temp_path = $image_path .'/temp';
 
-  if (!file_check_directory($image_path, FILE_CREATE_DIRECTORY, 'image_default_path')) {
+  if (!file_check_directory($image_path, FILE_CREATE_DIRECTORY | FILE_MODIFY_PERMISSIONS, 'image_default_path')) {
     return false;
   }
-  if (!file_check_directory($temp_path, FILE_CREATE_DIRECTORY, 'image_default_path')) {
+  if (!file_check_directory($temp_path, FILE_CREATE_DIRECTORY | FILE_MODIFY_PERMISSIONS, 'image_default_path')) {
     return false;
   }
 
   // Sanity check : make sure we've got a working toolkit
   if (!image_get_toolkit()) {
-    drupal_set_message(t('No image toolkit is currently enabled. Without one the image module will not be able to resize your images. You can select one from the <a href="!link">image toolkit settings page</a>.', array('!link' => url('admin/settings/image-toolkit'))), 'error');
+    drupal_set_message(t('No image toolkit is currently enabled. Without one the image module will not be able to resize your images. You can select one from the <a href="@link">image toolkit settings page</a>.', array('@link' => url('admin/settings/image-toolkit'))), 'error');
     return false;
   }
   return true;
@@ -770,7 +779,7 @@ function image_get_derivative_sizes($image_path) {
 
 /**
  * Generate image derivatives.
- * 
+ *
  * @param $node
  *   The node.
  * @param $temp
@@ -781,7 +790,7 @@ function image_get_derivative_sizes($image_path) {
  */
 function _image_build_derivatives($node, $temp = FALSE) {
   $original_path = file_create_path($node->images[IMAGE_ORIGINAL]);
-  
+
   // Figure out which sizes we need to generate.
   $all_sizes = image_get_sizes();
   $needed_sizes = image_get_derivative_sizes($original_path);
@@ -806,12 +815,12 @@ function _image_build_derivatives($node, $temp = FALSE) {
         break;
 
       case 'scale_crop':
-        $status = image_scale_and_crop($destination, $destination,  $size['width'], $size['height']);
+        $status = image_scale_and_crop($original_path, $destination,  $size['width'], $size['height']);
         break;
     }
 
     if (!$status) {
-      drupal_set_message(t('Unable to create scaled %label image', array('%label' => $size['label'])), 'error');
+      drupal_set_message(t('Unable to create scaled %label image.', array('%label' => $size['label'])), 'error');
       return FALSE;
     }
     // Set standard file permissions for webserver-generated files
@@ -820,7 +829,7 @@ function _image_build_derivatives($node, $temp = FALSE) {
     $images[$key] = $destination;
     module_invoke_all('image_alter', $node, $destination, $key);
   }
-  
+
   return $images;
 }
 
@@ -862,7 +871,7 @@ function _image_filename($filename, $label = IMAGE_ORIGINAL, $temp = FALSE) {
  *   dimension provided this will be used to compute the other.
  * @return
  *   An associative array with width, height, and label fields for the size.
- *   If a $size parameter was specified and it cannot be found FALSE will be 
+ *   If a $size parameter was specified and it cannot be found FALSE will be
  *   returned.
  */
 function image_get_sizes($size = NULL, $aspect_ratio = NULL) {
@@ -876,7 +885,7 @@ function image_get_sizes($size = NULL, $aspect_ratio = NULL) {
   foreach (variable_get('image_sizes', $defaults) as $key => $val) {
     // Only return sizes with a label.
     if (!empty($val['label'])) {
-      // For a size with only one dimension specified, compute the other 
+      // For a size with only one dimension specified, compute the other
       // dimension based on an aspect ratio.
       if ($aspect_ratio && (empty($val['width']) || empty($val['height']))) {
         if (empty($val['height']) && !empty($val['width'])) {
@@ -955,25 +964,25 @@ function _image_insert(&$node, $size, $image_path) {
  * Function to other modules to use to create image nodes.
  *
  * @param $filepath
- *   String filepath of an image file. Note that this file will be moved into 
+ *   String filepath of an image file. Note that this file will be moved into
  *   the image module's images directory.
  * @param $title
- *   String to be used as the node's title. If this is ommitted the filename 
+ *   String to be used as the node's title. If this is ommitted the filename
  *   will be used.
- * @param $body 
+ * @param $body
  *   String to be used as the node's body.
  * @param $taxonomy
  *   Taxonomy terms to assign to the node if the taxonomy.module is installed.
- * @return 
+ * @return
  *   A node object if the node is created successfully or FALSE on error.
  */
 function image_create_node_from($filepath, $title = NULL, $body = '', $taxonomy = NULL) {
   global $user;
 
   if (!user_access('create images')) {
-    drupal_access_denied();
+    return FALSE;
   }
-  
+
   // Ensure it's a valid image.
   if (!$image_info = image_get_info($filepath)) {
     return FALSE;
@@ -1022,5 +1031,15 @@ function image_create_node_from($filepath, $title = NULL, $body = '', $taxonomy 
   file_delete($original_path);
 
   return $node;
+}
+
+/**
+ * Implementation of hook_views_api().
+ */
+function image_views_api() {
+  return array(
+    'api' => 2,
+    'path' => drupal_get_path('module', 'image') .'/views',
+  );
 }
 

@@ -1,5 +1,5 @@
 <?php
-// $Id: simplemenu.module,v 1.9.2.11.2.1 2008/02/28 21:47:17 m3avrck Exp $
+// $Id: simplemenu.module,v 1.9.2.11.2.6 2008/12/12 05:25:07 rz Exp $
 
 /**
  * @file
@@ -24,13 +24,28 @@ function simplemenu_menu() {
 }
 
 /**
- * Implementation of hook_init()
+ * Is simplemenu enabled for this page request?
+ */
+function simplemenu_enabled() {
+  static $enabled;
+  
+  if(!isset($enabled)) {
+    global $theme;
+    $exclusions = variable_get('simplemenu_exclusions', array());
+    $enabled = (user_access('view simplemenu') 
+      && (!isset($exclusions[$theme]) || !$exclusions[$theme]) 
+      && _simplemenu_page_visibility());
+  }
+  
+  return $enabled;  
+}
+
+/**
+ * Implementation of hook_init().
  */
 function simplemenu_init() {
-  global $theme;
-  $exclusions = variable_get('simplemenu_exclusions', array());
-  if (user_access('view simplemenu') && (!isset($exclusions[$theme])) ) {
-    global $theme, $custom_theme;
+  // do a simple access check here, since theme isn't available to check yet
+  if (user_access('view simplemenu')) {
     $path = drupal_get_path('module', 'simplemenu');
     $simplemenu_theme = variable_get('simplemenu_theme', 'original');
     drupal_add_css($path .'/simplemenu.css');
@@ -45,12 +60,33 @@ function simplemenu_init() {
       'element' => variable_get('simplemenu_element', 'body'),
       'hideDelay' => variable_get('simplemenu_hide_delay', 800),
       'placement' => variable_get('simplemenu_element_method', 'prepend'),
+      'detectPopup' => variable_get('simplemenu_detect_popop', 1),
     );
 
-    drupal_add_js(array('simplemenu' => $settings), 'setting');
-    drupal_add_js('var simplemenu = '. drupal_to_js(simplemenu_get_menu()) .';', 'inline');
+    drupal_add_js(array('simplemenu' => $settings), 'setting');    
     drupal_add_js($path .'/simplemenu.js');
-    drupal_add_js($path .'/superfish.js');
+    drupal_add_js($path .'/superfish.js');    
+  }
+}
+
+/**
+ * Implementation of hook_footer().
+ * 
+ * This has been broken off of simplemenu_init() because simplemenu_get_menu()
+ * calls simplemenu_menu_tree() which calls menu_tree_output() which has several
+ * calls to theme().  This initializes the theme system too early causing hard
+ * to track bugs.
+ * 
+ * @see http://drupal.org/node/219910
+ */
+function simplemenu_footer() {
+  if(simplemenu_enabled()) {
+    $simplemenu = drupal_to_js(simplemenu_get_menu());
+    $path = base_path() . drupal_get_path('module', 'simplemenu');
+
+    $output = "<script type=\"text/javascript\">var simplemenu = $simplemenu;</script>\n";
+    
+    return $output;
   }
 }
 
@@ -75,10 +111,23 @@ function simplemenu_admin_settings() {
     );
   }
 
+  if (module_exists('devel')) {
+    $form['default_menu']['simplemenu_devel'] = array(
+      '#type' => 'checkbox',
+      '#title' => t('Add devel module links'),
+      '#default_value' => variable_get('simplemenu_devel', 0),
+      '#description' => t('Add devel module links for those users that can access the devel module.')
+    );
+  }
+
   $form['default_menu']['simplemenu_theme'] = array(
     '#type' => 'select',
     '#title' => t('Theme'),
-    '#options' => array('original' => 'original', 'blackblue' => 'black & blue', 'custom' => 'custom'),
+    '#options' => array(
+      'original' => t('original'),
+      'blackblue' => t('black & blue'),
+      'custom' => t('custom'),
+    ),
     '#default_value' => variable_get('simplemenu_theme', 'original'),
     '#description' => t('Select which theme to use. If you specify custom, you need to define CSS in your theme.')
   );
@@ -101,8 +150,11 @@ function simplemenu_admin_settings() {
   $form['default_menu']['advanced']['simplemenu_element_method'] = array(
     '#type' => 'radios',
     '#title' => t('Attach method'),
-    '#options' => drupal_map_assoc(array('prepend', 'append')),
-    '#default_value' => variable_get('simplemenu_element_method', 'prepend'),
+    '#options' => array(
+    	'prepend' => t('Prepend'), 
+    	'append' => t('Append'),
+    ),    
+  	'#default_value' => variable_get('simplemenu_element_method', 'prepend'),
     '#description' => t('Choose how the menu should be attached to the above selector.'),
     '#required' => TRUE
   );
@@ -138,6 +190,30 @@ function simplemenu_admin_settings() {
     '#default_value' => variable_get('simplemenu_effect_speed', 'fast'),
     '#description' => t('The speed of the effect, not used when "none" is set to show effect.')
   );
+  
+  $form['default_menu']['advanced']['simplemenu_detect_popop'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Detect pop-up windows'),
+    '#default_value' => variable_get('simplemenu_detect_popop', 1),
+    '#description' => t("Choose whether SimpleMenu should attempt to detect if it is inside of a pop-up window.  If enabled, SimpleMenu will not display if it is inside of a pop-up window."),
+  );
+
+  $form['default_menu']['advanced']['simplemenu_visibility_operator'] = array(
+    '#type' => 'radios',
+    '#title' => t('Show block on specific pages'),
+    '#default_value' => variable_get('simplemenu_visibility_operator', 0),
+    '#options' => array(
+      0 => t('Show on every page except the listed pages.'), 
+      1 => t('Show on only the listed pages.')
+    ),
+  );
+  
+  $form['default_menu']['advanced']['simplemenu_visibility_pages'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Pages'),
+    '#default_value' => variable_get('simplemenu_visibility_pages', ''),
+    '#description' => t("Enter one page per line as Drupal paths. The '*' character is a wildcard. Example paths are %blog for the blog page and %blog-wildcard for every personal blog. %front is the front page.", array('%blog' => 'blog', '%blog-wildcard' => 'blog/*', '%front' => '<front>')),
+  );
 
   return system_settings_form($form);
 }
@@ -156,7 +232,14 @@ function simplemenu_get_menu() {
   if (!$menu) {
     $menu = '<li><a href="'. url('admin/settings/simplemenu') .'">'. t('No menu items found. Try a different menu as the default.') .'</a></li>';
   }
-
+  
+  // This is ugly, I know, but it is the only way I can see to get the additional 
+  // links inside the <ul> tags
+  if($devel = simplemenu_get_devel()) {
+    $pos = strpos($menu, '>') + 1;
+    $menu = substr($menu, 0, $pos) . $devel .substr($menu, $pos);
+  }
+  
   $output .= $menu;
 
   return $output;
@@ -237,4 +320,50 @@ function simplemenu_tree_all_data($root_menu = 'navigation:0') {
   }
 
   return $tree[$cid];
+}
+
+/**
+ * Return a list of devel module links if the module is enabled
+ * and the user has access to this module.
+ */
+function simplemenu_get_devel() {
+  $output = '';
+
+  if (variable_get('simplemenu_devel', 0) && module_exists('devel')) {
+    if (user_access('access devel information')) {
+      $output = '<li class="expanded"><a href="'. url('admin/settings/devel') .'">'. t('Devel module') .'</a>';
+      $output .= simplemenu_menu_tree('devel');
+      $output .= '</li>';
+    }
+  }
+  
+  return $output;
+}
+
+/**
+ * Determine if simplemenu should be displayed based on visibility settings.
+ *
+ * @return boolean
+ */
+function _simplemenu_page_visibility() {
+  $operator = variable_get('simplemenu_visibility_operator', 0);
+  $pages = variable_get('simplemenu_visibility_pages', '');
+  
+  if ($pages) {
+    $path = drupal_get_path_alias($_GET['q']);
+    // Compare with the internal and path alias (if any).
+    $page_match = drupal_match_path($path, $pages);
+    if ($path != $_GET['q']) {
+      $page_match = $page_match || drupal_match_path($_GET['q'], $pages);
+    }
+    // When $operator has a value of 0, the menu is displayed on
+    // all pages except those listed in $pages. When set to 1, it
+    // is displayed only on those pages listed in $pages.
+    $page_match = !($operator xor $page_match);
+  }
+  else {
+    $page_match = TRUE;
+  }
+  
+  return $page_match;
 }

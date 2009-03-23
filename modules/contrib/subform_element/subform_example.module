@@ -25,7 +25,7 @@ function subform_example_add_nodes(&$form_state) {
     '#title' => 'wrapper form field example',
     '#default_value' => isset($form_state['values']['example']) ? $form_state['values']['example'] : '',
   );
-  foreach (array(0 => 'page', 1 => 'page', 2 => 'story') as $key => $type) {
+  foreach (array(0 => 'page', 1 => 'page') as $key => $type) {
     if (node_access('create', $type)) {
       $form[$type.'_form_'. $key] = array(
         '#type' => 'fieldset',

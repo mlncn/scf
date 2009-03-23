@@ -1,9 +1,34 @@
 <?php
-// $Id: image_gallery.install,v 1.7 2008/04/10 18:08:54 drewish Exp $
+// $Id: image_gallery.install,v 1.9 2008/12/27 06:58:41 drewish Exp $
 
 function image_gallery_install() {
   // Nothing to do.
 }
+
+/**
+ * Implementation of hook_requirements().
+ */
+function image_gallery_requirements($phase) {
+  $requirements = array();
+  if ($phase == 'runtime') {
+    // If no galleries are defined, indicate a warning.
+    $tree = taxonomy_get_tree(_image_gallery_get_vid());
+    $requirements['image_gallery'] = array('title' => t('Image gallery'));
+    if ($tree) {
+      $requirements['image_gallery']['value'] = t('Galleries defined');
+      $requirements['image_gallery']['severity'] = REQUIREMENT_OK;
+    }
+    else {
+      $requirements['image_gallery']['value'] = t('No galleries defined');
+      $requirements['image_gallery']['description'] =
+        t('The Image gallery module is enabled, but no galleries have been created. You should <a href="@create">create</a> at least one image gallery.',
+          array('@create' => url('admin/content/image/add')));
+      $requirements['image_gallery']['severity'] = REQUIREMENT_WARNING;
+    }
+  }
+  return $requirements;
+}
+
 
 function image_gallery_uninstall() {
   if ($vid = variable_get('image_gallery_nav_vocabulary', FALSE)) {

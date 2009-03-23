@@ -104,12 +104,31 @@ forms. Share_button_handler is activated for all the subforms, so if you press "
 in one form, the action will be taken in all others to. In contrast if you deactivate the option
 for all subforms, the action will only be taken in the button's form.
 
+
+Skipping Subform Validation and Submit Handlers
+------------------------------------------------
+Sometimes it's wanted that the subforms validation and submit handlers are skipped,
+while the main form is validated and submitted as usual. In this case one can set
+$form_state['subform_skip'] to TRUE for the *subform* that should be skipped.
+
+E.g. one can determine the clicked button in an after build function or the first validate
+handler of the main form and then decide to skip some subforms.
+
+Example call to skip the subform 'my_subform':
+  $form_state['subform'][ $form['my_subform']['#id'] ]['state']['subform_skip'] = TRUE;
+
+Note that you have to set this per subform, there is no global switch.
+
+
 Limitations
 -----------
  * #data_separation doesn't apply to files. Have a look at the #data_separation explanation 
    for more on this
  * #data_separation does work for the actual data, but not for set errors. E.g. if two forms
    use an element 'title' and one sets an error on it, both elements will be marked red.
+ * Custom validation or submit handlers for *single* submit buttons in subforms are not
+   supported, as they won't work with the IE. Just set the handler of your single button
+   to the whole subform.
 
 
 Upgrade from 5.x to 6.x

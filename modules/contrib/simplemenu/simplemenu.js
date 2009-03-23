@@ -1,9 +1,14 @@
-// $Id: simplemenu.js,v 1.9.2.12.2.1 2008/02/28 21:47:17 m3avrck Exp $
+// $Id: simplemenu.js,v 1.9.2.12.2.3 2008/12/06 18:04:45 rz Exp $
 
 $(document).ready(function() {
+  // If detect pop-ups setting is enabled and we are in a pop-up window
+  if (Drupal.settings.simplemenu.detectPopup && window.opener) {
+  	return;
+ 	}
+ 	
   // get the element to add the menu to
   var element = Drupal.settings.simplemenu.element;
-  var menu = $(simplemenu).attr("id", "simplemenu");
+  var menu = $(simplemenu).attr("id", "simplemenu").addClass('clear-block');
 
   switch (Drupal.settings.simplemenu.placement) {
     case 'prepend':
@@ -18,7 +23,7 @@ $(document).ready(function() {
   }
 
   $('body').addClass('simplemenu-enabled');
-
+  
   var animation = {};
   animation[Drupal.settings.simplemenu.effect] = 'toggle';
   

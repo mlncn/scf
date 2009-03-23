@@ -2,3 +2,10 @@
 name = "Reg With Pic"
 description = "Allows user to upload picture from the registration form."
 core = 6.x
+
+; Information added by drupal.org packaging script on 2007-11-15
+version = "6.x-1.0"
+core = "6.x"
+project = "reg_with_pic"
+datestamp = "1195166710"
+

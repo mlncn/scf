@@ -1,4 +1,4 @@
-$Id: README.txt,v 1.6 2008/03/09 01:18:45 thehunmonkgroup Exp $
+$Id: README.txt,v 1.7 2008/06/09 19:08:38 thehunmonkgroup Exp $
 
 *******************************************************
     README.txt for logintoboggan.module for Drupal
@@ -9,14 +9,13 @@ This module was co-developed by Jeff Robbins (jjeff) and Chad Phillips (thehunmo
 The Login Toboggan module improves the Drupal login system in an external module by offering the following features:
 
    1. Allow users to login using either their username OR their email address.
-   2. Allow users to define their own password during registration.
-   3. Allow users to login immediately.
-   4. Provide a login form on Access Denied pages for non-logged-in (anonymous) users.
-   5. The module provides two login block options: One uses JavaScript to display the form within the block immediately upon clicking "log in". The other brings the user to a separate page, but returns the user to their original page upon login.
-   6. Customize the registration form with two e-mail fields to ensure accuracy.
-   7. Optionally redirect the user to a specific page when using the 'immediate login' feature.
-	 8. Optionally redirect the user to a specific page upon validation of their e-mail address.
-   9. Optionally display a user message indicating a successful login.
+   2. Allow users to login immediately.
+   3. Provide a login form on Access Denied pages for non-logged-in (anonymous) users.
+   4. The module provides two login block options: One uses JavaScript to display the form within the block immediately upon clicking "log in". The other brings the user to a separate page, but returns the user to their original page upon login.
+   5. Customize the registration form with two e-mail fields to ensure accuracy.
+   6. Optionally redirect the user to a specific page when using the 'immediate login' feature.
+   7. Optionally redirect the user to a specific page upon validation of their e-mail address.
+   8. Optionally display a user message indicating a successful login.
 
 Users who choose their own password can be automatically assigned to a selected 'non-authenticated' role. This role could have more permissions than anonymous but less than authenticated - thus preventing spoof accounts and spammers.  The user will only be removed from the non-authenticated role and granted authenticated permissions when they verify their account via a special email link, or when an administrator removes them from the non-authenticated role.
 

@@ -1,0 +1,41 @@
+/* $Id: CHANGELOG.txt,v 1.2.2.3 2009/03/10 00:28:45 danielkm Exp $ */
+
+
+                         TAXONOMY CSV IMPORT
+                         ===================
+
+
+== CHANGELOG ==
+  ===========
+
+Taxonomy csv x.x-x.x, xxxx-xx-xx
+--------------------------------
+
+
+Taxonomy csv 6.x-2.3, 2009-03-09
+-------------------------------
+By Daniel Berthereau: Added subrelations import.
+By Daniel Berthereau: Added option to make relations into all vocabularies.
+By Daniel Berthereau: Fixed related terms import: remove related when replace.
+By Daniel Berthereau: Fixed vocabulary level check for flat vocabulary.
+
+Taxonomy csv 6.x-2.2, 2009-03-06
+-------------------------------
+By Daniel Berthereau: Restructured module to display warning informations.
+By Daniel Berthereau: Added options to display import result.
+By Daniel Berthereau: Added options to choose log level.
+By Daniel Berthereau: Added one term structure array import.
+By Daniel Berthereau: Added auto create vocabulary.
+By Daniel Berthereau: Added vocabulary level check.
+By Daniel Berthereau: Extended help about one term structure array import.
+By Daniel Berthereau: Fixed translate in install hook.
+By Daniel Berthereau: Fixed related terms import: keep old even if Ignore.
+
+Taxonomy csv 6.x-2.1, 2009-02-28
+-------------------------------
+By Daniel Berthereau: Fixed package release.
+By Daniel Berthereau: Fixed define.
+
+Taxonomy csv 6.x-2.0, 2009-02-27
+-------------------------------
+By Daniel Berthereau: Rewrited module. Cleaned release.

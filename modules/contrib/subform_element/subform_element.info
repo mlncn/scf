@@ -2,3 +2,9 @@
 name = Subform Element
 description = An API module, which provides a new form element that makes reusing other forms easy
 core = 6.x
+; Information added by drupal.org packaging script on 2008-08-12
+version = "6.x-1.x-dev"
+core = "6.x"
+project = "subform_element"
+datestamp = "1218499786"
+

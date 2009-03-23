@@ -1,5 +1,13 @@
-; $Id: taxonomy_csv.info,v 1.3 2008/01/28 20:19:46 naquah Exp $
+; $Id: taxonomy_csv.info,v 1.3.2.2 2009/03/02 15:35:51 danielkm Exp $
 name = "Taxonomy CSV import"
-description = "Allows you to import taxonomy terms from a CSV file."
+description = "Allow quick import of complete taxonomies or simple lists of terms and properties with a CSV file."
 core = 6.x
 dependencies[] = taxonomy
+package = 'Taxonomy'
+
+; Information added by drupal.org packaging script on 2009-03-10
+version = "6.x-2.4"
+core = "6.x"
+project = "taxonomy_csv"
+datestamp = "1236645963"
+

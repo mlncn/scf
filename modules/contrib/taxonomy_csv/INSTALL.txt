@@ -1,0 +1,33 @@
+/* $Id: INSTALL.txt,v 1.2.2.1 2009/03/02 15:35:51 danielkm Exp $ */
+
+
+                         TAXONOMY CSV IMPORT
+                         ===================
+
+
+-- REQUIREMENTS --
+  --------------
+
+None.
+
+
+-- INSTALLATION --
+  --------------
+
+* Install as usual, see http://drupal.org/node/70151 for further information.
+
+ 1) Extract and copy the taxonomy_csv directory into the appropriate modules
+    directory in your Drupal installation (recommended: sites/all/modules).
+
+ 2) Go to Administer > Site building > Modules and enable the
+    Taxonomy CSV import module in the "Taxonomy" section. You should enable the
+    Taxonomy core module too.
+
+
+-- USAGE AND CONFIGURATION --
+  -------------------------
+
+* Go to Administer > Content management > Taxonomy
+  and click on the "CSV import" tab. Follow the instructions on that page.
+
+* More information in README.txt and Advanced help (Help> Taxonomy CSV import).

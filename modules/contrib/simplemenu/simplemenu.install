@@ -1,0 +1,14 @@
+<?php
+// $Id: simplemenu.install,v 1.1.2.1 2008/10/12 23:35:48 rz Exp $
+
+/**
+ * Implementation of hook_update_N().
+ */
+function simplemenu_update_6001() {
+  // if navigation menu was used in Drupal 5 use the same in Drupal 6.
+  // otherwise, we can't do anything.
+  if(variable_get('simplemenu_menu', 1) == 1) {
+    variable_set('simplemenu_menu', 'navigation:0');
+  }
+  return array();
+}

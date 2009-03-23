@@ -1,5 +1,5 @@
 <?php
-// $Id: devel_generate.inc,v 1.14.2.6 2008/05/24 12:54:27 weitzman Exp $
+// $Id: devel_generate.inc,v 1.14.2.9 2008/11/14 14:35:01 weitzman Exp $
 // If not in 'safe mode', increase the maximum execution time:
 if (!ini_get('safe_mode')) {
   set_time_limit(240);
@@ -12,8 +12,10 @@ if (!ini_get('safe_mode')) {
  *  Number of users to generate.
  * @param $kill
  *  Boolean that indicates if existing users should be removed first.
+ * @param $age
+ *  The max age of each randomly-generated user, in seconds.
  */
-function devel_create_users($num, $kill) {
+function devel_create_users($num, $kill, $age = 0) {
   $url = parse_url($GLOBALS['base_url']);
   if ($kill) {
     db_query('DELETE FROM {users} WHERE uid > 1');
@@ -24,7 +26,7 @@ function devel_create_users($num, $kill) {
     $name = devel_generate_word($length);
     $pass = md5(user_password());
     $mail = $name .'@'. $url['host'];
-    $now = time();
+    $now = time() - rand(0, $age);
     db_query("INSERT INTO {users} (name, pass, mail, status, created, access) VALUES ('%s', '%s', '%s', %d, %d, %d)", $name, $pass, $mail, 1, $now, $now);
   }
   drupal_set_message(t('!num_users created.', array('!num_users' => format_plural($num, '1 user', '@count users'))));
@@ -64,6 +66,7 @@ function devel_generate_add_comments($node, $users, $num_comments, $title_length
     $comment->format = FILTER_FORMAT_DEFAULT;
     $comment->name = 'devel generate';
     $comment->mail = 'devel_generate@example.com';
+    $comment->timestamp = rand($node->created, time());
 
     switch ($i % 3) {
       case 1:
@@ -355,6 +358,7 @@ function devel_generate_add_upload(&$node) {
   $file->list = variable_get('upload_list_default', TRUE);
   $file->description = 'b log.png was here';
   $file->filesize = $size;
+  $file->weight = rand(0,10);
 
   // If we made it this far it's safe to record this file in the database.
   db_query("INSERT INTO {files} (uid, filename, filepath, filemime, filesize, status, timestamp) VALUES (%d, '%s', '%s', '%s', %d, %d, %d)", $node->uid, $file->filename, $file->filepath, $file->filemime, $file->filesize, FILE_STATUS_TEMPORARY, time());
@@ -417,7 +421,7 @@ function devel_generate_content_add_node(&$results) {
   $node->language = '';
   $node->revision = rand(0,1);
   $node->promote = rand(0, 1);
-  $node->created = time();
+  $node->created = time() - rand(0, $results['time_range']);
   
   // A flag to let hook_nodeapi() implementations know that this is a generated node.
   $node->devel_generate = $results;

@@ -1,10 +1,11 @@
-// $Id: devel_themer.js,v 1.17 2007/12/09 19:07:40 jjeff Exp $
+// $Id: devel_themer.js,v 1.17.2.3 2008/09/23 03:13:51 weitzman Exp $
 
 if (Drupal.jsEnabled) {
   $(document).ready(function () {
     lastObj = false;
     thmrSpanified = false;
     strs = Drupal.settings.thmrStrings;
+    $('body').wrap('<span class="thmr_call" id="thmr_'+Drupal.settings.page_id+'"></span>');
     $('span.thmr_call')
     .hover(
       function () {
@@ -234,6 +235,7 @@ function thmrRebuildPopup(objs) {
   if (vars == undefined) {
     // if there's no item in the settings array for this element
     $('#themer-popup dd.candidates').empty();
+    $('#themer-popup dd.preprocessors').empty();
     $('#themer-popup div.attributes').empty();
     $('#themer-popup div.used').empty();
     $('#themer-popup div.duration').empty();
@@ -241,17 +243,23 @@ function thmrRebuildPopup(objs) {
   else {
     $('#themer-popup div.duration').empty().prepend('<span class="dt">' + strs.duration + '</span>' + vars.duration + ' ms');
     $('#themer-popup dd.candidates').empty().prepend(vars.candidates.join('<span class="delimiter"> < </span>'));
+    uri = Drupal.settings.devel_themer_uri + '/' + id;
     if (type == 'func') {
       if (vars.candidates != undefined && vars.candidates.length != 0) {
         // populate the candidates
         $('#themer-popup dt.candidates-type').empty().prepend(strs.candidate_functions);
+        // empty the preprocessors - functions don't have them :(
+        $('#themer-popup dd.preprocessors').empty();
+        $('#themer-popup dt.preprocessors-type').empty();
       }
-      $('#themer-popup div.attributes').empty().prepend('<h4>'+ strs.function_arguments + '</h4>' + vars.args);
+      $('#themer-popup div.attributes').empty().load(uri).prepend('<h4>'+ strs.function_arguments + '</h4>');
       $('#themer-popup div.used').empty();
     }
     else {
       $('#themer-popup dt.candidates-type').empty().prepend(strs.candidate_files);
-      $('#themer-popup div.attributes').empty().prepend('<h4>'+ strs.template_variables + '</h4>' + vars.args);
+      $('#themer-popup dd.preprocessors').empty().prepend(vars.preprocessors.join('<span class="delimiter"> + </span>'));
+      $('#themer-popup dt.preprocessors-type').empty().prepend(strs.preprocessors);
+      $('#themer-popup div.attributes').empty().load(uri).prepend('<h4>'+ strs.template_variables + '</h4>');
       $('#themer-popup div.used').empty().prepend('<dt>'+ strs.file_used  +'</a></dt><dd><a href="'+ strs.source_link + vars.used +'" title="'+ strs.source_link_title +'">'+ vars.used +'</a></dd>');
     }
     thmrRefreshCollapse();

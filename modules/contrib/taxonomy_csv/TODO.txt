@@ -1,0 +1,87 @@
+/* $Id: TODO.txt,v 1.2.2.2 2009/03/10 00:28:45 danielkm Exp $ */
+
+
+                         TAXONOMY CSV IMPORT
+                         ===================
+
+
+== T O D O ==
+  =========
+
+(no particular order)
+
+  o     = TODO
+  -     = Skipped/postponed
+  X     = DONE
+    nnn = Introduced
+=====================
+
+User interface
+  X 622 display result of import
+  X 622 display imported terms
+  X 622 notice warnings and errors of import file
+  X 622 choose level of message
+  X     cumulate message and use Drupal's message
+  X 622 auto create vocabulary
+  o     test on an existing vocabulary (duplicating it)
+  o     dynamic options and examples (existing items should match source type)
+  o     import by a text area. See taxonomy_batch_operations
+  o     text area to modify line when warning
+  X 620 add link to use module after installation
+  o     remind previous options values
+  o     do a uninstall hook if remind previous options values is done
+  o 622 warn remove when there is only one column and update is chosen
+  -     reset button (useless)
+  o     inform about changes during import (ex: relations set then unset)
+
+Functions
+  o     import of structured alphabetic terms list
+  o 623 option to import sub-relations and not only relations to first term
+  o 623 option to make relations to terms of all vocabularies.
+  o     import of ancestors and not children (useful?)
+  X 622 use of parents of previous line for children without ancestors
+          ("one term array structure import")
+  o     parent merge (polyhierarchy)
+  X 620 distinction between description and synonyms
+  o     multiple files import
+  o     sensitive or not to uppercase / lowercase
+  o     import of iso 2788 as in taxonomy_xml (but KISS by line approach)
+  o     integrate or reference to taxonomy_manager
+  o     remove csv terms import choice
+  o     test before import (autocreate a vocabulary)
+  o     remove ignore existing terms choice (see dynamic options above)
+
+Code / security
+  o     remove query and use only Drupal core ones and php filters (useful?)
+  o     see if there is Drupal functions to import only synonyms or related etc.
+  X 622 manage and inform on input error
+  o     factorize code and use more php functions
+  o 622 redo a cache
+  X 622 clean the input line at the beginning of process and never after
+  o     use taxonomy_parser?
+  o 622 change the type of vocabulary (flat, monohierarchy, polyhierarchy)
+  o     add hook_perm
+  o     add hook_info
+  o     replace _taxonomy_csv_parse_size by a Drupal function
+  o     no order to import files
+  o     use Drupal management of errors (mysql log)
+  o 622 change function name to internal, except some
+  o     vocabulary check (after and before)
+  o     vocabulary relations check
+  o     time out control
+  o     fix: keep multiple parents when children import
+  o 622 fix: when ignore existing items, search in imported terms cache before.
+  o     remove useless define
+  o     use a global messages variable to avoid multiple copy
+  o     relations with other vocabularies
+
+Documentation
+  o     make it simpler
+  o     more examples
+  x 620 image view and presentation text for project page
+  x 620 translations
+
+Drupal version
+  o     Drupal 7: all. Use terms as objects: simpler with parents, related, etc.
+  o     Drupal 5: update / backport
+  -     Drupal 4: update / backport

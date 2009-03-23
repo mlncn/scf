@@ -1,5 +1,5 @@
 <?php
-// $Id: devel_node_access.module,v 1.15.2.5 2008/05/12 19:45:56 salvis Exp $
+// $Id: devel_node_access.module,v 1.15.2.11 2009/01/25 12:57:21 salvis Exp $
 /**
  * @file
  *
@@ -51,7 +51,39 @@ function devel_node_access_menu() {
     'menu_name' => 'devel',
   );
 
+  if (!module_exists('devel')) {
+    $items['admin/settings/devel'] = array(
+      'title' => 'Devel node access',
+      'description' =>  'Helper pages and blocks to assist Drupal developers and admins with node_access. The devel blocks can be managed via the Blocks (admin/build/block) page.',
+      'page callback' => 'drupal_get_form',
+      'page arguments' => array('devel_node_access_admin_settings'),
+      'access arguments' => array('administer site configuration'),
+      'type' => MENU_NORMAL_ITEM
+    );
+  }
+
   return $items;
+}
+
+function devel_node_access_admin_settings() {
+  $form = array();
+  return system_settings_form($form);
+}
+
+function devel_node_access_form_alter(&$form, $form_state, $form_id) {
+  $t = 't';
+  if ($form_id == 'devel_admin_settings' || $form_id == 'devel_node_access_admin_settings') {
+    $form['devel_node_access_debug_mode'] = array(
+      '#type'          => 'checkbox',
+      '#title'         => t('Devel Node Access debug mode'),
+      '#default_value' => variable_get('devel_node_access_debug_mode', FALSE),
+      '#description'   => t('Debug mode verifies the grants in the node_access table against those that would be set by running !Rebuild_permissions, and displays them all; this can cause considerable overhead.', array('!Rebuild_permissions' => l('['. $t('Rebuild permissions') .']', 'admin/content/node-settings'))),
+    );
+    // push these down:
+    $form['devel_error_handler']['#weight'] = 1;
+    $form['smtp_library']['#weight'] = 1;
+    $form['buttons']['#weight'] = 2;
+  }
 }
 
 function dna_summary() {
@@ -119,7 +151,9 @@ function dna_summary() {
   $result = db_query('SELECT DISTINCT realm, COUNT(DISTINCT nid) as node_count FROM {node_access} WHERE gid <> 0 AND nid > 0 GROUP BY realm');
   $rows = array();
   while ($row = db_fetch_object($result)) {
-    $rows[] = array(l($row->realm, "devel/node_access/view/$row->realm"),
+    // no Views yet:
+    //$rows[] = array(l($row->realm, "devel/node_access/view/$row->realm"),
+    $rows[] = array($row->realm,
                     array('data' => $row->node_count,
                           'align' => 'center'));
   }
@@ -133,7 +167,7 @@ function dna_summary() {
   return $output;
 }
 
-function dna_visible_nodes($nid = null) {
+function dna_visible_nodes($nid = NULL) {
   static $nids = array();
   if ($nid) {
     $nids[$nid] = $nid;
@@ -145,22 +179,6 @@ function devel_node_access_nodeapi(&$node, $op, $teaser = NULL, $page = NULL) {
   if ($op == 'view') {
     // remember this node, for display in our block
     dna_visible_nodes($node->nid);
-  }
-}
-
-function devel_node_access_form_alter(&$form, $form_state, $form_id) {
-  $t = 't';
-  if ($form_id == 'devel_admin_settings' && module_exists('devel_node_access')) {
-    $form['devel_node_access_debug_mode'] = array(
-      '#type'          => 'checkbox',
-      '#title'         => t('Devel Node Access debug mode'),
-      '#default_value' => variable_get('devel_node_access_debug_mode', FALSE),
-      '#description'   => t('Debug mode verifies the grants in the node_access table against those that would be set by running !Rebuild_permissions, and displays them all; this can cause considerable overhead.', array('!Rebuild_permissions' => l('['. $t('Rebuild permissions') .']', 'admin/content/node-settings'))),
-    );
-    // push these down:
-    $form['devel_error_handler']['#weight'] = 1;
-    $form['smtp_library']['#weight'] = 1;
-    $form['buttons']['#weight'] = 2;
   }
 }
 
@@ -213,7 +231,7 @@ function devel_node_access_block($op = 'list', $delta = 0) {
             $rows = array();
             while ($row = db_fetch_object($result)) {
               $explained = module_invoke_all('node_access_explain', $row);
-              $rows[] = array($row->title ? $row->title : $row->nid,
+              $rows[] = array(!empty($row->title) ? check_plain($row->title) : $row->nid,
                               $row->realm,
                               $row->gid,
                               $row->grant_view,
@@ -244,14 +262,15 @@ function devel_node_access_block($op = 'list', $delta = 0) {
               $acquired_grants_nid = array();
               if ($node = node_load(array('nid' => $nid))) {
                 // check node_access_acquire_grants()
-                if ($grants = _devel_node_access_module_invoke_all('node_access_records', $node)) {
-                  $top_priority = $grants[0]['priority'];
+                $grants = _devel_node_access_module_invoke_all('node_access_records', $node);
+                if (!empty($grants)) {
+                  $top_priority = NULL;
                   foreach ($grants as $grant) {
-                    $priority = $grant['priority'];
-                    $top_priority = max($top_priority, $priority);
-                    $grant['priority'] = (isset($priority) ? $priority : '&ndash;');
+                    $priority = intval($grant['priority']);
+                    $top_priority = (isset($top_priority) ? max($top_priority, $priority) : $priority);
+                    $grant['priority'] = (isset($grant['priority']) ? $priority : '&ndash;&nbsp;');
                     $acquired_grants_nid[$priority][$grant['realm']][$grant['gid']] = $grant + array(
-                      '#title' => ($node->title ? $node->title : $node->nid),
+                      '#title' => ($node->title ? check_plain($node->title) : $node->nid),
                       '#module' => (isset($grant['#module']) ? $grant['#module'] : ''),
                     );
                   }
@@ -283,7 +302,7 @@ function devel_node_access_block($op = 'list', $delta = 0) {
                         'priority' => '&ndash;',
                         'state'    => 'ok',
                         'nid'      => $nid,
-                        '#title'   => ($node->title ? $node->title : $node->nid),
+                        '#title'   => ($node->title ? check_plain($node->title) : $node->nid),
                       );
                     }
                     elseif (!$found) {
@@ -329,7 +348,7 @@ function devel_node_access_block($op = 'list', $delta = 0) {
             // fill in the table rows
             $rows = array();
             foreach ($all_grants as $grant) {
-              $row = NULL;
+              $row = new stdClass();
               $row->nid = $grant['nid'];
               $row->title = $grant['#title'];
               $row->priority = $grant['priority'];
@@ -447,7 +466,7 @@ function devel_node_access_block($op = 'list', $delta = 0) {
 }
 
 /**
- * Implementation of hook_node_access_explain
+ * Implementation of hook_node_access_explain().
  */
 function devel_node_access_node_access_explain($row) {
   if ($row->gid == 0 && $row->realm == 'all') {
@@ -461,12 +480,12 @@ function devel_node_access_node_access_explain($row) {
 }
 
 /**
- * Implementation of hook_theme.
+ * Implementation of hook_theme().
  */
 function devel_node_access_theme() {
   return array(
     'dna_permission' => array(
-      'arguments' => array('permission'),
+      'arguments' => array('permission' => NULL),
     ),
   );
 }
@@ -483,121 +502,4 @@ function theme_dna_permission($permission) {
   else {
     return t('no');
   }
-}
-
-function devel_node_access_views_tables() {
-  $tables['node_access'] =
-  array('name' => 'node_access',
-        'join' => array('left' => array('table' => 'node',
-                                        'field' => 'nid'),
-                        'right' => array('field' => 'nid')),
-        'fields' => array('realm' =>
-                          array('name' => t('Node Access: realm'),
-                                'sortable' => true,
-                                ),
-                          ),
-        'filters' =>
-        array('realm' =>
-              array('name' => t('Node Access Realm'),
-                    'operator' => 'views_handler_operator_eqneq',
-                    ),
-              ),
-        );
-  return $tables;
-}
-
-function devel_node_access_views_arguments() {
-  $arguments =
-  array('realm' =>
-        array('name' => t('Node Access: Realm'),
-              'handler' => 'dna_handler_arg_realm',
-              ),
-        );
-  return $arguments;
-}
-
-function dna_handler_arg_realm($op, &$query, $argtype, $arg = '') {
-  switch ($op) {
-    case 'summary':
-      $query->ensure_table('node_access', true);
-      $query->add_field('realm', 'node_access');
-      $fieldinfo['field'] = 'realm';
-      $query->add_orderby('node_access', 'realm', 'ASC');
-      return $fieldinfo;
-      break;
-
-    case 'filter':
-      $query->ensure_table('node_access');
-      if ($arg == 'NULL') {
-        $query->add_where("node_access.realm IS NULL");
-      }
-      else {
-        $query->add_where("node_access.realm = '$arg'");
-      }
-      break;
-
-    case 'link':
-      if ($query->realm) {
-        return l($query->realm, "$arg/$query->realm");
-      }
-      else {
-        return l('NULL', "$arg/NULL");
-      }
-      break;
-
-    case 'title':
-      return $query;
-  }
-}
-
-function devel_node_access_views_default_views() {
-  $view = new stdClass();
-  $view->name = 'devel_node_access';
-  $view->description = 'View nodes in the node_access table';
-  $view->access = array();
-  $view->page = TRUE;
-  $view->page_title = 'Nodes in the node_access table';
-  $view->page_header = '';
-  $view->page_header_format = '1';
-  $view->page_type = 'table';
-  $view->url = 'devel/node_access/view';
-  $view->use_pager = TRUE;
-  $view->nodes_per_page = '100';
-  $view->sort = array();
-  $view->argument = array(
-    array(
-      'type' => 'realm',
-      'argdefault' => '3',
-      'title' => 'Nodes in the node_access table where realm is %1',
-      'options' => '',
-    ),
-  );
-  $view->field = array(
-    array(
-      'tablename' => 'node',
-      'field' => 'title',
-      'label' => 'Title',
-      'handler' => 'views_handler_field_nodelink',
-      'sortable' => '1',
-      'defaultsort' => 'ASC',
-    ),
-    array(
-      'tablename' => 'node',
-      'field' => 'type',
-      'label' => 'Type',
-      'sortable' => '1',
-    ),
-    array(
-      'tablename' => 'node',
-      'field' => 'changed',
-      'label' => 'Updated',
-      'handler' => 'views_handler_field_date_small',
-      'sortable' => '1',
-    ),
-  );
-  $view->filter = array();
-  $view->requires = array(node);
-  $views[$view->name] = $view;
-
-  return $views;
 }

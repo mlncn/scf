@@ -1,5 +1,5 @@
 <?php
-// $Id: devel.install,v 1.24.2.2 2008/05/17 14:33:20 weitzman Exp $
+// $Id: devel.install,v 1.24.2.5 2008/12/14 06:25:21 dww Exp $
 /**
  * Implementation of hook_schema().
  */
@@ -57,7 +57,7 @@ function devel_install() {
 }
 
  /**
- * Implementation of hook_install()
+ * Implementation of hook_uninstall().
  */
 function devel_uninstall() {
   drupal_uninstall_schema('devel');
@@ -150,7 +150,7 @@ function devel_update_5() {
 
 function devel_update_6001() {
   // Create our menu. See menu.install for an example.
-  $ret[] = update_sql("INSERT INTO {menu_custom} (menu_name, title, description) VALUES ('%s', '%s', '%s')", 'devel', 'Development', 'Development links.');
+  $ret[] = update_sql("INSERT INTO {menu_custom} (menu_name, title, description) VALUES ('devel', 'Development', 'Development links.')");
   return $ret;
 }
 

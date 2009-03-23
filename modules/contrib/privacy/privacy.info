@@ -1,0 +1,13 @@
+;$Id: privacy.info,v 1.1 2009/01/28 23:38:34 cptncauliflower Exp $
+name = "CCK Privacy"
+description = "Set privacy per cck field"
+core = 6.x
+dependencies[] = content
+package = CCK
+
+; Information added by drupal.org packaging script on 2009-01-29
+version = "6.x-1.0-beta2"
+core = "6.x"
+project = "privacy"
+datestamp = "1233193228"
+

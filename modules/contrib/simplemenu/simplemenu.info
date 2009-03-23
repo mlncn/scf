@@ -2,3 +2,10 @@
 name = SimpleMenu
 description = Creates a menu bar that is displayed at the top of every page.
 core = 6.x
+
+; Information added by drupal.org packaging script on 2008-12-13
+version = "6.x-1.2"
+core = "6.x"
+project = "simplemenu"
+datestamp = "1229191831"
+
