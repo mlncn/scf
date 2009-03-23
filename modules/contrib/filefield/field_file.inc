@@ -1,5 +1,5 @@
 <?php
-// $Id: field_file.inc,v 1.25 2009/03/15 06:21:21 quicksketch Exp $
+// $Id: field_file.inc,v 1.27 2009/03/19 01:50:08 quicksketch Exp $
 /**
  * @file
  * Common functionality for file handling CCK field modules.
@@ -293,8 +293,11 @@ function _field_file_cache($file = NULL, $reset = FALSE) {
 }
 
 /**
- * A silent version of file.inc:file_check_directory it's only talkative
- * on errors.
+ * A silent version of file.inc's file_check_directory().
+ *
+ * This function differs from file_check_directory in that it checks for
+ * files when doing the directory check and it does not use drupal_set_message()
+ * when creating directories. This function may be removed in Drupal 7.
  *
  * Check that the directory exists and is writable. Directories need to
  * have execute permissions to be considered a directory by FTP servers, etc.
@@ -311,24 +314,30 @@ function _field_file_cache($file = NULL, $reset = FALSE) {
 function field_file_check_directory(&$directory, $mode = 0, $form_item = NULL) {
   $directory = rtrim($directory, '/\\');
 
-  // error if dir is a file.
+  // Error if the directory is a file.
   if (is_file($directory)) {
-    watchdog('file system',  'check_directory: The path  %directory is a file.',  array('%directory' => $directory), WATCHDOG_ERROR);
-    if ($form_item)  form_set_error($form_item, t('The directory %directory is a file!', array('%directory' => $directory)));
+    watchdog('file system', 'The path %directory was checked as a directory, but it is a file.',  array('%directory' => $directory), WATCHDOG_ERROR);
+    if ($form_item) {
+      form_set_error($form_item, t('The directory %directory is a file and cannot be overwritten.', array('%directory' => $directory)));
+    }
     return FALSE;
   }
 
-  // create the directory if it is missing.
-  if (!is_dir($directory) && $mode & FILE_CREATE_DIRECTORY && !@mkdir($directory, 0775, true)) {
+  // Create the directory if it is missing.
+  if (!is_dir($directory) && $mode & FILE_CREATE_DIRECTORY && !@mkdir($directory, 0775, TRUE)) {
     watchdog('file system', 'The directory %directory does not exist.', array('%directory' => $directory), WATCHDOG_ERROR);
-    if ($form_item) form_set_error($form_item, t('The directory %directory does not exist.', array('%directory' => $directory)));
+    if ($form_item) {
+      form_set_error($form_item, t('The directory %directory does not exist.', array('%directory' => $directory)));
+    }
     return FALSE;
   }
 
   // Check to see if the directory is writable.
   if (!is_writable($directory) && $mode & FILE_MODIFY_PERMISSIONS && !@chmod($directory, 0775)) {
     watchdog('file system', 'The directory %directory is not writable, because it does not have the correct permissions set.', array('%directory' => $directory), WATCHDOG_ERROR);
-    if ($form_item) form_set_error($form_item, t('The directory %directory is not writable', array('%directory' => $directory)));
+    if ($form_item) {
+      form_set_error($form_item, t('The directory %directory is not writable', array('%directory' => $directory)));
+    }
     return FALSE;
   }
 
@@ -341,7 +350,7 @@ function field_file_check_directory(&$directory, $mode = 0, $form_item = NULL) {
     else {
       $repl = array('%directory' => $directory, '!htaccess' => nl2br(check_plain($htaccess_lines)));
       form_set_error($form_item, t("Security warning: Couldn't write .htaccess file. Please create a .htaccess file in your %directory directory which contains the following lines:<br /><code>!htaccess</code>", $repl));
-      watchdog('security', "Security warning: Couldn't write .htaccess file.  Please create a .htaccess file in your %directory directory which contains the following lines:<br /><code>!htaccess</code>", $repl, WATCHDOG_ERROR);
+      watchdog('security', "Security warning: Couldn't write .htaccess file. Please create a .htaccess file in your %directory directory which contains the following lines:<br /><code>!htaccess</code>", $repl, WATCHDOG_ERROR);
     }
   }
 

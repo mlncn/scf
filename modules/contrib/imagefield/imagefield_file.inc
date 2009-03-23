@@ -1,5 +1,5 @@
 <?php
-// $Id: imagefield_file.inc,v 1.12 2009/03/15 06:50:37 quicksketch Exp $
+// $Id: imagefield_file.inc,v 1.15 2009/03/19 03:36:52 quicksketch Exp $
 
 /**
  * @file
@@ -11,7 +11,7 @@
  */
 function imagefield_file_references($file) {
   $references = 0;
-  foreach(content_fields() as $field) {
+  foreach (content_fields() as $field) {
     if ($field['type'] != 'imagefield') {
       continue;
     }
@@ -88,11 +88,11 @@ function imagefield_create_admin_thumb($source, $destination) {
   array_pop($directories); // Remove the file itself.
   foreach ($directories as $directory) {
     $full_path = isset($full_path) ? $full_path . '/' . $directory : $directory;
-    file_check_directory($full_path, FILE_CREATE_DIRECTORY);
+    field_file_check_directory($full_path, FILE_CREATE_DIRECTORY);
   }
 
   // Create the thumbnail.
-  if ($info['width'] <= $size[0] || $info['height'] <= $size[1]) {
+  if ($info['width'] <= $size[0] && $info['height'] <= $size[1]) {
     file_copy($source, $destination);
   }
   else {

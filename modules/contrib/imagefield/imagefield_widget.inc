@@ -1,5 +1,5 @@
 <?php
-// $Id: imagefield_widget.inc,v 1.27 2009/03/15 05:30:55 quicksketch Exp $
+// $Id: imagefield_widget.inc,v 1.30 2009/03/19 03:36:52 quicksketch Exp $
 
 /**
  * @file
@@ -54,8 +54,8 @@ function imagefield_widget_settings_form($widget) {
   $form['alt_settings'] = array(
     '#type' => 'fieldset',
     '#title' => t('ALT text settings'),
-    '#collapsible' => true,
-    '#collapsed' => true,
+    '#collapsible' => TRUE,
+    '#collapsed' => TRUE,
     '#weight' => 8,
   );
   $form['alt_settings']['custom_alt'] = array(
@@ -75,8 +75,8 @@ function imagefield_widget_settings_form($widget) {
   $form['title_settings'] = array(
     '#type' => 'fieldset',
     '#title' => t('Title text settings'),
-    '#collapsible' => true,
-    '#collapsed' => true,
+    '#collapsible' => TRUE,
+    '#collapsed' => TRUE,
     '#weight' => 8,
   );
   $form['title_settings']['custom_title'] = array(
@@ -104,6 +104,13 @@ function imagefield_widget_settings_validate($widget) {
   $web_extensions = array('jpg', 'jpeg', 'gif', 'png');
   if (count(array_diff($extensions, $web_extensions))) {
     form_set_error('file_extensions', t('Only web-standard images (jpg, gif, and png) are supported through the image widget. If needing to upload other types of images, change the widget to use a standard file upload.'));
+  }
+
+  // Check that set resolutions are valid.
+  foreach (array('min_resolution', 'max_resolution') as $resolution) {
+    if (!empty($widget[$resolution]) && !preg_match('/^[0-9]+x[0-9]+$/', $widget[$resolution])) {
+      form_set_error($resolution, t('Please specify a resolution in the format WIDTHxHEIGHT (e.g. 640x480).'));
+    }
   }
 }
 
@@ -152,7 +159,7 @@ function imagefield_widget_process($element, $edit, &$form_state, $form) {
   }
   $element['data']['alt'] = array(
     '#title' => t('Alternate Text'),
-    '#type' => $field['widget']['custom_title'] ? 'textfield' : 'value',
+    '#type' => $field['widget']['custom_alt'] ? 'textfield' : 'value',
     '#default_value' => $default_alt ? $field['widget']['alt'] : $file['data']['alt'],
     '#description' => t('This text will be used by screen readers, search engines, or when the image cannot be loaded.'),
     '#maxlength' => 80, // See http://www.gawds.org/show.php?contentid=28.

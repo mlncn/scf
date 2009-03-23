@@ -1,5 +1,5 @@
 <?php
-// $Id: filefield_widget.inc,v 1.64 2009/03/15 05:30:55 quicksketch Exp $
+// $Id: filefield_widget.inc,v 1.65 2009/03/19 03:43:37 quicksketch Exp $
 
 /**
  * @file
@@ -32,8 +32,8 @@ function filefield_widget_settings_form($widget) {
   $form['path_settings'] = array(
     '#type' => 'fieldset',
     '#title' => t('Path settings'),
-    '#collapsible' => true,
-    '#collapsed' => true,
+    '#collapsible' => TRUE,
+    '#collapsed' => TRUE,
     '#weight' => 6,
   );
 
@@ -388,10 +388,10 @@ function filefield_node_form_validate($form, &$form_state) {
   foreach ($type['fields'] as $field_name => $field) {
     if (!(in_array($field['module'], array('imagefield', 'filefield')))) continue;
     $empty = $field['module'] .'_content_is_empty';
-    $valid = false;
+    $valid = FALSE;
     $total_filesize = 0;
     if (!empty($form_state['values'][$field_name])) {
-      foreach($form_state['values'][$field_name] as $delta => $item) {
+      foreach ($form_state['values'][$field_name] as $delta => $item) {
         if ($empty($item, $field)) continue;
         $valid = TRUE;
         $total_filesize += (int)$item['filesize'];

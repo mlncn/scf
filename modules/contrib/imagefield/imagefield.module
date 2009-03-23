@@ -1,5 +1,5 @@
 <?php
-// $Id: imagefield.module,v 1.81 2009/03/11 06:43:22 quicksketch Exp $
+// $Id: imagefield.module,v 1.87 2009/03/20 06:37:36 quicksketch Exp $
 
 /**
  * @file
@@ -33,51 +33,43 @@ function imagefield_theme() {
     // Theme an image uploaded to ImageField with alt and title.
     // TODO: Switch to core theme image if possible.
     'imagefield_image' => array(
-      'arguments' => array('file' => null, 'alt' => '', 'title' => '', 'attributes' => null, 'getsize' => TRUE),
+      'arguments' => array('file' => NULL, 'alt' => '', 'title' => '', 'attributes' => NULL, 'getsize' => TRUE),
     ),
     // Theme an ImageField field item. It calls imagefied_image with the proper
     // item properties as arguments.
     'imagefield_item' => array(
-      'arguments' => array('item' => null),
+      'arguments' => array('item' => NULL),
     ),
     // imagefield_widget form element type theme function.
     'imagefield_widget' => array(
-      'arguments' => array('element' => null),
+      'arguments' => array('element' => NULL),
       'file' => 'imagefield_widget.inc',
     ),
     // Use to generate a preview (admin view) of an imagefield item for use in
     // field item forms and filefield widgets. Invoked by filefield_widget_process.
     'imagefield_widget_preview' => array(
-      'arguments' => array('item' => null),
+      'arguments' => array('item' => NULL),
     ),
     // Theme function for the field item elements. allows you to place children
     // within the context of the parent.
     'imagefield_widget_item' => array(
-      'arguments' => array('element' => null),
+      'arguments' => array('element' => NULL),
     ),
     // Generates and img tag to the admin thumbnail of an ImageField upload.
     'imagefield_admin_thumbnail' => array(
-      'arguments' => array('item' => null),
+      'arguments' => array('item' => NULL),
     ),
     // ImageField formatter theme functions.
     'imagefield_formatter_image_plain' => array(
-      'arguments' => array('element' => null),
+      'arguments' => array('element' => NULL),
       'file' => 'imagefield_formatter.inc',
     ),
     'imagefield_formatter_image_nodelink' => array(
-      'arguments' => array('element' => null),
+      'arguments' => array('element' => NULL),
       'file' => 'imagefield_formatter.inc',
     ),
     'imagefield_formatter_image_imagelink' => array(
-      'arguments' => array('element' => null),
-      'file' => 'imagefield_formatter.inc',
-    ),
-    'imagefield_formatter_url_plain' => array(
-      'arguments' => array('element' => null),
-      'file' => 'imagefield_formatter.inc',
-    ),
-    'imagefield_formatter_path_plain' => array(
-      'arguments' => array('element' => null),
+      'arguments' => array('element' => NULL),
       'file' => 'imagefield_formatter.inc',
     ),
   );
@@ -107,15 +99,15 @@ function imagefield_elements() {
  */
 function imagefield_file_download($filepath) {
   // Return headers for admin thumbnails if private files are enabled.
-  if (strpos($filepath, '.thumb.')) {
-    $original_path = str_replace('.thumb', '', $filepath);
+  if (strpos($filepath, 'imagefield_thumbs') !== FALSE) {
+    $original_path = str_replace('imagefield_thumbs/', '', $filepath);
     $original_full_path = file_create_path($original_path);
     $thumb_full_path = file_create_path($filepath);
 
     // Allow access to temporary thumbnails, since they're not yet associated
     // with a node. If not temporary, check access on the original file.
-    $temporary = db_result(db_query("SELECT status FROM {files} WHERE filepath = '%s'", $original_full_path));
-    $access = ($temporary == 0 || module_invoke_all('file_download', $original_path));
+    $status = db_result(db_query("SELECT status FROM {files} WHERE filepath = '%s'", $original_full_path));
+    $access = ($status == 0 || module_invoke_all('file_download', $original_path));
     if ($access && $info = getimagesize($thumb_full_path)) {
       return array(
         'Content-Type: ' . $info['mime'],
@@ -178,6 +170,9 @@ function imagefield_widget(&$form, &$form_state, $field, $items, $delta = 0) {
   }
   $element['#upload_validators']['filefield_validate_extensions'][0] = implode(' ', array_intersect($extensions, $web_extensions));
 
+  // Add the image validator as a basic safety check.
+  $element['#upload_validators']['filefield_validate_is_image'] = array();
+
   // Add validators for resolutions.
   if (!empty($field['widget']['max_resolution']) || !empty($field['widget']['min_resolution'])) {
     $element['#upload_validators']['filefield_validate_image_resolution'] = array(
@@ -193,42 +188,54 @@ function imagefield_widget(&$form, &$form_state, $field, $items, $delta = 0) {
  * Implementation of CCK's hook_field_formatter_info().
  */
 function imagefield_field_formatter_info() {
-  $module_path = drupal_get_path('module','imagefield');
+  $module_path = drupal_get_path('module', 'imagefield');
   $formatters = array(
     'image_plain' => array(
       'label' => t('Image'),
       'field types' => array('filefield'),
-      'css' => array($module_path .'/imagefield.css'),
       'description' => t('Displays image files in their original size.'),
     ),
     'image_nodelink' => array(
       'label' => t('Image linked to node'),
       'field types' => array('filefield'),
-      'css' => array($module_path .'/imagefield.css'),
       'description' => t('Displays image files in their original size.'),
     ),
     'image_imagelink' => array(
       'label' => t('Image linked to file'),
       'field types' => array('filefield'),
-      'css' => array($module_path .'/imagefield.css'),
-      'description' => t('Displays image files in their original size.'),
-    ),
-    'path_plain' => array(
-      'label' => t('Path to file'),
-      'field types' => array('filefield'),
-      'css' => array($module_path .'/imagefield.css'),
-      'description' => t('Displays image files in their original size.'),
-    ),
-    'url_plain' => array(
-      'label' => t('URL to file'),
-      'field types' => array('filefield'),
-      'css' => array($module_path .'/imagefield.css'),
       'description' => t('Displays image files in their original size.'),
     ),
   );
   return $formatters;
 }
 
+/**
+ * Implementation of hook_form_[form_id]_alter().
+ *
+ * Modify the add new field form to make "Image" the default formatter.
+ */
+function imagefield_form_content_field_overview_form_alter(&$form, &$form_state) {
+  $form['#submit'][] = 'imagefield_form_content_field_overview_submit';
+}
+
+/**
+ * Submit handler to set a new field's formatter to "image_plain".
+ */
+function imagefield_form_content_field_overview_submit(&$form, &$form_state) {
+  if (isset($form_state['fields_added']['_add_new_field']) && isset($form['#type_name'])) {
+    $new_field = $form_state['fields_added']['_add_new_field'];
+    $node_type = $form['#type_name'];
+    $field = content_fields($new_field, $node_type);
+    if ($field['widget']['module'] == 'imagefield') {
+      foreach ($field['display_settings'] as $display_type => $display_settings) {
+        if ($field['display_settings'][$display_type]['format'] == 'default') {
+          $field['display_settings'][$display_type]['format'] = 'image_plain';
+        }
+      }
+      content_field_instance_update($field);
+    }
+  }
+}
 
 /**
  * @defgroup "Theme Callbacks"
@@ -262,7 +269,7 @@ function theme_imagefield_item($item) {
   return theme('imagefield_image', $item, $item['alt'], $item['title']);
 }
 
-function theme_imagefield_widget_preview($item = null) {
+function theme_imagefield_widget_preview($item = NULL) {
   return '<div class="imagefield-preview">' . theme('imagefield_admin_thumbnail', $item) . '</div>';
 }
 
@@ -270,7 +277,7 @@ function theme_imagefield_widget_item($element) {
   return theme('filefield_widget_item', $element);
 }
 
-function theme_imagefield_admin_thumbnail($item = null) {
+function theme_imagefield_admin_thumbnail($item = NULL) {
   if (is_null($item) || empty($item['filepath'])) {
     return '<!-- link to default admin thumb -->';
   }

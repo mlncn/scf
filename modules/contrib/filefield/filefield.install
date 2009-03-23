@@ -1,5 +1,5 @@
 <?php
-// $Id: filefield.install,v 1.21 2009/03/15 09:30:35 quicksketch Exp $
+// $Id: filefield.install,v 1.26 2009/03/20 01:02:28 quicksketch Exp $
 /**
  * @file
  * FileField: Defines a CCK file field type.
@@ -58,7 +58,7 @@ function filefield_update_6001() {
   }
 
   $ret = array();
-  include_once(drupal_get_path('module','content') .'/includes/content.admin.inc');
+  include_once(drupal_get_path('module', 'content') .'/includes/content.admin.inc');
 
   // rename the field type from file to filefield. adhere to module namespace.
   $ret[] = update_sql("UPDATE {content_node_field} SET type='filefield' WHERE type='file'");
@@ -68,18 +68,18 @@ function filefield_update_6001() {
   // update list default value and force list settings.
   $result = db_query("SELECT * FROM {content_node_field} WHERE type = 'filefield'");
   while ($field = db_fetch_object($result)) {
-    $updated = false;
+    $updated = FALSE;
     $field_settings = unserialize($field->global_settings);
     if (!isset($field_settings['list_default']) || !is_numeric($field_settings['list_default'])) {
       $field_settings['list_default'] = 1;
-      $updated = true;
+      $updated = TRUE;
 
     }
     // set behavior to match old force_list behavior.
     if (!empty($field_settings['force_list'])) {
       $field_settings['list_default'] = 1;
       $field_settings['force_list_default'] = 1;
-      $updated = true;
+      $updated = TRUE;
     }
     if ($updated) {
       db_query("UPDATE {content_node_field} SET global_settings = '%s' WHERE field_name = '%s'", serialize($field_settings), $field->field_name);
@@ -89,7 +89,7 @@ function filefield_update_6001() {
 
   // add data column to filefields.
   $fields = content_fields();
-  foreach($fields as $field) {
+  foreach ($fields as $field) {
     if ($field['type'] != 'filefield') continue;
     $new_field = $field;
     $new_field['columns']['data'] =  array('type' => 'text');
@@ -115,8 +115,8 @@ function filefield_update_6001() {
 
 
   // clear them caches.
-  cache_clear_all('*', content_cache_tablename(), true);
-  cache_clear_all('*', 'cache', true);
+  cache_clear_all('*', content_cache_tablename(), TRUE);
+  cache_clear_all('*', 'cache', TRUE);
   return $ret;
 }
 
@@ -161,10 +161,34 @@ function filefield_update_6101() {
         $table = $db_info['table'];
         $fid_column = $db_info['columns']['fid']['column'];
         $list_column = $db_info['columns']['list']['column'];
-        $ret[] = update_sql("UPDATE {$table} SET $fid_column = NULL, $list_column = NULL WHERE $fid_column NOT IN (SELECT fid FROM {files})");
+        $ret[] = update_sql("UPDATE {" . $table . "} SET $fid_column = NULL, $list_column = NULL WHERE $fid_column NOT IN (SELECT fid FROM {files})");
       }
     }
   }
+
+  return $ret;
+}
+
+/**
+ * Fix corrupted serialized data in the "data" column.
+ */
+function filefield_update_6102(&$sandbox) {
+  // Update removed. This turned out to be a bug in CCK core, so it is being
+  // fixed directly in CCK rather than in FileField.
+  // See http://drupal.org/node/407446.
+  return array();
+}
+
+/**
+ * Convert "Extensible File" to a normal "File" widget.
+ */
+function filefield_update_6103() {
+  $ret = array();
+
+  $ret[] = update_sql("UPDATE {". content_instance_tablename() ."} SET widget_type = 'filefield_widget' WHERE widget_type = 'filefield_combo'");
+
+  cache_clear_all('*', content_cache_tablename(), TRUE);
+  cache_clear_all('*', 'cache', TRUE);
 
   return $ret;
 }
