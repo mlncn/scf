@@ -255,10 +255,10 @@ function biblioreference_pubmed_import_form_submit($form, &$form_state) {
     $vocab_term_ids = array_keys($vocabulary);  // this changes for free tags
     $term_ids = array_merge($term_ids, $vocab_term_ids);
   }
-    // @debug
-    drupal_set_message('term_ids: <pre>'.var_export($term_ids,TRUE).'</pre>');
+  // @debug
+  //drupal_set_message('term_ids: <pre>'.var_export($term_ids,TRUE).'</pre>');
   foreach ($pmids AS $pmid) {
-    biblioreference_import_pubmed_by_pmid($pmid, $term_ids);
+    biblioreference_import_pubmed_by_pmid($pmid, $uid, $term_ids);
   }
 }
 
@@ -268,32 +268,42 @@ function biblioreference_pubmed_import_form_submit($form, &$form_state) {
  * Optionally take an array of Drupal taxonomy term IDs to attach to the biblio
  * node when saving.
  */
-function biblioreference_import_pubmed_by_pmid($pmid, $term_ids = array()) {
+function biblioreference_import_pubmed_by_pmid($pmid, $uid = 1, $term_ids = array()) {
   $biblio = biblioreference_parse_pubmed_for_biblio($pmid);
   if (!$biblio)  return;  // error message should already be triggered
   // need to pass in an object with a version id to get terms, so make nodelet
-  $nodelet = db_result(db_query("SELECT nid, vid from {biblio} WHERE `biblio_citekey` = %d LIMIT 1", $pmid));
+  $nodelet = db_fetch_object(db_query("SELECT nid, vid from {biblio} WHERE `biblio_citekey` = %d LIMIT 1", $pmid));
   if (!$nodelet) {
-    $results['watchdog_status'] = t("This is new primary ID: @pmid", array('@pmid' => $pmid));
+    drupal_set_message(t("This is new primary ID: @pmid", array('@pmid' => $pmid)));
   } 
   else {
+    drupal_set_message(t("A bibliographic entry exists for @pmid; it will be updated with this import.", array('@pmid' => $pmid)));
+    $biblio['nid'] = $nodelet->nid;
+    // vid is important for drupal_write_record to work right in node_save 
+    $biblio['vid'] = $nodelet->vid; 
     //@TODO - do a full node_load here to retain all non-biblio info?  such as?
     $terms = taxonomy_node_get_terms($nodelet);
     //@DEBUG
-    drupal_set_message('terms:<pre>'.var_export($terms,TRUE).'</pre>');
+    //drupal_set_message('terms:<pre>'.var_export($terms,TRUE).'</pre>');
     if (!empty($terms)) {
       if (!isset($biblio['taxonomy'])) $biblio['taxonomy'] = array();
       $biblio['taxonomy'] = array_merge($terms, $biblio['taxonomy']);
     }
   }
+  $biblio['uid'] = $uid;
 //@DEBUG
-drupal_set_message('taxonomy:<pre>'.var_export($biblio['taxonomy'],TRUE).'</pre>');
+//drupal_set_message('taxonomy:<pre>'.var_export($biblio['taxonomy'],TRUE).'</pre>');
   if (!isset($biblio['taxonomy']))  $biblio['taxonomy'] = array();
     //@DEBUG
-    drupal_set_message('term_ids:<pre>'.var_export($term_ids,TRUE).'</pre>');
+    //drupal_set_message('term_ids:<pre>'.var_export($term_ids,TRUE).'</pre>');
   $biblio['taxonomy'] = array_merge($term_ids, $biblio['taxonomy']);
+//@DEBUG
+//drupal_set_message('node_array:<pre>'.var_export($biblio,TRUE).'</pre>');
+
+  // needs to be included
+  module_load_include('inc', 'biblio', 'biblio.keywords');
   // biblio_save_node calls node_save which triggers biblio_insert or _update  
-  $nid = biblio_save_node($node, $batch, $session_id);
+  $nid = biblio_save_node($biblio); // , $batch, $session_id);
 /* this is being done by biblio?
   foreach ($nids as $node_id) {
     if (count($tid)) {
@@ -303,7 +313,7 @@ drupal_set_message('taxonomy:<pre>'.var_export($biblio['taxonomy'],TRUE).'</pre>
     db_query('UPDATE {node_revisions} SET uid = %d WHERE nid = %d', $uid, $node_id);
 */    
     // Not worth the db query to get the title, but we have it already still.
-  drupal_set_message(t('Imported bibliographic citation') . l($biblio['title'], 'node/' . $nid));
+  drupal_set_message(t('Imported bibliographic citation') . ' ' . l($biblio['title'], 'node/' . $nid));
 
 }
 
@@ -324,76 +334,66 @@ function biblioreference_parse_pubmed_for_biblio($pmid) {
 
   // ESummary Retrieves document summaries from a list of primary IDs
   // which we got from the ESearch
-  $esummary_url = "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=$db&id=$pmid&retmode=xml";
-  $esummary_load = simplexml_load_file($esummary_url);
-  if (!is_object($esummary_load)) {
-    drupal_set_message(t("Failed to fetch document summary object from %url.", array('%url' => $esummary_url)), 'error');
+//  $esummary_url = "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=$db&id=$pmid&retmode=xml";
+//  $esummary_load = simplexml_load_file($esummary_url);
+  $pmurl = 'http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=' . $pmid . '&retmode=xml';
+// @debug local file
+// $pmurl = '';
+  $pmxml = simplexml_load_file($pmurl);
+  if (!is_object($pmxml)) {  // make sure the connection worked
+    drupal_set_message(t("Failed to fetch document summary object from %url.", array('%url' => $pmurl)), 'error');
     // use au_alert - watchdog('biblioreference', t("
     return;
   }
-  $pmurl = 'http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=' . $pmid . '&retmode=xml';
-  $pmxml = simplexml_load_file($pmurl);
-  //@debug
+  // drill down to what we need
   $pm = $pmxml->PubmedArticle->MedlineCitation;
+  // aliases to further drilling down, but note this hides the true hierarchy 
+  $pma = $pm->Article;
+  $pmj = $pma->Journal;
+  $pmji = $pmj->JournalIssue;
+//@/debug
+// drupal_set_message('summary:<pre>'.var_export($pm,TRUE).'</pre>');
 
-drupal_set_message('summary:<pre>'.var_export($pm,TRUE).'</pre>');
 
-return;
-
-  $summaryid = $esummary_load->DocSum[0]->Id;
-  // @debug
-  drupal_set_message('summaryid: '.$summaryid);
-  $article_link = biblioreference_pubmed_article_link($primaryId);  
-
-//@TODO remove extra 2-space indent below
-    foreach ($esummary_load->DocSum[0]->Item as $summary) {
-// @debug
-drupal_set_message('summary:<pre>'.var_export($summary,TRUE).'</pre>');
-      $authorlist = "";
-      $author_all = "";
-      if ($summary['Name'] == "AuthorList") {
-// @TODO I think this is what must change for proper author import            
-        foreach ($summary->Item as $authorlist) {
-          // @debug
-          drupal_set_message('authorlist:<pre>'.var_export($authorlist,TRUE).'</pre>');
-          $author_all .=  $authorlist . ' , '. "\n";
-        }
-        $article_bib .= 'author = {' . $author_all . '},'. "\n";
-      }
-      else {
-        if ($summary['Name'] == "Author") {
-          $author = $summary;
-        // @debug
-        drupal_set_message('authorname:<pre>'.var_export($summary,TRUE).'</pre>');
-        }
-      }
-// @TODO change this to a switch or something less ugly.  I did not write this.
-      if ($summary['Name'] == "Title")
-        $title           = $summary;
-      else if($summary['Name'] == "PubDate")
-        $pubdate         = $summary;
+  $article_link = biblioreference_pubmed_article_link($pmid);  
+//@TODO replace below with robust functions that will try alternate versions  
+  $title = (string) $pma->ArticleTitle;
+  $journal = (string) $pmj->Title;
+  $volume = (string) $pmji->Volume;
+  $issue = (string) $pmji->Issue;
+  $pages = (string) $pma->Pagination->MedlinePgn;
+  $pubdate_values = (array) $pmji->Pubdate;
+  $pubdate = implode(' ', $pubdate_values);
+  $abstract = $pma->Abstract->AbstractText;
+  $contributors = array();
+  // cat 1 = type 1 = ordinary authors for biblio articles
+  $cat = 1;
+  $contributors[$cat] = array();
+  foreach ($pma->AuthorList->Author as $author) {
+    $author = (array) $author;
+    $valid = array_shift($author);
+    $lastname = array_shift($author);
+    $forename = array_shift($author);
+    $initials = array_shift($author);
+    if (count($author)) {
+      //@debug
+      drupal_set_message('Remaining parts of author name:<pre>'.var_export($author,TRUE).'</pre>');
+    }
+    // a little silly, but we have to combine author names for biblio to parse
+    $name = $lastname . ', ' . $forename;
+    $contributors[$cat][] = array('name' => $name);
+  }
+/*
       else if($summary['Name'] == "ePubDate")
         $epubdate        = $summary;
-      else if($summary['Name'] == "Source")
-        $journal         = $summary;
-      else if($summary['Name'] == "Volume")
-        $volume          = $summary;
-      else if($summary['Name'] == "Pages")
-        $pages	     = $summary;
-      else if($summary['Name'] == "Issue")
-        $issue           = $summary;
       else if($summary['Name'] == "Pagination")
         $pagination      = $summary;
-      else if($summary['Name'] == "PmId")
-        $pmid            = $summary;
       else if($summary['Name'] == "SortDate")
         $sortdate        = $summary;
       else if($summary['Name'] == "Links")
         $links           = $summary;
       else if($summary['Name'] == "PmcLiveDate")
         $pmclivedate     = $summary;
-      else if($summary['Name'] == "Abstract")
-        $Abstract        = $summary;
       else if($summary['Name'] == "XmlData")
         $xmldata         = $summary;
       else if($summary['Name'] == "FullJournalName")
@@ -406,9 +406,10 @@ drupal_set_message('summary:<pre>'.var_export($summary,TRUE).'</pre>');
   else {
     $journalname = $fullJournalName;
   }
-  // Create pubmed url
-  $custom1 = "http://www.ncbi.nlm.nih.gov/pubmed/$primaryId?dopt=Abstract";
-  // fetch abstract
+*/
+// Create pubmed url
+  $custom1 = "http://www.ncbi.nlm.nih.gov/pubmed/$pmid?dopt=Abstract";
+  // fetch abstract - we get this direct from the xml
 //  $abstract = biblioreference_pubmed_abstract($pmid);
 
   // we have all our data, now assemble the biblio node array
@@ -425,24 +426,12 @@ drupal_set_message('summary:<pre>'.var_export($summary,TRUE).'</pre>');
     }
     $node['biblio_keywords'] = explode(',', $keywords);
   }
-  $b['biblio_contributors'] = array();
-  if (!empty($entry['author'])){
-        // split on ' and '
-        $authorArray = preg_split("/\s(and|&)\s/i", trim($entry['author']));
-        foreach ($authorArray as $key => $author)
-        {
-          $node['biblio_contributors'][1][]= array('name' => $author, 'auth_type' => _biblio_get_auth_type(1, $node['biblio_type']));
-        }
-      }
-
-      if (!empty($entry['editor']))
-      {
-        $authorArray = preg_split("/\s(and|&)\s/i", trim($entry['editor']));
-        foreach ($authorArray as $key => $author)
-        {
-          $node['biblio_contributors'][2][]= array('name' => $author, 'auth_type' => _biblio_get_auth_type(2, $node['biblio_type']));
-        }
-      }
+  $b['biblio_contributors'] = $contributors;
+  // @CLEANUP delete legacy here in comments once shown no use
+  //      $authorArray = preg_split("/\s(and|&)\s/i", trim($entry['author']));
+  //        $node['biblio_contributors'][1][]= array('name' => $author, 'auth_type' => _biblio_get_auth_type(1, $node['biblio_type']));
+  //    if (!empty($entry['editor']))
+  //        $node['biblio_contributors'][2][]= array('name' => $author, 'auth_type' => _biblio_get_auth_type(2, $node['biblio_type']));
 
     // historically this was automatically coded to 'article'
     // See "Now creating the pubmed.bib file" part of gopubmed.module
@@ -452,7 +441,8 @@ drupal_set_message('summary:<pre>'.var_export($summary,TRUE).'</pre>');
     // "article" is the only type PubMed ever has
     // (note that changing biblio_type changes the meaning of some fields.
     $b['biblio_type'] = 102; // "article"
-    $b['biblio_year'] = biblioreference_au_if($pubdate);
+    $b['biblio_date'] = biblioreference_au_if($pubdate);
+    $b['biblio_year'] = biblioreference_au_if($pubdate_values['Year']);
     $b['biblio_secondary_title'] = biblioreference_au_if($journalname);
     $b['biblio_volume'] = biblioreference_au_if($volume);
     $b['biblio_number'] = biblioreference_au_if($number);
@@ -462,8 +452,10 @@ drupal_set_message('summary:<pre>'.var_export($summary,TRUE).'</pre>');
     }
     $b['biblio_isbn'] = $isbn;
 // not used?    $b['language = {' . $language . '},'. "\n";
-    $b['biblio_abst_e'] = $final_abstract; // linked by 'abstract' in prev impl
+    $b['biblio_abst_e'] = $abstract; // linked by 'abstract' in prev impl
     $b['biblio_url'] = biblioreference_au_if($article_link);  // 'url'
+    $b['biblio_custom1'] = $custom1;
+    $b['biblio_custom7'] = $pmurl; // the very xml used to lead everything
 // not used!!  PARSEENTRIES, which saves the file, has no saving of custom!
 //    $article_bib .= 'custom1 = {' . $custom1 . '},' . "\n";
 //    $article_bib .= 'custom2 = {' . $search_term . '},' . "\n";
@@ -505,13 +497,13 @@ function biblioreference_au_if($value) {
  * a hyperlink to the primary LinkOut provider for a specific ID and database,
  * or lists LinkOut URLs and Attributes for multiple IDs
  */
-function biblioreference_pubmed_article_link($primaryId, $db = 'pubmed') {
-    $llink_url = "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=$db&id=$primaryId&cmd=prlinks";
+function biblioreference_pubmed_article_link($pmid, $db = 'pubmed') {
+//@TODO - this has been hanging and delaying testing.  check what's what.
+return '';
+  $llink_url = "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=$db&id=$pmid&cmd=prlinks";
   $llink_load = simplexml_load_file($llink_url);
   if (!is_object($llink_load)) {
-    drupal_set_message(t("Failed to fetch object from eutils.ncbi.nlm.nih.gov."), 'error');
-    // @debug
-    drupal_set_message('Link load: <pre>'.var_export($llink_load,TRUE).'</pre>');   
+    drupal_set_message(t("Failed to fetch object from %url.", array('%url' => $llink_url)), 'error');
     return;
   } // we have an object, continue on
   $llink_array = $llink_load->ObjUrl->xpath("//Url");
