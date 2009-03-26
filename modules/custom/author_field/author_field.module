@@ -1,0 +1,74 @@
+<?php
+// $Id$
+
+/**
+ * @file
+ * The Author field module.
+ */
+
+/**
+ * Implementation of hook_help().
+ */
+function author_field_help($path) {
+  switch ($path) {
+    case 'admin/help#author_field':
+      return '<p>' . t('Userreference fields with the system name %author will automatically have the current user name filled in as the default for the first author.', array('%author' => 'author')) . '</p>';
+  }
+}
+
+/**
+ * Implementation of hook_form_alter().
+ */
+function author_field_form_alter(&$form, &$form_state, $form_id) {
+  if (isset($form['type']) && isset($form['#node'])
+    && ($form_id == $form['type']['#value'] .'_node_form') 
+    && isset($form['field_author'][0]['#type'])
+    && ($form['field_author'][0]['#type'] == 'userreference_autocomplete')
+    ) {
+    // this was overkill in checking the form, but it felt so logical, heh
+    // && isset($form['field_author'])) {
+    // && isset($form['field_author']['#field_name'])
+    // && ($form['field_author']['#field_name'] == 'field_author')
+    // @TODO make the 'are we on the right form' check still more efficient?
+
+    // we are on a node edit or add form with a userreference author field
+    // make sure we have a logged in user
+    global $user;
+    if (!$user->uid) {
+      return;
+    }
+    // if does not already has data, presumably a node add not node edit form 
+    if (!$form['field_author'][0]['#default_value']['uid']) {
+      // put in the user ID
+      $form['field_author'][0]['#default_value']['uid'] = $user->uid;
+    }
+  }
+}
+
+/**
+ * Implementation of hook_form_FORM_ID_alter().
+ */
+function author_field_form_node_type_form_alter(&$form, &$form_state) {
+  $form['author_field_message'] = array(
+    '#type' => 'markup',
+    '#value' => '<p class="description">' . t('Note: Because the %author_field module is enabled, userreference fields with the system name %author will automatically have the current user name filled in as the default for the first author.', array('%author' => 'author', '%author_field' => 'author_field')) . '</p>',
+    '#weight' => -20,
+  );
+}
+
+/**
+ * Implementation of hook_form_FORM_ID_alter().
+ */
+function author_field_form_content_field_overview_form_alter(&$form, &$form_state) {
+  if (is_array($form['#fields']) && in_array('field_author', $form['#fields'])) {
+   $value = t('Note: Because the %author_field module is enabled, the userreference field with the system name %author will automatically have the current user name filled in as the default for the first author.', array('%author' => 'author', '%author_field' => 'author_field'));
+  } else {
+   $value = t('Note: Because the %author_field module is enabled, if you create a userreference field with the system name %author, it will automatically have the current user name filled in as the default for the first author.', array('%author' => 'author', '%author_field' => 'author_field'));
+  }
+  $form['author_field_message'] = array(
+    '#type' => 'markup',
+    '#value' => '<p class="description">' . $value . '</p>',
+    '#weight' => -11120,  // form is themed; negative weight has no effect
+  );
+}
+

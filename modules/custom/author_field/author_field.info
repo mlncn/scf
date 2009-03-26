@@ -1,0 +1,6 @@
+; $Id$
+name = Author field
+description = Make author userreference fields prefill with user name.
+core = 6.x
+package = SCF
+

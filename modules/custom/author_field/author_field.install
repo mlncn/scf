@@ -1,0 +1,33 @@
+<?php
+// $Id$
+
+/**
+ * @file
+ * Author field module install hooks.
+ */
+
+/**
+ * Implementation of hook_install().
+ */
+function author_field_install() {
+  $success = TRUE;
+  if ($success) {
+    drupal_set_message(st('Author field module installed.  No configuration necessary.  Userreference fields with the system name %author will automatically have the current user filled in as the first author.', array('%author' => 'author')));
+  }
+  else {
+    drupal_set_message(st('The installation of Author field module failed.'), 'error');
+  }
+}
+
+/**
+ * Implementation of hook_uninstall().
+ */
+function author_field_uninstall() {
+//  $result = db_query("SELECT name FROM {variable} WHERE name LIKE 'author_field_%'");
+//  while ($row = db_fetch_object($result)) {
+//    variable_del($row->name);
+//  }
+
+  drupal_set_message(t('Author field has been uninstalled.'));
+}
+
