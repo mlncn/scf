@@ -69,7 +69,6 @@ function biblioreference_settings_form() {
     '#options' => $items,
     '#description' => t('The maximum number of items indexed in each pass of a <a href="@cron">cron maintenance task</a>. If necessary, reduce the number of items to prevent timeouts and memory errors while indexing.', array('@cron' => url('admin/reports/status')))
   );
-
   return system_settings_form($form);
 }
 

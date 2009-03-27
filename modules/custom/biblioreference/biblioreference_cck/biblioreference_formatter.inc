@@ -61,20 +61,22 @@ function theme_biblioreference_cck_formatter_pubmed($element) {
     $nid = $element['#item']['nid'];
     $title = _nodereference_titles($nid); // uses static caching, good
     $biblio = biblioreference_biblio_load($nid);
-// $output .= '<pre>' . var_export($biblio, TRUE) . '</pre>';
-//    $authors = _biblioreference_authors($nid);
     $contributors = $biblio->biblio_contributors;
+    
     module_load_include('inc', 'biblio', 'biblio.pages');
     usort($contributors, 'biblioreference_au_compare_author_level');
     // contributor/author presentation adopted from theme_biblio_long().
-    foreach ($contributors as $auth) {
-      $authors .= (!empty ($authors)) ? '; '. _biblio_author_link($auth['name'], $auth['cid']) : _biblio_author_link($auth['name'], $auth['cid']);
+    foreach ($contributors as $author) {
+      $authors .= _biblio_author_link($author[0]['name'], $author[0]['cid']) . "; ";
     }
+    
+    $authors = rtrim($authors, '; ');
+    
     // set the date string
-    if ($biblio->biblio_date) {  // prefer the full publication date
+    if (!empty($biblio->biblio_date)) {  // prefer the full publication date
       $date = $biblio->biblio_date;
     }
-    elseif ($biblio->biblio_year) {  // take the year if available
+    elseif (!empty($biblio->biblio_year)) {  // take the year if available
       $date = $biblio->biblio_year;
     }
     else {
@@ -99,25 +101,42 @@ function theme_biblioreference_cck_formatter_pubmed($element) {
       $pubmed = '';
     }
 
-    // now let's make the output
-    if ($authors) {
-      $output .= $authors;
-      $output .= '. ';
+    /*
+     * Example: Burke RE, Dauer WT, Vonsattel JP. A critical evaluation of the
+     * Braak staging scheme for Parkinson's disease. Ann Neurol.
+     * 2008 Nov;64(5):485-91.
+     */
+    if (!empty($authors)) {
+      $output .= $authors . '. ';
     }
-    $output .= '<strong>';
-    $output .= l($title, 'node/' . $nid);
-    $output .= '</strong>';
-    // @TODO perhaps add punctuation if none
-    $output .= ' ';
-    $output .= $date;
-    if ($date && $pages)  $output .= '; ';
-    $output .= $pages;
-    if ($date || $pages)  $output .= '. ';
-    if ($pubmed) {
-      $output .= $pubmed;
-      $output .= '.';
+    $output .= '<strong>' . l($title, 'node/' . $nid) . '</strong> ';
+    /*
+     * FIXME: The journal name is for reasons unknown to me stored in the field
+     * biblio_secondary_title. The term secondary title is traditionally used
+     * differently.
+     */
+    if (!empty($biblio->biblio_secondary_title)) {
+      $output .= $biblio->biblio_secondary_title . '. ';
+    }
+    if (!empty($date)) {
+      $output .= $date;
+    }
+    if (!empty($biblio->biblio_volume)) {
+      if (!empty($date)) {
+        $output .= ';';
+      }
+      $output .= $biblio->biblio_volume;
+      if (!empty($biblio->biblio_issue)) {
+        $output .= "({$biblio->biblio_issue})";
+      }
+      $output .= ':';
+    }
+    $output .= $pages . '. ';
+    if (!empty($pubmed)) {
+      $output .= $pubmed . '.';
     }
   }
+  
   return $output;
 }
 
@@ -129,7 +148,7 @@ function biblioreference_au_compare_author_level($auth_a, $auth_b) {
   // this would be easier with gmp_cmp installed:
   // return gmp_cmp($auth_a['auth_catagory'], $auth_b['auth_catagory']);
   $a = $auth_a['auth_catagory'];
-  $b = $auth_a['auth_catagory'];
+  $b = $auth_b['auth_catagory'];
   if ($a < $b)  return -1;
   elseif ($a > $b)  return 1;
   else  return 0;  // $a == $b

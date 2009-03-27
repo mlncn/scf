@@ -178,7 +178,7 @@ function biblioreference_widget_autocomplete_process($element, $edit, $form_stat
     '#default_value' => isset($element['#value']) ? $element['#value'] : '',
     // all biblioreferences are processed the same - from the same pool
     // so we do not need the . $element['#field_name'] in our callback
-    '#autocomplete_path' => 'biblioreference/autocomplete/title',
+    '#autocomplete_path' => 'biblioreference/autocomplete/biblio',
     // The following values were set by the content module and need
     // to be passed down to the nested element.
     '#title' => $element['#title'],
@@ -193,7 +193,9 @@ function biblioreference_widget_autocomplete_process($element, $edit, $form_stat
     $element[$field_key]['#element_validate'] = array();
   }
   array_unshift($element[$field_key]['#element_validate'], 'biblioreference_widget_autocomplete_validate');
- $element['author'] = array(
+// instead of an author field, we search for everything via one field 
+/*
+$element['author'] = array(
    '#type' => 'textfield',
    '#autocomplete_path' => 'biblioreference/autocomplete/author',
    '#maxlength' => '255',
@@ -201,7 +203,7 @@ function biblioreference_widget_autocomplete_process($element, $edit, $form_stat
    '#required' => FALSE,
    '#default_value' => isset($element['#value']['author']) ? $element['#value']['author'] : NULL,
  );
-
+*/
   // Used so that hook_field('validate') knows where to flag an error.
   $element['_error_element'] = array(
     '#type' => 'value',
@@ -239,7 +241,10 @@ function biblioreference_widget_autocomplete_validate($element, &$form_state) {
     }
     else {
       // No explicit nid.
-      $reference = _biblioreference_widget_potential_references($field, $value, 'equals', NULL, 1);
+      // @TODO make a _biblioreference_widget_potential_references
+      // that knows exactly what we're outputting
+      // or ideally just hide the nid with CSS and require that
+      $reference = _nodereference_widget_potential_references($field, $value, 'equals', NULL, 1);
       if (empty($reference)) {
         form_error($element[$field_key], t('%name: found no valid post with that title.', array('%name' => t($field['widget']['label']))));
       }

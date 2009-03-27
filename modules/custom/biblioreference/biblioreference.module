@@ -66,9 +66,9 @@ function biblioreference_menu() {
  * Menu callback; Retrieve a pipe delimited string of autocomplete suggestions for existing users
  */
 function biblioreference_autocomplete($field_name, $string = '') {
-  $fields = content_fields();
-  $field = $fields[$field_name];
-  $match = isset($field['widget']['autocomplete_match']) ? $field['widget']['autocomplete_match'] : 'contains';
+//  $fields = content_fields();
+//  $field = $fields[$field_name];
+//  $match = isset($field['widget']['autocomplete_match']) ? $field['widget']['autocomplete_match'] : 'contains';
   $matches = array();
 
   $references = biblioreference_match_nodes($string, $match = 'starts_with', 10);
@@ -195,7 +195,44 @@ function biblioreference_match_nodes($string, $match = 'starts_with', $limit = 1
     'starts_with' => "LIKE '%s%%'",
   );
   
-  $where[] = "n.type = 'biblio'";
+  $where_clause = "WHERE n.type = 'biblio'";
+
+  $count = count($words);
+  if ($count) {
+    $where_clause .= ' AND ';
+  }
+  for ($i = 0; $i < $count; $i++) {
+    $where[] = 'bk.word ' . $match_operators[$match];
+  }
+  $args = $words;
+  $where_clause .= $where ? ' ('. implode(' OR ', $where) . ')' : '';
+
+// @todo: put back in db_rewrite_sql if it won't break anything
+// @TODO optimization: we may want to put title, authors, and journal title
+// into a separate table so that we can do it without joins-- especially if
+// the same table can be reused for theming purposes. 
+$sql = "SELECT COUNT(bk.nid) AS matchcount, bk.nid AS nid, n.title AS node_title FROM {biblioreference_keyword} bk LEFT JOIN {node} n ON n.nid=bk.nid " . $where_clause . " GROUP BY nid ORDER BY matchcount DESC";
+//  $sql = "SELECT bk.nid as nid, n.title as node_title from {biblioreference_keyword} bk left join {node} n on n.nid=bk.nid " . $where_clause;
+  $result = $limit ? db_query_range($sql, $args, 0, $limit) : db_query($sql, $args);
+
+  $references = array();
+
+// $debug = 'Words: ' . implode($words, ', ') . ' and SQL: ' . $sql;
+// $references[666] = array(
+//  'title' => $debug,
+//  'rendered' => $debug,
+// );
+
+  while ($node = db_fetch_object($result)) {
+    $references[$node->nid] = array(
+      'title' => $node->node_title . ' (' . $node->matchcount . ')',
+      'rendered' => $node->node_title . ' (' . $node->matchcount . ') ' . ' <span>' . $node->nid . '</span>',
+    );
+  }
+
+  return $references;
+
+//@TODO delete junk below
   $where[] = 'btk.word ' . $match_operators[$match];
 // for multiple words we're going to have to string a bunch of these together with "OR"
 // for now we'll take only the first word as a proof of concept
@@ -251,15 +288,17 @@ function biblioreference_form_alter(&$form, $form_state, $form_id) {
   }
 
   if (isset($form['type']) && $form['type']['#value'] .'_node_settings' == $form_id) {
+// @TODO figure out what's going on here 
 // @debug
-drupal_set_message('<pre>'.var_export($form,TRUE).'</pre>');
-
+// drupal_set_message('<pre>'.var_export($form,TRUE).'</pre>');
+/*
     $form['workflow']['upload_'. $form['type']['#value']] = array(
       '#type' => 'radios',
       '#title' => t('Attachments'),
       '#default_value' => variable_get('upload_'. $form['type']['#value'], 1),
       '#options' => array(t('Disabled'), t('Enabled')),
     );
+*/
   }
 }
 
@@ -276,25 +315,100 @@ drupal_set_message('<pre>'.var_export($form,TRUE).'</pre>');
  * be to piggyback on hook_nodeapi's 'update index' op, and not do our own 
  * hook_cron implementation at all.
  *
+ * @TODO: optimize this function for fewer SQL queries
  * @TODO: move to biblioreference_widget or helper biblioreference_index module
  */
 function biblioreference_cron() {
   $cron_last = variable_get('biblioreference_cron_last', 0);  // returns timestamp
+drupal_set_message('cron_last: '.$cron_last);  //@debug
   $result = db_query("SELECT title, nid, vid, changed FROM {node} WHERE type = 'biblio' AND changed >= $cron_last");
   // expanded with-authors version below, above for testing only at this point
   while ($biblio = db_fetch_object($result)) {
 // @debug
-// drupal_set_message('in cron result: <pre>'.var_export($biblio,TRUE).'</pre>');
+ drupal_set_message('in cron result: <pre>'.var_export($biblio,TRUE).'</pre>');
+   // we are already getting this information anyway, putting this in while is
+   // easier than redoing the SQL
 
-    $words = search_index_split($biblio->title);
+    // note that search_index_split also calls search_simplify
+    $title_words = search_index_split($biblio->title);
+    $name_words = biblioreference_index_split_bulk(biblioreference_get_contributor_names($biblio));
+    $journal_words = biblioreference_index_split_bulk(biblioreference_get_journal($biblio));
+    $words = array_unique(array_merge($title_words, $name_words, $journal_words));
+// @debug
+ drupal_set_message('journal: <pre>'.var_export($journal_words,TRUE).'</pre>');
+// @debug
+ drupal_set_message('words: <pre>'.var_export($words,TRUE).'</pre>');
     foreach ($words as $word) {
-      // pity PostgreSQL doesn't have INSERT ... ON DUPLICATE KEY UPDATE
-      // although we never want to update... only add if not already there
-      if (!db_result(db_query("SELECT nid FROM {biblioreference_title_keyword} btk WHERE word = '%s' AND nid = %d", $word, $biblio->nid))) {
-        db_query("INSERT INTO {biblioreference_title_keyword} (word, nid) VALUES ('%s', %d)", $word, $biblio-nid);
+      // @TODO consider re-using variable_get('minimum_word_size', 3);
+      // to skip short words.  For now we just skip blank ones.
+      if ($word) {
+        // Search.module doesn't check if word exists for node before it inserts
+        // if (!db_result(db_query("SELECT nid FROM {biblioreference_keyword} btk WHERE word = '%s' AND nid = %d", $word, $biblio->nid))) {
+        // we'll simply suppress failures also
+        @db_query("INSERT INTO {biblioreference_keyword} (word, nid) VALUES ('%s', %d)", $word, $biblio->nid);
       }
     }
   }
+}
+
+/**
+ * Fetch the names of all contributors on a bibliography.
+ *
+ * @param $biblio
+ *  An object containing the nid and vid of the bibliography node for which
+ * author names are sought.
+ *
+ * @return
+ *  An array of contributor full names.
+ */
+function biblioreference_get_contributor_names($biblio) {
+  $contributor_names = array();
+  $result = db_query("SELECT d.name FROM {biblio_contributor_data} d LEFT JOIN {biblio_contributor} c ON d.cid = c.cid WHERE c.nid = %d and c.vid = %d", array($biblio->nid, $biblio->vid));
+  while ($contributor = db_fetch_array($result)) {
+    $contributor_names[] = $contributor['name'];
+  }
+  return $contributor_names;
+}
+
+/**
+ * Return the journal title and year associated with a Biblio node.
+ *
+ * This function could easily be rewritten/rebranded as 'biblio_get_values' 
+ *
+ * @param $biblio
+ *  An object containing at least the nid of a biblio node.
+ * @return
+ *  An array matching the values passed in.
+ */
+function biblioreference_get_journal($biblio, $fields = array('biblio_secondary_title', 'biblio_year')) {
+  $values = array();
+  $num_fields = count($fields);
+  $columns = '';
+  for ($i = 0; $i < $num_fields; $i++) {
+    if ($i > 0) {
+      $columns .= ', ';
+    }
+    $columns .= '%s';
+  }
+  $query = 'SELECT ' . $columns . ' FROM {biblio} WHERE vid = %d';
+  $sql_args = $fields;
+  $sql_args[] = $biblio->vid;
+  $values = db_fetch_array(db_query($query, $sql_args));
+  return $values;
+}
+
+/**
+ * Split an array of strings into an array of words.
+ * 
+ * Use search_index_split to take an array of strings and return an array of
+ * all single words present.
+ */
+function biblioreference_index_split_bulk($strings) {
+  $words = array();
+  foreach ($strings as $string) {
+    $words = array_merge($words, search_index_split($string));
+  }
+  return $words;
 }
 
 /**
@@ -304,6 +418,9 @@ function biblioreference_cron() {
  * helper module for our implementation of hook_cron which creates an index of
  * keywords from the titles and authors of biblio nodes.
  *
+  // we could get d.lastname, d.firstname in the query above, but if we
+  // are going to split on spaces just in case there are multiple firstnames
+  // or lastnames, we can just grab and split the single combined name field.
  * This could probably be done more efficiently as part of the main query,
  * using concat or something to make the authors one big field, but this is
  * cleaner.  @REVIEW
@@ -313,14 +430,8 @@ function biblioreference_cron() {
  * @return
  *   An array of keywords from the contributors (authors) to a biblio node.
  */
-function biblioreference_load_contributor_names($vid) {
-  $keywords = array();
-  $query = 'SELECT bcd.name FROM {biblio_contributor} bc, {biblio_contributor_data} bcd WHERE bc.vid = %d AND bc.cid = bcd.cid;';
-  // we could get bcd.lastname, bcd.firstname in the query above, but if we
-  // are going to split on spaces just in case there are multiple firstnames
-  // or lastnames, we an just grab and split the single combined name field.
+//  $query = 'SELECT bcd.name FROM {biblio_contributor} bc, {biblio_contributor_data} bcd WHERE bc.vid = %d AND bc.cid = bcd.cid;';
 
-}
 
 /**
  * Implementation of hook_nodeapi().
