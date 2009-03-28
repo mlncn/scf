@@ -1,0 +1,603 @@
+<?php
+// $Id: htmltidy.module,v 1.32.2.1 2007/06/04 14:38:15 drewish Exp $
+
+/**
+ * The htmltidy module uses Tidy (http://tidy.sf.net) to properly format HTML files.
+ *
+ * @version htmltidy.module,v 1.21 2005/08/20 15:00:26 junyor Exp
+ * @author Alastair Maw <me at almaw dot com>
+ * @author Gabriel Sjoberg <xabbu at cox dot net>
+ *
+ * @author Dan Morrison http://coders.co.nz
+ * Modified to include an input validator, an output filter,
+ * and external configuration file. Jan 2006
+ *
+ * Added 'install' and 'test' routine for folk with limited access to
+ * their servers to get the tidy binary.
+ *
+ * Converted to Drupal 4.7. Back-ported to 4.6 again.
+ *
+ * The code has been converted to 4.7 forms API natively now, but it can still be
+ * made to work by enabling the 'forms_api_backport.module'.
+ * If this module is present and enabled, things should continue to
+ * work in a 4.6 installation.
+ */
+
+
+/**
+ * @todo Do more error checking and handling.
+ */
+
+/**
+ * Implementation of hook_menu().
+ */
+function htmltidy_menu($may_cache) {
+  $items = array();
+  if ($may_cache) {
+    $items[] = array(
+      'path' => 'admin/settings/htmltidy',
+      'title' => t('HTML Tidy'),
+      'description' => t('Configure settings for HTML Tidy.'),
+      'callback' => 'drupal_get_form',
+      'callback arguments' => 'htmltidy_settings',
+      'access' => user_access('administer htmltidy')
+    );
+  }
+  return $items;
+}
+
+/**
+ * Drupal hook that returns help text for the specified section.
+ *
+ * @param $section The section for which help is requested.
+ *
+ * @return The formatted help text.
+ */
+function htmltidy_help($section) {
+  switch($section) {
+    case 'admin/help#htmltidy':
+      return t("
+        <p>
+          This module uses <a href='http://tidy.sourceforge.net/'>HTML Tidy</a>
+          to properly format HTML files. It can be used at any of several stages.
+          <ul>
+            <li>An input validator - to tidy user input as it's entered (Most efficient)</li>
+            <li>An output filter - (normal Drupal filter) which validates content just before displaying it. (cached, so pretty good)</li>
+            <li>Format the entire output of every page displayed, This will ensure your site is always 100% HTML or XHTML strict, but may be inefficient. This is the default setting</li>
+          </ul>
+          Options accepted include:
+          <ul>
+            <li>Word wrap - Specify line length (0 to disable).</li>
+            <li>Indentation - Makes HTML human-readable.</li>
+            <li>Append warnings - Outputs any feedback from Tidy to the webpage.</li>
+            <ul>
+              <li>Verbose mode - Tidy will attempt to describe warnings in detail (this is not actually
+                very helpful).</li>
+              <li>Run twice - Runs Tidy twice to get the line numbers on the warnings right.</li>
+            </ul>
+          </ul>
+        </p><p>
+          These settings are configured under the Drupal
+        <a href='?q=admin/settings/htmltidy'>Administer &gt; Settings &gt; htmltidy</a> page,
+          but the full range of HTMLTidy Options as documented
+          <a href='http://tidy.sourceforge.net/docs/quickref.html'>on the download site</a>
+          can be used if you create your own htmltidy.conf file.
+        </p><p>
+          Several permissions are also settable in the access control panel:
+          <ul>
+            <li>administer htmltidy - Self-explanatory.</li>
+            <li>use htmltidy debug mode - Append warnings as mentioned above.</li>
+            <li>use htmltidy on output - This lets you turn htmltidy off to save proc time for user
+             who will probably not be looking at source and to save bandwidth and processor time.</li>
+          </ul>
+        </p><p>
+          There appear to be issues with the input validator conflicting with
+          other rewrite filters, this hasn't been fully investigated yet.
+        </p><p>
+          Due to forking (or lack of it) under Windows platforms, you may see flickers of
+          DOS boxes as the application is run. This depends a lot on how your server was configured
+          (service or commandline app). This can be ignored.
+        </p>
+      ");
+      break;
+    case 'admin/modules#description':
+      return t("
+        Repairs, indents and wraps HTML. Also gives debugging information about
+        spec-conformance. Can be used as a complete site-wrapper, input
+        validator, or an output filter.
+      ");
+      break;
+    case 'admin/settings/htmltidy':
+      return t("
+          <p>
+            Here you can set up HTML tidying options.
+            This allows you to clean up the HTML that Drupal emits,
+            with indenting and word-wrapping options.
+          </p><p>
+            The recommended way of using the HTMLTidy module is to apply it as a
+            <em>validator</em> over <em>input</em>.
+            This means that invalid HTML never even makes it into the system.
+            To force compliance on an existing website however,
+            you may need to enable the <em>output</em> filter instead.
+            This approach will tidy the entire page every time.
+            An alternative solution is to use HTMLTidy as an output filter.
+            This means that the contents of nodes will be validated and cached
+            before display, but not the entire page.
+          </p>
+      ");
+      break;
+
+  }
+
+  return t($output);
+}
+
+/**
+ * Process whatever we are given and return the htmltidy response
+ * The output and warnings will be returned as arrays by reference.
+ *
+ * @param $input
+ *   html string to be tidied
+ * @param $errors
+ *   an array to be filled with error info
+ * @param $warnings
+ *   an array to be filled with warning info
+ * @return
+ *   the tidied string
+ */
+function htmltidy_string($input, &$errors, &$warnings) {
+  $apppath = variable_get('htmltidy_apppath', '/usr/bin/tidy');
+  if (! file_exists($apppath)) {
+    $message = t("Failed to find htmltidy executable at '%htmltidy_apppath', not using tidy.", array('%htmltidy_apppath' => $apppath));
+    watchdog('htmltidy', $emssage, WATCHDOG_WARNING);
+    $errors[] = $message;
+    return '';
+  }
+
+  /*
+   * Do not pass the parameters their default values as defined in the
+   * documentation for tidy (http://www.w3.org/People/Raggett/tidy/), or weird
+   * stuff starts to happen.
+   */
+  if (variable_get('htmltidy_indent', 1))           $args[] = '--indent auto';
+  if (!variable_get('htmltidy_verbose', 0))         $args[] = '-q';
+  if (!variable_get('htmltidy_wrapphp', 1))         $args[] = '--wrap-php no';
+  if (!variable_get('htmltidy_tidymark', 1))        $args[] = '--tidy-mark no';
+  if (variable_get('htmltidy_clean', 1))            $args[] = '--clean yes';
+  if (variable_get('htmltidy_xhtml', 0))            $args[] = '--output-xhtml yes';
+  if (variable_get('htmltidy_enclosetext', 0))      $args[] = '--enclose-text yes';
+  if (variable_get('htmltidy_encloseblocktext', 0)) $args[] = '--enclose-block-text yes';
+  if (variable_get('htmltidy_wordcleanup', 0)) {
+    $args[] = '--bare yes';
+    $args[] = '--word-2000 yes';
+    $args[] = '--drop-proprietary-attributes yes';
+  }
+  if (variable_get('htmltidy_process_input', FALSE) && !module_exists('htmltidy_output')) {
+    $args[] = '--show-body-only yes';
+  }
+  // user specified configuration file
+  $htmltidy_confpath = variable_get('htmltidy_confpath', '');
+  if (file_exists($htmltidy_confpath)) {
+    $args[] = '--config '. $htmltidy_confpath;
+  }
+
+  $args[] = '--doctype '. variable_get('htmltidy_doctype', 'auto');
+  $args[] = '-wrap '. variable_get('htmltidy_wordwrap', 0);
+  $args[] = '-utf8';
+  $args[] = '-modify'; // modify the input file instead of outputting to stdout.
+
+  htmltidy_run($input, $args, $output, $errors, $warnings);
+
+/*
+  // Output debugging info.
+  if (variable_get('htmltidy_warnings', 0) && user_access('use htmltidy debug mode')) {
+    $header = "<style type=\"text/css\"> .htmltidy { border: 1px dashed #aaa; background-color: #eee; padding: 1em;\n"
+      . "margin: 1em; float: left; font-family: \"courier new\", sans-serif; font-size: 8pt; color: #050; } </style>";
+    drupal_set_html_head($header);
+
+    // Run Tidy a second time to get line numbers right.
+    if (variable_get('htmltidy_runtwice', 0)) {
+      system("$apppath $cline -wrap $wordwrap -utf8 -f $warningsFilename $dirtyFilename");
+    }
+    $warnings = file_get_contents($warningsFilename);
+    drupal_set_message("<h3>HTMLTidy Debug</h3><kbd>$apppath $cline -wrap $wordwrap -utf8 -f $warningsFilename $dirtyFilename</kbd>");
+  }
+*/
+
+  return $output;
+}
+
+/**
+ * Implimentation of hook_filter()
+ */
+function htmltidy_filter($op, $delta = 0, $format = NULL, $text = '') {
+  switch ($op) {
+    case 'list':
+      return array(0 => t('HTML Tidy'));
+
+    case 'description':
+      return t('Corrects faulty and invalid HTML according to <a href="%admin-settings-htmltidy">htmltidy configuration rules</a>.',
+        array('%admin-settings-htmltidy' => url('admin/settings/htmltidy')));
+
+//    case 'no cache': // TODO: remove this once the module is tested.
+//      return TRUE; // No caching for tidy, this way we can test it
+
+    case 'process':
+      global $htmltidy_filter;
+
+      $errors = array();
+      $cleaned = htmltidy_fragment($text, $errors, $warnings);
+      $htmltidy_filter['filtered'] = TRUE;
+      $htmltidy_filter['errors'] = $errors;
+      $htmltidy_filter['warnings'] = $warnings;
+      return $cleaned;
+
+    default:
+      return $text;
+  }
+}
+
+/**
+ * Tidies an incomplete fragment of HTML by passing it through htmltidy full,
+ * then stripping back down to the 'body'.
+ * @param $input
+ *   html string to be tidied
+ * @param $errors
+ *   an array to be filled with error info
+ * @param $warnings
+ *   an array to be filled with warning info
+  * @return
+ *   the tidied string
+ */
+function htmltidy_fragment($input, &$errors, &$warnings) {
+  if($input) {
+    // Pretend it's a full document. This declaration just suppresses one of
+    // the warnings.
+    $html = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">';
+    // put a new line after the fake headers so our content starts at the
+    // begining of a line. this way we can get correct line/column info by just
+    // subtracting one from the line number
+    $html .= "<html><head><title></title></head><body>\n";
+    $html .= $input;
+    $html .= '</body></html>';
+    $output = htmltidy_string($html, $errors, $warnings);
+
+    // remove the html wrapper
+    if (preg_match('|<body[^>]*>([\s\S]*)</body>|', $output, $matches)) {
+      $output = $matches[1];
+    }
+
+    // fix the line numbers on both errors and warnings arrays (subtract 1 from each)
+    htmltidy_fix_linenums($errors, -1);
+    htmltidy_fix_linenums($warnings, -1);
+
+    return $output;
+  }
+}
+
+/**
+ * Adjust the line numbers in an array of htmltidy errors or warnings.
+ * @param $array array of warning or error strings.
+ * @param $adjustment integer to add to each line number (negative values are
+ *   allowed).
+ * @return array
+ */
+function htmltidy_fix_linenums(&$array, $adjustment) {
+  for ($i = count($array) - 1; $i >= 0; $i--) {
+    $array[$i] = preg_replace_callback(
+      '|(line) (\d+)|',
+      create_function('$matches', 'return $matches[1] ." ". (int) ($matches[2] +'. $adjustment .');'),
+      $array[$i]
+    );
+  }
+}
+
+// TODO: need to make sure teaser is valid...
+function htmltidy_nodeapi(&$node, $op, $a3 = NULL, $page = NULL) {
+  if (variable_get('htmltidy_process_input', TRUE)) {
+    switch ($op) {
+    case 'prepare':
+      //var_dump($htmltidy_filter); exit();
+      $_POST['body'] = htmltidy_fragment($_POST['body'], $errors, $warnings);
+      if ($errors) {
+        $errors = array_map('htmlentities', $errors);
+        form_set_error('body', theme('item_list', $errors));
+      }
+      break;
+
+    case 'validate':
+      global $htmltidy_filter;
+
+      if ($node->body) {
+        // call the filters so if they're using html tidy as a filter it'll
+        // be called in order
+        check_markup($node->body, $node->format);
+        if (isset($htmltidy_filter['filtered']) && $htmltidy_filter['filtered']) {
+          $errors = $htmltidy_filter['errors'];
+          $warnings = $htmltidy_filter['warnings'];
+        }
+        else {
+          $clean = htmltidy_fragment($node->body, $errors, $warnings);
+          form_set_value(array('#parents' => array('body')), $clean);
+        }
+
+        if ($errors || $warnings) {
+          $message = '<p>Original body:</p><pre>'. htmlentities($node->body) .'</pre>';
+          if ($errors) {
+            $message .= theme('item_list', array_map('htmlentities', $errors));
+            form_set_error('body', $message);
+          }
+          if ($warnings) {
+            drupal_set_message(theme('item_list', array_map('htmlentities', $warnings)));
+          }
+        }
+      }
+      break;
+    }
+  }
+}
+
+
+/**
+ * Drupal hook that returns an array of valid permissions for the htmltidy module.
+ *
+ * @return An array of valid permissions for the htmltidy module.
+ */
+function htmltidy_perm() {
+  return array('use htmltidy debug mode', 'administer htmltidy');
+}
+
+
+/**
+ * Drupal hook that allows an administrator to view or modify module settings.
+ *
+ * @return The form containing module-specific settings.
+ */
+function htmltidy_settings() {
+  if(! htmltidy_test($message, $version)){
+    drupal_set_message('HTMLTidy executable is not available. '. $message, 'error');
+    $form['check_tidy'] = array(
+      '#type' => 'fieldset',
+      '#value' => t('We require the HTML Tidy binary to be available on the
+        server. Please <a href="http://tidy.sourceforge.net/">download and
+        install it</a> wherever you can, then tell me where to find it.'),
+    );
+  }
+  else {
+    $form['check_tidy'] = array(
+      '#value' => t('<p>HTMLTidy is present and correct: <pre>%tidy_version</pre></p>', array('%tidy_version' => $version))
+    );
+  }
+
+  $form['htmltidy_apppath'] = array(
+    '#type'          => 'textfield',
+    '#title'         => t('Path to htmltidy executable'),
+    '#default_value' => variable_get('htmltidy_apppath', '/usr/bin/tidy'),
+    '#description'   => t('Enter the full path to htmltidy. e.g. /usr/local/bin/tidy')
+  );
+  $form['htmltidy_confpath'] = array(
+    '#type'          => 'textfield',
+    '#title'   => t('Path to htmltidy.conf'),
+    '#default_value' => variable_get('htmltidy_confpath', ''),
+    '#description'   => t("For options more advanced than those shown here, you can use an <a href='http://tidy.sourceforge.net/docs/quickref.html'>HTMLTidy configuration file</a>. Enter the full path here ( eg <code>%path</code> ), or leave it blank for none. The explicit options here usually take precedence over the conf file.", array('%path' => preg_replace('|\\\\|','/',dirname(__FILE__))."/htmltidy.conf" ))
+  );
+
+  $form['formatting_paths'] = array(
+    '#type'          => 'fieldset',
+    '#title'         => t('Paths'),
+    '#tree'          => FALSE,
+
+    'htmltidy_process_input' => array(
+      '#type'          => 'checkbox',
+      '#title'         => t('Validate input text'),
+      '#default_value' => variable_get('htmltidy_process_input', FALSE),
+      '#description'   => t("More efficient than processing the output, we can instead run tidy over all text <em>entered</em> as node content. HTML will be corrected at 'Preview' time and only good HTML will ever be saved. Depending on the tidy options however, this may conflict slightly with the other output filters."),
+    ),
+  );
+
+  $form['formatting_options'] = array(
+    '#type'          => 'fieldset',
+    '#title'         => t('Formatting Options'),
+
+    'htmltidy_indent' => array(
+      '#type'          => 'checkbox',
+      '#title'         => 'Indent output',
+      '#default_value' => variable_get('htmltidy_indent', 1),
+      '#description'   => t('When checked, htmltidy will indent HTML blocks. (&lt;div&gt;, &lt;p&gt;, etc.)'),
+    ),
+    'htmltidy_wrapphp' => array(
+      '#type'          => 'checkbox',
+      '#title'         => t('wrap-php'),
+      '#default_value' => variable_get('htmltidy_wrapphp', 1),
+      '#description'   => t('When checked, htmltidy will wrap php pseudo-elements at the column entered above.  Naturally, you must set the wrap column before this will do anything.'),
+    ),
+    'htmltidy_tidymark' => array(
+      '#type'          => 'checkbox',
+      '#title'         => 'tidy-mark',
+      '#default_value' => variable_get('htmltidy_tidymark', 1),
+      '#description'   => t('When checked, htmltidy will include a &lt;meta&gt; tag specifying that htmltidy was used to generate the HTML. This has no effect if the &lt;meta&gt; tag is already specified.'),
+    ),
+    'htmltidy_clean' => array(
+      '#type'          => 'checkbox',
+      '#title'         => 'clean',
+      '#default_value' => variable_get('htmltidy_clean', 1),
+      '#description'   => t('Removes surplus tags and attributes, eliminating FONT tags and other, replacing them with style rules and structual markup. Be cautioned that turning this setting on will most likely break parts of Drupal (most notably the book module), and the automatically named style rules may simply not work.'),
+    ),
+    'htmltidy_xhtml' => array(
+      '#type'          => 'checkbox',
+      '#title'         => 'output-xhtml',
+      '#default_value' => variable_get('htmltidy_xhtml', 0),
+      '#description'   => t('Generate XHTML content.  This will set the doctype and namespace to the appropriate XHTML spec.  Note that you need to set the doctype below to actually validate against an XHTML DTD.'),
+    ),
+    'htmltidy_doctype' => array(
+      '#type'          => 'textfield',
+      '#title'         => 'doctype',
+      '#default_value' => variable_get('htmltidy_doctype', 'auto'),
+      '#size'          => 25,
+      '#maxlength'     => 25,
+      '#description'   => t('Enter the doctype declaration that tidy will generate and validate against (if generating XHTML).  Valid options include: omit, auto, strict, loose, and any valid formal public identifier (don\'t try this if you are unsure what that means).'),
+    ),
+    'htmltidy_enclosetext' => array(
+      '#type'          => 'checkbox',
+      '#title'         => 'enclose-text',
+      '#default_value' => variable_get('htmltidy_enclosetext', 0),
+      '#description'   => t('Tidy will enclose any text found in the body element with &lt;p&gt; tags.  This lets you use stylesheets with greater control, fixes margins, and is required if you want valid XHTML.'),
+    ),
+    'htmltidy_encloseblocktext' => array(
+      '#type'          => 'checkbox',
+      '#title'         => 'enclose-block-text',
+      '#default_value' => variable_get('htmltidy_encloseblocktext', 0),
+      '#description'   => t('Just like the above option, but applies to any text found in an element that allows mixed content for HTML Transitional but not HTML Strict.'),
+    ),
+    'htmltidy_wordcleanup' => array(
+      '#type'          => 'checkbox',
+      '#title'         => 'word-2000',
+      '#default_value' => variable_get('htmltidy_wordcleanup', 1),
+      '#description'   => t('This option specifies if Tidy should go to great pains to strip out all the surplus stuff Microsoft Word 2000 inserts when you save Word documents as "Web pages".'),
+    ),
+  );
+
+  $form['debug_options'] = array(
+    '#type'            => 'fieldset',
+    '#title'           => t('Debug Options'),
+    '#collapsible'     => TRUE,
+    '#collapsed'       => TRUE,
+
+    'htmltidy_warnings' => array(
+      '#type'          => 'checkbox',
+      '#title'         => t('Append errors and warnings'),
+      '#default_value' => variable_get('htmltidy_warnings', 0),
+      '#description'   => t('When checked, errors, warnings and info from htmltidy will be appended to the end of pages, but only for users in <a href="%admin-user-role">roles</a> with the <strong>use htmltidy debug mode</strong> <a href="%admin-user-permission">permission flag</a> set.<br />This is useful for catching non-XHTML compliant document errors, for example.',
+        array('%admin-user-role' => url('admin/user/role'), '%admin-user-permission' => url('admin/user/permission'))),
+    ),
+    'htmltidy_verbose' => array(
+      '#type'          => 'checkbox',
+      '#title'         => t('Verbose'),
+      '#default_value' => variable_get('htmltidy_verbose', 0),
+      '#description'   => t('Be more verbose (describe what warnings/errors mean in footer).'),
+    ),
+    'htmltidy_runtwice' => array(
+      '#type'          => 'checkbox',
+      '#title'         => t('Run twice'),
+      '#default_value' => variable_get('htmltidy_runtwice', 1),
+      '#description'   => t('This gets the line numbers on the warnings right, but is slower.  This applies only if debug mode is on.'),
+    ),
+  );
+  return system_settings_form($form);
+}
+
+
+/**
+ * Sets the htmltidy_apppath Drupal variable to a valid value.
+ * @param $message Assigned to an explanation.
+ * @return true if ok, false on error.
+ */
+function htmltidy_test(&$message, &$version){
+#  // we aren't setup to use the extension
+#  if (extension_loaded('tidy')) {
+#    $version = 'PHP Tidy Extension enabled OK';
+#    return TRUE;
+#  }
+
+  $tidypath = variable_get('htmltidy_apppath', '/usr/bin/tidy');
+  if (!file_exists($tidypath)) {
+    // windows specific paths
+    if (substr(PHP_OS, 0, 3) == 'WIN') {
+      $maybepaths = array(
+        preg_replace('|\\\\+|','/',dirname(__FILE__)) .'/bin/tidy.exe'
+      );
+    }
+    // generic unix paths
+    else {
+      $maybepaths = array(
+        '/bin/tidy',
+        '/usr/bin/tidy',
+        '/usr/local/bin/tidy',
+        preg_replace('|\\\\+|','/',dirname(__FILE__)) .'/bin/tidy',
+      );
+    }
+
+    foreach($maybepaths as $tidypath){
+      drupal_set_message('Looking for tidy at '. $tidypath);
+      if (file_exists($tidypath)) {
+        break;
+      }
+    }
+
+    if(!file_exists($tidypath)){
+      $message = "Couldn't find tidy binary anywhere!";
+      return FALSE;
+    }
+    variable_set('htmltidy_apppath', $tidypath);
+  }
+
+  // now test it
+  $command = escapeshellcmd($tidypath .' -v');
+  if (exec($command, $response)) {
+    $version = $response[0];
+    return TRUE;
+  }
+  else {
+    $message = "Found a 'tidy' binary, but it didn't run right. \n$command\nfailed to respond correctly";
+    return FALSE;
+  }
+}
+
+
+function htmltidy_run($input, $args, &$output, &$errors, &$warnings) {
+  $tidypath = variable_get('htmltidy_apppath', '/usr/bin/tidy');
+  if (!file_exists($tidypath)) {
+    watchdog('htmltidy',t('Failed to find htmltidy executable at %htmltidy_apppath, not using tidy',array('%htmltidy_apppath' => $tidypath ) ),WATCHDOG_WARNING);
+    $output = '';
+    return 2;
+  }
+
+  // write input to a file because tidy doesn't take input from stdin.
+  $dirtyFilename = tempnam(file_directory_temp(), 'drup');
+  $f = fopen($dirtyFilename, 'w');
+  fwrite($f, $input);
+  fclose($f);
+
+  // warnings are saved to file
+  $warningsFilename = tempnam(file_directory_temp(), 'warn');
+  $args[] = '-f ' . $warningsFilename;
+
+  // Run Tidy with the right options.
+  $command = $tidypath .' '. implode(' ', $args) .' '. $dirtyFilename;
+  system($command, $return_value);
+
+  // return_value 0 means success. 1 means warning. 2 means error, the file
+  // will be there, but not have been touched.
+  switch ($return_value) {
+  case 0:
+    $warnings = $errors = array();
+    $output = file_get_contents($dirtyFilename);
+    break;
+
+  case 1:
+    $errors = array();
+    $warnings = array_map('trim', file($warningsFilename));
+    $output = file_get_contents($dirtyFilename);
+    break;
+
+  case 2:
+    // separate errors and warnings into two different arrays
+    foreach(file($warningsFilename) as $line) {
+      $line = trim($line);
+      if (preg_match('|^line \d+ column \d+ - Warning:|', $line)) {
+        $warnings[] = $line;
+      }
+      else {
+        $errors[] = $line;
+      }
+    }
+    $output = $input;
+    break;
+  }
+
+  // delete the temporary files.
+  unlink($dirtyFilename);
+  unlink($warningsFilename);
+
+  return $return_value;
+}

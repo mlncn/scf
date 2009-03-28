@@ -1,0 +1,12 @@
+; $Id $
+name = "HTML Tidy"
+description = "Tidy up your HTML."
+; dependencies = 
+; package = 
+
+; Information added by drupal.org packaging script on 2009-03-16
+version = "6.x-1.0"
+core = "6.x"
+project = "htmltidy"
+datestamp = "1237237524"
+

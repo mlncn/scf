@@ -1,0 +1,28 @@
+February 2006 : dman
+-----------------
+Reworked into Drupal 4.7 API, then backported to remain 4.6 compatable.
+Requires forms_api_backport.module (currently at proof-of-concept stage)
+Reworked the interface slightly in doing so, behavior should be consistant however.
+
+February 2006 : dman
+-----------------
+- Reworked a lot to enable use as an input validator
+and an output filter, as well as the original site-wrapper.
+- Added a test and install function to help ensure the HTMLTidy
+executable is present.
+- Configured so it can optionally use an external tidy.conf file,
+and so make use of all the HTMLTidy options. (like clean Word2000)
+
+
+
+30 March 2005
+-----------------
+- Fixed drupal_goto() problems.
+- Added some error checking and a todo entry.
+
+03 March 2004
+-----------------
+- Added Doxygen documentation.
+- Cleaned up the code a bit more (variable names).
+- Added i18n support for _settings() hook.
+- Updated 'run twice' functionality to only happen for 'debug mode' users.
