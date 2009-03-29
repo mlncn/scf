@@ -56,7 +56,8 @@ function privacy_form_alter_field(&$form, $field) {
   $fieldset = $form['#field_info'][$field]['display_settings']['parent'];
 
   //get weight info
-  $weight = $form['#field_info'][$field]['display_settings']['weight'];
+  $weight = $form['#field_info'][$field]['widget']['weight'];
+  if (!$weight) $weight = $form['#field_info'][$field]['display_settings']['weight'];
 
   //get nid
   $nid = ($form['nid']['#value'] != '') ? $form['nid']['#value'] : 0;
