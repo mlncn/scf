@@ -1,0 +1,177 @@
+<?php
+// $Id: live.module,v 1.4 2008/10/08 21:47:09 karpuz Exp $
+
+/**
+ * Implementation of hook_perm().
+ */
+function live_perm() {
+  return array('use live comment preview', 'use live node preview', 'administer live preview');
+}
+
+/**
+ * Implementation of hook_menu().
+ */
+function live_menu() {
+  $items = array();
+
+  $items['live/comment/preview'] = array(
+    'page callback' => 'live_comment_preview',
+    'access callback' => 'live_comment_preview_access',
+    'file' => 'comment/live.comment.inc',
+    'type' => MENU_CALLBACK,
+  );
+
+  $items['live/node/preview'] = array(
+    'page callback' => 'live_node_preview',
+    'access arguments' => array('use live node preview'),
+    'file' => 'node/live.node.inc',
+    'type' => MENU_CALLBACK,
+  );
+
+  $items['admin/settings/live'] = array(
+    'title' => t('Live'),
+    'description' => t('Basic configuration for preview placements and effects.'),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('live_settings'),
+    'access callback' => 'user_access',
+    'access arguments' => array('administer live preview'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+
+  return $items;
+}
+
+function live_comment_preview_access() {
+  return (user_access('post comments') && user_access('use live comment preview'));
+}
+
+/**
+ * Implementation of hook_theme().
+ */
+function live_theme() {
+  return array(
+    'live_node_preview' => array('node' => NULL),
+  );
+}
+
+/**
+ * Implementation of hook_form_alter().
+ */
+function live_form_alter(&$form, $form_state, $form_id) {
+  if ($form_id == 'comment_form' && $form['#after_build'][0] != 'comment_form_add_preview' && user_access('use live comment preview')) {
+    $path = drupal_get_path('module', 'live');
+    $token_value = $form['#token'] ? $form['#token'] : ('comment'. $form["#parameters"][1]['nid'] . $form["#parameters"][1]['pid']);
+
+    drupal_add_js(array(
+      'live' => array(
+        'comment' => array(
+          'token_value' => $token_value,
+          'module_path' => $path,
+          'element' => variable_get('live_comment_preview_element', 'form#comment-form'),
+          'placement' => variable_get('live_comment_preview_element_method', 'append'),
+          'refresh_delay' => variable_get('live_comment_preview_delay', 1200),
+        ),
+      )
+    ), 'setting');
+
+    drupal_add_css($path . '/live.css');
+    drupal_add_js($path . '/live.js');
+    drupal_add_js($path . '/comment/live.comment.js');
+  }
+  else if (isset($form['type']) && $form['type']['#value'] . '_node_form' == $form_id
+  && in_array($form['type']['#value'], variable_get('live_node_preview_types_enabled', array()), TRUE) && user_access('use live node preview')) {
+    //drupal_set_message('<pre>' . print_r ($form, true) . '</pre>');
+    $path = drupal_get_path('module', 'live');
+    $token_value = $form['#token'] ? $form['#token'] : ($form['type']['#value'] . '_node_form');
+
+    drupal_add_js(array(
+      'live' => array(
+        'node' => array(
+          'node_type' => $form['type']['#value'],
+          'token_value' => $token_value,
+          'module_path' => $path,
+          'element' => variable_get('live_node_preview_element', 'form#node-form'),
+          'placement' => variable_get('live_node_preview_element_method', 'append'),
+        ),
+      )
+    ), 'setting');
+
+    drupal_add_css($path . '/live.css');
+    drupal_add_js($path . '/live.js');
+    drupal_add_js($path . '/node/live.node.js');
+  }
+}
+
+/**
+ * Live Comments settings page.
+ */
+function live_settings() {
+  $form = array();
+
+  $form['live_comment_preview']   = array(
+    '#type' => 'fieldset',
+    '#title' => t('Live Comment Preview settings'),
+    '#collapsible' => TRUE,
+    '#collapsed' => FALSE,
+  );
+
+  $form['live_comment_preview']['live_comment_preview_element'] = array(
+    '#type' => 'textfield',
+    '#title' => t('CSS selector to attach comment preview box to'),
+    '#default_value' => variable_get('live_comment_preview_element', 'form#comment-form'),
+    '#description' => t('A valid CSS selector to attach the comment preview box to. <em>Example: body, form#comment-form, div.my-class</em>'),
+    '#required' => TRUE,
+  );
+
+  $form['live_comment_preview']['live_comment_preview_element_method'] = array(
+    '#type' => 'radios',
+    '#title' => t('Attach method'),
+    '#options' => drupal_map_assoc(array('prepend', 'append', 'replace')),
+    '#default_value' => variable_get('live_comment_preview_element_method', 'append'),
+    '#description' => t('Choose how the comment preview box should be attached to the above selector.'),
+    '#required' => TRUE,
+  );
+
+  $form['live_comment_preview']['live_comment_preview_delay'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Threshold delay for refresh'),
+    '#size' => 4,
+    '#default_value' => variable_get('live_comment_preview_delay', 1200),
+    '#description' => t('After how long (in milliseconds) should comment preview update on focus, keyup or blur event.'),
+  );
+
+  $form['live_node_preview']   = array(
+    '#type' => 'fieldset',
+    '#title' => t('Live Node Preview settings'),
+    '#collapsible' => TRUE,
+    '#collapsed' => FALSE,
+  );
+
+  $form['live_node_preview']['live_node_preview_element'] = array(
+    '#type' => 'textfield',
+    '#title' => t('CSS selector to attach node preview box to'),
+    '#default_value' => variable_get('live_node_preview_element', 'form#node-form'),
+    '#description' => t('A valid CSS selector to attach the node preview box to. <em>Example: body, form#node-form, div.my-class</em>'),
+    '#required' => TRUE,
+  );
+
+  $form['live_node_preview']['live_node_preview_element_method'] = array(
+    '#type' => 'radios',
+    '#title' => t('Attach method'),
+    '#options' => drupal_map_assoc(array('prepend', 'append', 'replace')),
+    '#default_value' => variable_get('live_node_preview_element_method', 'append'),
+    '#description' => t('Choose how the node preview box should be attached to the above selector.'),
+    '#required' => TRUE,
+  );
+
+  $form['live_node_preview']['live_node_preview_types_enabled'] = array(
+    '#type' => 'checkboxes',
+    '#title' => t('Node types'),
+    '#description' => t('Select the node types you want to enable live previews for.'),
+    '#default_value' => variable_get('live_node_preview_types_enabled', array()),
+    '#options' => node_get_types('names'),
+  );
+
+  return system_settings_form($form);
+}
+

@@ -1,0 +1,103 @@
+<?php
+// $Id: reference_facets.module,v 1.11 2009/01/04 20:06:55 davidlesieur Exp $
+
+/**
+ * @file
+ * Exposes CCK Node Reference and User Reference fields as facets.
+ */
+
+module_load_include('inc', 'cck_facets');
+
+/**
+ * Implementation of hook_cck_facets_collect().
+ */
+function reference_facets_cck_facets_collect(&$facets, $field, $domain, $env, $arg = NULL) {
+  if ($field['type'] == 'nodereference' || $field['type'] == 'userreference') {
+    switch ($domain) {
+      case 'facets':
+        $facets[] = new reference_facet($field);
+        break;
+
+      case 'text':
+        // Scan the given search text for a '{field_name}:{value}'
+        // token, and create facets from it.
+        if ($ref = search_query_extract($arg, $field['field_name'])) {
+          if (is_numeric($ref) && $ref > 0) {
+            // Create an active facet with the value found in the search text.
+            $category = new reference_facet_category($field, $ref);
+            $facets[] = new reference_facet($field, array($category));
+          }
+          // Remove the parsed text
+          $arg = search_query_insert($arg, $field['field_name']);
+        }
+        break;
+
+      case 'node':
+        if (isset($arg->{$field['field_name']}) && is_array($arg->{$field['field_name']})) {
+          // Iterate through the field's multiple values.
+          foreach ($arg->{$field['field_name']} as $item) {
+            if (($value = array_shift($item)) != 0) { // Don't show empty references.
+              $category = new reference_facet_category($field, $value);
+              $facets[] = new reference_facet($field, array($category));
+            }
+          }
+        }
+        break;
+    }
+  }
+  return $arg;
+}
+
+/**
+ * A facet for CCK Node Reference and User Reference fields.
+ *
+ * @see reference_facet_category
+ */
+class reference_facet extends cck_facet {
+  
+  function reference_facet($field, $active_path = array()) {
+    parent::cck_facet($field, $active_path);
+  }
+
+  function build_root_categories_query(&$query) {
+    $db_info = _cck_facets_db_info($this->_field);
+    $query->add_table($db_info['table'], 'vid', 'n', 'vid');
+    $main_column = array_shift($db_info['columns']);
+    $query->add_field($db_info['table'], $main_column['column'], $this->_field['field_name']);
+    $query->add_where($db_info['table'] .'.'. $main_column['column'] .' != 0'); // No empty references.
+    $query->add_groupby($this->_field['field_name']);
+    return TRUE;
+  }
+
+  function build_categories($results) {
+    $categories = array();
+    while ($result = db_fetch_object($results)) {
+      $categories[] = new reference_facet_category($this->_field, $result->{$this->_field['field_name']}, $result->count);
+    }
+    return $categories;
+  }
+}
+
+
+/**
+ * A facet category for CCK Node Reference and User Reference fields.
+ *
+ * @see reference_facet
+ */
+class reference_facet_category extends cck_facet_category {
+
+  function reference_facet_category($field, $value, $count = NULL) {
+    parent::cck_facet_category($field, $value, $count);
+  }
+
+  function get_label($html = FALSE) {
+    $db_info = _cck_facets_db_info($this->_field);
+
+    // Get the label using the 'plain' formatter.
+    $label = content_format($this->_field['field_name'], array(key($db_info['columns']) => $this->_value), 'plain');
+
+    // Note: The label is already filtered by the CCK formatter and does not
+    // need to be filtered here.
+    return $html ? $label : strip_tags($label);
+  }
+}

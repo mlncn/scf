@@ -1,0 +1,14 @@
+; $Id: cck_facets.info,v 1.6 2008/09/03 23:06:52 davidlesieur Exp $
+name = CCK Facets
+description = "Provides basic functionality for modules that expose CCK fields as facets."
+core = 6.x
+dependencies[] = content
+dependencies[] = faceted_search
+dependencies[] = search
+package = Faceted Search
+; Information added by drupal.org packaging script on 2009-01-05
+version = "6.x-1.x-dev"
+core = "6.x"
+project = "cck_facets"
+datestamp = "1231113761"
+

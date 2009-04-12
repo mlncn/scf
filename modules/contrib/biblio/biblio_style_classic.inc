@@ -1,6 +1,6 @@
 <?PHP
 
-// $Id: biblio_style_classic.inc,v 1.8.2.8 2009/03/01 01:59:10 rjerome Exp $
+// $Id: biblio_style_classic.inc,v 1.8.2.10 2009/03/26 13:59:25 rjerome Exp $
 /**
  * Get the style information
  *
@@ -51,7 +51,9 @@ function biblio_style_classic($node, $base = 'biblio', $inline = false) {
     $output .= '[' . check_plain($node->biblio_citekey) . '] ';
   }
   $output .= '<span class="biblio-title">';
-  $output .= $inline ? l("$node->title", "$base/viewinline/$node->nid") : l("$node->title", "node/$node->nid");
+    $link = ((variable_get('biblio_link_title_url', 0) && !empty($node->biblio_url)) ? $node->biblio_url : ($inline ? "$base/viewinline/$node->nid":"node/$node->nid" ) ) ;
+    $options['attributes'] = (variable_get('biblio_links_target_new_window',null) && variable_get('biblio_link_title_url', 0) && !empty($node->biblio_url)) ? array('target'=>'_blank') : null;
+    $output .= l($node->title, $link, $options);
   $output .= "</span>, \n";
   $output .= '<span class="biblio-authors">' . $authors . "</span> \n";
   if ($node->biblio_secondary_title) {

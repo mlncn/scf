@@ -1,0 +1,30 @@
+--- htmltidy.orig.module	2009-03-28 15:14:16.000000000 -0400
++++ htmltidy.module	2009-03-28 15:26:11.000000000 -0400
+@@ -31,18 +31,16 @@
+ /**
+  * Implementation of hook_menu().
+  */
+-function htmltidy_menu($may_cache) {
++function htmltidy_menu() {
+   $items = array();
+-  if ($may_cache) {
+-    $items[] = array(
+-      'path' => 'admin/settings/htmltidy',
+-      'title' => t('HTML Tidy'),
+-      'description' => t('Configure settings for HTML Tidy.'),
+-      'callback' => 'drupal_get_form',
+-      'callback arguments' => 'htmltidy_settings',
+-      'access' => user_access('administer htmltidy')
+-    );
+-  }
++  $items['admin/settings/htmltidy'] = array(
++    'title' => t('HTML Tidy'),
++    'description' => t('Configure settings for HTML Tidy.'),
++    'page callback' => 'drupal_get_form',
++    'page arguments' => array('htmltidy_settings'),
++    'access callback' => 'user_access',
++    'access arguments' => array('administer htmltidy'),
++  );
+   return $items;
+ }
+ 

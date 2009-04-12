@@ -1,5 +1,5 @@
 <?php
-// $Id: biblio.module,v 1.123.2.103 2009/03/11 21:39:48 rjerome Exp $
+// $Id: biblio.module,v 1.123.2.108 2009/03/31 21:17:02 rjerome Exp $
 /**
  *   biblio.module for Drupal
  *
@@ -39,13 +39,15 @@ function _biblio_get_auth_type($auth_category, $biblio_type) {
   // return first element of the array
   return empty($result) ? NULL : current($result);
 }
-function _biblio_get_field_information($biblio_type) {
+function _biblio_get_field_information($biblio_type, $only_visible = FALSE) {
+  $visible = $only_visible ? ' AND (bt.common = 1 OR bt.visible=1) ' : '';
   $result = db_query("SELECT b.*, btd.*, btt.name AS type_name
                       FROM {biblio_fields} AS b
                       INNER JOIN {biblio_field_type} AS bt ON bt.fid = b.fid
                       INNER JOIN {biblio_field_type_data} AS btd ON btd.ftdid = bt.ftdid
                       INNER JOIN {biblio_types} as btt ON btt.tid = bt.tid
-                      WHERE bt.tid = %d ORDER BY bt.weight ASC", $biblio_type);
+                      WHERE bt.tid = %d $visible
+                      ORDER BY bt.weight ASC", $biblio_type);
   while ($row = db_fetch_array($result)) {
     $fields[$row['fid']] = $row;
   }
@@ -709,7 +711,7 @@ function biblio_menu() {
   $items['admin/settings/biblio/author/type/%/edit'] = array(
     'title' => t('Add New Author Type'),
     'page callback' => 'drupal_get_form',
-    'page arguments' => array('biblio_admin_author_types_form_edit', 'edit', 6),
+    'page arguments' => array('biblio_admin_author_types_form_edit', 'edit', 5),
     'access arguments' => array('administer biblio'),
     'file' => 'biblio.admin.inc',
     'type' => MENU_LOCAL_TASK,
@@ -859,7 +861,7 @@ function biblio_filter_clear() {
   }
   drupal_goto($base, $options);
 }
-function biblio_nodeapi(& $node, $op, $teaser, $page) {
+function biblio_nodeapi(& $node, $op, $a3, $a4) {
   if ($node->type == 'biblio') {
     switch ($op) {
       case 'delete revision' :
@@ -873,7 +875,7 @@ function biblio_nodeapi(& $node, $op, $teaser, $page) {
          //	$node->body = '';
          //	$node_clone = clone($node); // we need a clone since objects get passed by reference regardless and we don't want to change the whole node object
          //	$node->body = theme('biblio_tabular', $node_clone, $base, $teaser);
-         $style = variable_get('biblio_style', 'classic');
+         $style = biblio_get_style();
          $node->teaser = theme('biblio_style', $node_clone, $base, $style);
          }
          break;
@@ -894,6 +896,8 @@ function biblio_nodeapi(& $node, $op, $teaser, $page) {
           search_update_totals();
         }
         break;
+      case 'validate':
+
     }
 
   }
@@ -948,6 +952,26 @@ function biblio_form($node, $form_state) {
   while ($option = db_fetch_object($result)) {
     $options["$option->tid"] = $option->name;
   }
+
+//  $form['doi_lookup'] = array(
+//    '#type' => 'fieldset',
+//    '#title' => t('DOI Lookup'),
+//    '#weight' => -20,
+//  );
+//  $form['doi_lookup']['doi_data'] = array(
+//      '#type' => 'textfield',
+//      '#title' => t('DOI'),
+//      '#required' => FALSE,
+//      '#default_value' => '',
+//      '#size' => 60,
+//      '#maxlength' => 255,
+//      '#weight' => -4
+//        );
+//  $form['doi_lookup']['doi_submit'] = array(
+//      '#type' => 'submit',
+//      '#value' => t('Populate using DOI')
+//  );
+
   $form['biblio_type'] = array(
     '#type' => 'select',
     '#title' => t('Publication Type'),
@@ -955,9 +979,7 @@ function biblio_form($node, $form_state) {
     '#options' => $options,
     '#description' => NULL,
     '#weight' => -15,
-    '#attributes' => array(
-      'onchange' => 'document.getElementById(\'node-form\').submit()'
-      ),
+    '#attributes' => array('onchange' => 'document.getElementById(\'node-form\').submit()'),
     '#multiple' => FALSE,
     '#required' => TRUE
       );
@@ -1128,7 +1150,7 @@ function _biblio_contributor_widget($node, $fld, $auth_category, $biblio_type, $
   }
   // We name our button 'contrib_more' to avoid conflicts with other modules using
   // AHAH-enabled buttons with the id 'more'.
-  $path = 'biblio/js/'. $biblio_type .'/'. $auth_category;
+  $path = 'biblio/js/'. $biblio_type .'/'. $auth_category ;
   if ($other_fieldset) $path .= '/1';
   $wrapper[$fldname .'_more'] = array(
     '#type' => 'submit',
@@ -1193,7 +1215,7 @@ function _biblio_contributor_form($delta, $auth_category, $values, $types = NULL
 }
 function biblio_contributors_js($tid, $auth_category, $other_fields = FALSE) {
   $delta = count($_POST['biblio_contributors'][$auth_category]);
-  // Build our new form element.
+    // Build our new form element.
   $ctypes = _biblio_get_auth_types($auth_category, $tid);
   $ctypes = db_query('SELECT * FROM {biblio_contributor_type_data}
                       WHERE auth_type IN ('. implode(',', $ctypes) .')');
@@ -1239,8 +1261,23 @@ function biblio_contributors_js($tid, $auth_category, $other_fields = FALSE) {
   exit();
 }
 
-
-
+//function biblio_validate($node, &$form) {
+//  if($form['#post']['op'] == t('Populate using DOI') && !empty($form['#post']['doi_data'])) {
+//    module_load_include('inc', 'biblio', 'biblio.import.export');
+//    $url = 'http://www.crossref.org/openurl/?noredirect=true&format=unixref&id=doi%3A'. $form['#post']['doi_data'];
+//    $crossref_xml_data = biblio_import_from_url($url);
+//    $node_data = biblio_crossref_xml_import($crossref_xml_data);
+//
+//    foreach($node_data as $key => $value) {
+//      $form[$key]['#default_value'] = $value;
+//    }
+//    $form_state = array('submitted' => FALSE);
+//    $form_build_id = $_POST['form_build_id'];
+//
+//    print_r($form_build_id);
+//    form_set_cache($form_build_id, $form, $form_state);
+//  }
+//}
 /**
  * Implementation of hook_validate().
  *
@@ -1248,7 +1285,24 @@ function biblio_contributors_js($tid, $auth_category, $other_fields = FALSE) {
  * Errors should be signaled with form_set_error().
  */
 function biblio_form_validate($form, & $form_state) {
-  if ($form_state['storage'] == $form_state['values']['biblio_type'] || (!empty($form['#node']->biblio_type) && $form['#node']->biblio_type == $form_state['values']['biblio_type'])) {
+
+  if($form_state['values']['op'] == t('Populate using DOI') && !empty($form_state['values']['doi_data'])) {
+    module_load_include('inc', 'biblio', 'biblio.import.export');
+    $url = 'http://www.crossref.org/openurl/?noredirect=true&format=unixref&id=doi%3A'. $form['#post']['doi_data'];
+    $crossref_xml_data = biblio_import_from_url($url);
+    $node_data = biblio_crossref_xml_import($crossref_xml_data);
+    $form_build_id = $_POST['form_build_id'];
+    $form = form_get_cache($form_build_id, $form_state);
+
+    foreach($node_data as $key => $value) {
+      $form[$key]['#value'] = $value;
+    }
+//    $form_state = array('submitted' => FALSE);
+    form_set_cache($form_build_id, $form, $form_state);
+    $form_state['rebuild'] = TRUE;
+    return;
+  }
+  elseif ($form_state['storage'] == $form_state['values']['biblio_type'] || (!empty($form['#node']->biblio_type) && $form['#node']->biblio_type == $form_state['values']['biblio_type'])) {
     $form_state['storage'] = "";
     $form_state['rebuild'] = FALSE;
   }
@@ -1327,8 +1381,10 @@ function biblio_update($node) {
   else {
     drupal_write_record('biblio', $node, 'vid');
   }
-
   biblio_save_contributors($node, TRUE);
+  if (variable_get('biblio_auto_orphaned_author_delete', 0)) {
+    db_query('DELETE FROM {biblio_contributor_data} WHERE cid NOT IN (SELECT DISTINCT(cid) FROM {biblio_contributor})');
+  }
   biblio_save_keywords($node);
 
 }
@@ -1342,6 +1398,9 @@ function biblio_delete($node) {
   db_query('DELETE FROM {biblio} WHERE nid = %d', $node->nid);
   //now remove the entries from the contributor linking table
   db_query('DELETE FROM {biblio_contributor} WHERE nid = %d', $node->nid);
+  if (variable_get('biblio_auto_orphaned_author_delete', 0)) {
+    db_query('DELETE FROM {biblio_contributor_data} WHERE cid NOT IN (SELECT DISTINCT(cid) FROM {biblio_contributor})');
+  }
   db_query('DELETE FROM {biblio_keyword} WHERE nid = %d', $node->nid);
 }
 /**
@@ -1386,7 +1445,7 @@ function biblio_citekey_generate($node) {
  */
 function biblio_view(& $node, $teaser = FALSE, $page = FALSE) {
   if (strlen(trim($node->body))) $node = node_prepare($node, $teaser);
-  $style = variable_get('biblio_style', 'classic');
+  $style = biblio_get_style();
   $base  = variable_get('biblio_base', 'biblio');
   $base_title = variable_get('biblio_base_title', 'Biblio');
   if ($teaser) {
@@ -1449,6 +1508,7 @@ function biblio_block($op = 'list', $delta = 0) {
               'absolute' => TRUE
           )), t('Recently Added Publications'));
         }
+        $block['content'] .= l(t('more...'), $base, array('attributes' => array('style' => "float: right")));
         $block['content'] .= '</div>';
       }
       return $block;
@@ -1507,124 +1567,7 @@ function biblio_get_db_fields() {
   }
   return $fields;
 }
-function _parse_author_array($authorArray) {
-  //	$input = trim($input);
-  // split on ' and '
-  //	$authorArray = preg_split("/\s(and)\s/i", $input);
-  // check if there's anything that looks like et. al
-  $count = 1;
-  foreach ($authorArray as $value) {
-    $appellation = $prefix = $surname = $firstname = $initials = '';
-    $author = explode(",", preg_replace("/\s{2,}/", ' ', trim($value)));
-    $size = sizeof($author);
-    // No commas therefore something like Mark Grimshaw, Mark Nicholas Grimshaw, M N Grimshaw, Mark N. Grimshaw
-    if ($size == 1) {
-      $author = split(" ", $value);
-      // last of array is surname (no prefix if entered correctly)
-      $surname = array_pop($author);
-    }
-    // Something like Grimshaw, Mark or Grimshaw, Mark Nicholas  or Grimshaw, M N or Grimshaw, Mark N.
-    else
-    if ($size == 2) {
-      // first of array is surname (perhaps with prefix)
-      list ($surname, $prefix) = _grabSurname(array_shift($author));
-    }
-    // If $size is > 2, we're looking at something like Bush, George W, III
-    else {
-      // last of array is 'Jr.', 'IV' etc.
-      $appellation = array_pop($author);
-      // first of array is surname (perhaps with prefix)
-      list ($surname, $prefix) = _grabSurname(array_shift($author));
-    }
-    $remainder = join(" ", $author);
-    list ($firstname, $initials) = _grabFirstnameInitials_old($remainder);
-    $surname = $surname .' '. $appellation;
-    $creators[] = array(
-      'first_name' => trim("$firstname"
-    ), 'initials' => trim("$initials"), 'last_name' => trim("$surname"), 'prefix' => trim("$prefix"), 'order' => "$count");
-    $count++;
-  }
-  if (isset($creators))
-  return $creators;
-  return FALSE;
-}
-// grab firstname and initials which may be of form "A.B.C." or "A. B. C." or " A B C " etc.
-/*
- function biblio_views_tables() {
 
- $table = views_new_table('biblio', 'internal', 'node', 'vid', 'vid');
- $result = db_query('SELECT name,title FROM {biblio_fields} ');
- while ($field = db_fetch_array($result)) {
- views_table_add_field($table, $field['name'], "Biblio: ".$field['title'], "", array(
- 'sortable' => TRUE,
- 'notafield' => FALSE,
- ));
- }
-
- $tables['biblio'] = $table;
- $table = views_new_table('biblio_types', 'internal', 'biblio', 'tid', 'tid');
- $tables['biblio_types'] = $table;
- return $tables;
- }
- function biblio_views_default_views() {
- $view = new stdClass();
- $view->name = 'biblioview';
- $view->description = 'Shows a summary view of biblio entries';
- $view->access = array();
- $view->view_args_php = '';
- $view->page = TRUE;
- $view->page_title = 'Biblio';
- $view->page_header = '';
- $view->page_header_format = '1';
- $view->page_footer = '';
- $view->page_footer_format = '1';
- $view->page_empty = '';
- $view->page_empty_format = '1';
- $view->page_type = 'table';
- $view->url = 'biblioview';
- $view->use_pager = TRUE;
- $view->nodes_per_page = '10';
- $view->sort = array();
- $view->argument = array(
- array(
- 'type' => 'nodetype',
- 'argdefault' => '2',
- 'title' => '',
- 'options' => '',
- 'wildcard' => 'biblio',
- 'wildcard_substitution' => '',
- ),
- );
- $view->field = array(
- array(
- 'tablename' => 'biblio',
- 'field' => 'biblio_year',
- 'label' => 'Year',
- 'sortable' => '1',
- 'defaultsort' => 'DESC',
- ),
- array(
- 'tablename' => 'biblio',
- 'field' => 'biblio_authors',
- 'sortable' => '1',
- 'label' => 'Author',
- ),
- array(
- 'tablename' => 'node',
- 'field' => 'title',
- 'label' => 'Title',
- 'handler' => 'views_handler_field_nodelink',
- 'sortable' => '1',
- 'options' => 'link',
- ),
- );
- $view->filter = array();
- $view->exposed_filter = array();
- $view->requires = array(biblio, node);
- $views[$view->name] = $view;
- return $views;
- }
- */
 /*******************************************
  * Filter
  * Largely inspired from the footnote module
@@ -1633,7 +1576,7 @@ function _parse_author_array($authorArray) {
 function _biblio_citekey_print($citekey) {
   $nid = db_fetch_object(db_query("SELECT nid FROM {biblio} WHERE biblio_citekey = '%s' ORDER BY vid DESC", $citekey));
   if ($nid->nid > 0) {
-    $style = variable_get('biblio_style', 'classic');
+    $style = biblio_get_style();
     $base = variable_get('biblio_base', 'biblio');
     $node = node_load($nid->nid);
     return theme('biblio_style', $node, $base, $style);
@@ -2098,4 +2041,20 @@ function _biblio_profile_access($user, $type = 'profile') {
   if (!variable_get('biblio_show_user_profile_form', '1') || !isset($user->$key))
     return variable_get($key, '0'); // return site default
   else return $user->$key; // return user setting
+}
+/*
+ * Helper function to get either the user or system style
+ */
+function biblio_get_style() {
+  global $user;
+  if (isset($user->biblio_user_style) && $user->biblio_user_style != "system") return $user->biblio_user_style;
+  return variable_get('biblio_style', 'cse');
+}
+/**
+ * Implementation of hook_views_api().
+ */
+function biblio_views_api() {
+  return array(
+    'api' => 2,
+  );
 }

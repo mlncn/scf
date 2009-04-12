@@ -1,5 +1,5 @@
 <?php
-// $Id: og.install,v 1.69 2008/10/09 15:06:31 weitzman Exp $
+// $Id: og.install,v 1.71 2009/01/30 02:54:16 weitzman Exp $
 
 /**
  * TODO: upgrade all update_14+ updates to d6
@@ -334,6 +334,7 @@ function og_update_5701() {
 function og_update_5703() {
   // Remove mail / no mail options from OG group types and move preferences to
   // og_notifications.
+  drupal_load('module', 'og');
   $types = og_get_types('group_post');
   $mail_types = array();
   foreach ($types as $type) {
@@ -373,6 +374,7 @@ function og_update_6000() {
     $txt .= "\n\nPersonal message from @username:\n------------------\n\n@request";
     variable_set($name, $txt);
   }
+  return $ret;
 }
 
 // Update to support views modularization while retaining backward compatibility.
@@ -380,7 +382,7 @@ function og_update_6001() {
   $ret = array();
   drupal_install_modules(array('og_views'));
   //enable the og_views block instead of the plain og one
-  db_query("UPDATE {blocks} SET module = 'og_views', delta = '1' WHERE module = 'og' AND delta = '5'");
+  $ret[] = update_sql("UPDATE {blocks} SET module = 'og_views', delta = '1' WHERE module = 'og' AND delta = '5'");
   return $ret;
 }
 

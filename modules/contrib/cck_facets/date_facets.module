@@ -1,0 +1,491 @@
+<?php
+// $Id: date_facets.module,v 1.8 2009/01/04 20:06:55 davidlesieur Exp $
+
+/**
+ * @file
+ * Exposes CCK Date fields as facets.
+ */
+
+module_load_include('inc', 'cck_facets');
+
+// TODO: Support 'todate' column.
+// TODO: Timezone handling.
+
+/**
+ * Implementation of hook_cck_facets_collect().
+ */
+function date_facets_cck_facets_collect(&$facets, $field, $domain, $env, $arg = NULL) {
+  if ($field['type'] == 'date' || $field['type'] == 'datestamp') {
+    $facet_class = $field['type'] .'_facet';
+    $category_class = $field['type'] .'_facet_category';
+  
+    switch ($domain) {
+      case 'facets':
+        $facets[] = new $facet_class($field);
+        break;
+
+      case 'text':
+        // Scan the given search text for a '{field_name}:{value}'
+        // token, and create facets from it.
+        if ($date = search_query_extract($arg, $field['field_name'])) {
+          if (preg_match('/^([12][0-9][0-9][0-9])(-([01][0-9])(-([0-3][0-9]))?)?$/', $date, $matches)) {
+            if (_date_facets_check_date($matches[1], $matches[3], $matches[5])) {
+              // Create an active facet with the value found in the search text.
+              $active_path = array();
+              if (isset($matches[1])) {
+                // Found year.
+                $active_path[] = new $category_class($field, $matches[1], NULL, NULL);
+              }
+              if (isset($matches[3])) {
+                // Found month.
+                $active_path[] = new $category_class($field, $matches[1], $matches[3], NULL);
+              }
+              if (isset($matches[5])) {
+                // Found day.
+                $active_path[] = new $category_class($field, $matches[1], $matches[3], $matches[5]);
+              }
+              $facets[] = new $facet_class($field, $active_path);
+            }
+          }
+          // Remove the parsed text
+          $arg = search_query_insert($arg, $field['field_name']);
+        }
+        break;
+
+      case 'node':
+        if (isset($arg->{$field['field_name']}) && is_array($arg->{$field['field_name']})) {
+          if ($field['type'] == 'date') {
+            // Iterate through the field's multiple values.
+            foreach ($arg->{$field['field_name']} as $item) {
+              $date = array_shift($item); // Take the item's main column.
+              if (preg_match('/^([12][0-9][0-9][0-9])(-([01][0-9])(-([0-3][0-9]))?)?/', $date, $matches)) {
+                $active_path = array(
+                  new date_facet_category($field, $matches[1], NULL, NULL),
+                  new date_facet_category($field, $matches[1], $matches[3], NULL),
+                  new date_facet_category($field, $matches[1], $matches[3], $matches[5]),
+                );
+                // Create an active facet.
+                $facets[] = new date_facet($field, $active_path);
+              }
+            }
+          }
+          elseif ($field['type'] == 'datestamp') {
+            // Iterate through the field's multiple values.
+            foreach ($arg->{$field['field_name']} as $item) {
+              $timestamp = array_shift($item); // Take the item's main column.
+              $year = gmdate('Y', $timestamp);
+              $month = gmdate('n', $timestamp);
+              $day = gmdate('j', $timestamp);
+              
+              $active_path = array(
+                new datestamp_facet_category($field, $year, NULL, NULL),
+                new datestamp_facet_category($field, $year, $month, NULL),
+                new datestamp_facet_category($field, $year, $month, $day),
+              );
+              $facets[] = new datestamp_facet($field, $active_path);
+            }
+          }
+        }
+        break;
+    }
+  }
+  return $arg;
+}
+
+/**
+ * A facet for Date fields.
+ *
+ * @see date_facet_category
+ */
+class date_facet extends cck_facet {
+  /**
+   * Constructor. 
+   *
+   * @param $field
+   *   The field corresponding to this facet.
+   * @param $active_path
+   *   Array representing the path leading to the active category, including the
+   *   active category itself. Defaults to an empty array, meaning no active
+   *   category.
+   */
+  function date_facet($field, $active_path = array()) {
+    parent::cck_facet($field, $active_path);
+  }
+
+  /**
+   * Returns the search text for this facet, taking into account this facet's
+   * active path.
+   */
+  function get_text() {
+    if ($category = $this->get_active_category()) {
+      return $category->get_text();
+    }
+    return '';
+  }
+
+  /**
+   * Handler for the 'count' sort criteria.
+   */
+  function build_sort_query_count(&$query) {
+    $query->add_orderby('count', 'DESC');
+    $this->build_sort_query_field($query);
+  }
+
+  /**
+   * Handler for the 'field' sort criteria.
+   */
+  function build_sort_query_field(&$query) {
+    $query->add_orderby($this->_field['field_name'] .'_year', 'ASC');
+    if ($query->has_field($this->_field['field_name'] .'_month')) {
+      $query->add_orderby($this->_field['field_name'] .'_month', 'ASC');
+      if ($query->has_field($this->_field['field_name'] .'_day')) {
+        $query->add_orderby($this->_field['field_name'] .'_day', 'ASC');
+      }
+    }
+  }
+  
+  /**
+   * Updates a query for retrieving the root categories of this facet and their
+   * associated nodes within the current search results. 
+   *
+   * @param $query
+   *   The query object to update.
+   * @return
+   *   FALSE if this facet can't have root categories.
+   */
+  function build_root_categories_query(&$query) {
+    $db_info = _cck_facets_db_info($this->_field);
+    $main_column = array_shift($db_info['columns']);
+    $query->add_table($db_info['table'], 'vid', 'n', 'vid');
+    $query->add_field(NULL, "YEAR(${db_info['table']}.${main_column['column']})", $this->_field['field_name'] .'_year');
+    $query->add_where($db_info['table'] .'.'. $main_column['column'] .' IS NOT NULL');
+    $query->add_groupby($this->_field['field_name'] .'_year');
+    return TRUE;
+  }
+
+  /**
+   * This factory method creates categories given query results that include the
+   * fields selected in get_root_categories_query() or get_subcategories_query().
+   *
+   * @param $results
+   *   $results A database query result resource.
+   *
+   * @return
+   *   Array of categories.
+   */
+  function build_categories($results) {
+    $categories = array();
+    while ($result = db_fetch_object($results)) {
+      $categories[] = new date_facet_category($this->_field, $result->{$this->_field['field_name'] .'_year'}, $result->{$this->_field['field_name'] .'_month'}, $result->{$this->_field['field_name'] .'_day'}, $result->count);
+    }
+    return $categories;
+  }
+}
+
+/**
+ * A facet category for Date fields. 
+ */
+class date_facet_category extends cck_facet_category {
+  
+  /**
+   * Constructs a category for the specified date.
+   *
+   * @param $year
+   *   Year corresponding to this category.
+   * @param $month
+   *   Month corresponding to this category. Optional, but must be specified if
+   *   $day is specified.
+   * @param $day
+   *   Day corresponding to this category. Optional.
+   * @param $count
+   *   The number of nodes associated to this category within the current
+   *   search. Optional.
+   */
+  function date_facet_category($field, $year, $month = NULL, $day = NULL, $count = NULL) {
+    parent::cck_facet_category($field, array('year' => $year, 'month' => $month, 'day' => $day), $count);
+  }
+
+  /**
+   * Return the label of this category.
+   *
+   * @param $html
+   *   TRUE when HTML is allowed in the label, FALSE otherwise. Checking this
+   *   flag allows implementors to provide a rich-text label if desired, and an
+   *   alternate plain text version for cases where HTML cannot be used. The
+   *   implementor is responsible to ensure adequate security filtering.
+   */
+  function get_label($html = FALSE) {
+    if (isset($this->_value['day'])) {
+      // Format date with YYYY-MM-DD.
+      $timestamp = gmmktime(0, 0, 0, $this->_value['month'], $this->_value['day'], $this->_value['year']);
+      $format = variable_get('date_facets_format_ymd', 'm/d/Y');
+    }
+    elseif (isset($this->_value['month'])) {
+      // Format date with YYYY-MM.
+      $timestamp = gmmktime(0, 0, 0, $this->_value['month'], 1, $this->_value['year']);
+      $format = variable_get('date_facets_format_ym', 'm/Y');
+    }
+    elseif (isset($this->_value['year'])) {
+      // Format date with YYYY.
+      $timestamp = gmmktime(0, 0, 0, 1, 1, $this->_value['year']);
+      $format = variable_get('date_facets_format_y', 'Y');
+    }
+    if ($timestamp) {
+      return format_date($timestamp, 'custom', $format, 0);
+    }
+  }
+
+  /**
+   * Return the search text for this category.
+   */
+  function get_text() {
+    $text = sprintf('%04d', $this->_value['year']);
+    if (isset($this->_value['month'])) {
+      $text .= sprintf('-%02d', $this->_value['month']);
+      if (isset($this->_value['day'])) {
+        $text .= sprintf('-%02d', $this->_value['day']);
+      }
+    }
+    return $text;
+  }
+
+  /**
+   * Updates a query for retrieving the subcategories of this category and their
+   * associated nodes within the current search results. 
+   *
+   * This only needs to be overridden for hierarchical facets.
+   *
+   * @param $query
+   *   The query object to update.
+   * @return
+   *   FALSE if this facet can't have subcategories.
+   */
+  function build_subcategories_query(&$query) {
+    if (isset($this->_value['day'])) {
+      return FALSE; // No subcategories.
+    }
+    
+    $db_info = _cck_facets_db_info($this->_field);
+    $main_column = array_shift($db_info['columns']);
+    $query->add_table($db_info['table'], 'vid', 'n', 'vid');
+    if (isset($this->_value['month'])) {
+      $from = sprintf("'%04d-%02d-01 00:00:00'", $this->_value['year'], $this->_value['month']);
+      $query->add_field(NULL, "YEAR(${db_info['table']}.${main_column['column']})", $this->_field['field_name'] .'_year');
+      $query->add_field(NULL, "MONTH(${db_info['table']}.${main_column['column']})", $this->_field['field_name'] .'_month');
+      $query->add_field(NULL, "DAY(${db_info['table']}.${main_column['column']})", $this->_field['field_name'] .'_day');
+      $query->add_where("(${db_info['table']}.${main_column['column']} >= $from)");
+      $query->add_where("(${db_info['table']}.${main_column['column']} < $from + INTERVAL 1 MONTH)");
+      $query->add_groupby($this->_field['field_name'] .'_day');
+      return TRUE;
+    }
+    elseif (isset($this->_value['year'])) {
+      $from = sprintf("'%04d-01-01 00:00:00'", $this->_value['year']);
+      $query->add_field(NULL, "YEAR(${db_info['table']}.${main_column['column']})", $this->_field['field_name'] .'_year');
+      $query->add_field(NULL, "MONTH(${db_info['table']}.${main_column['column']})", $this->_field['field_name'] .'_month');
+      $query->add_where("(${db_info['table']}.${main_column['column']} >= $from)");
+      $query->add_where("(${db_info['table']}.${main_column['column']} < $from + INTERVAL 1 YEAR)");
+      $query->add_groupby($this->_field['field_name'] .'_month');
+      return TRUE;
+    }
+    return FALSE; // Unreachable, unless something is wrong...
+  }
+
+  /**
+   * Updates a query for selecting nodes matching this category.
+   *
+   * @param $query
+   *   The query object to update.
+   */
+  function build_results_query(&$query) {
+    $db_info = _cck_facets_db_info($this->_field);
+    $main_column = array_shift($db_info['columns']);
+    // Since the same table might be joined multiple times in the query, we use
+    // the field's name as the table alias to create a unique table reference.
+    $table = $query->add_table($db_info['table'], 'vid', 'n', 'vid', $this->_field['field_name']);
+    if (isset($this->_value['day'])) {
+      $from = sprintf("'%04d-%02d-%02d 00:00:00'", $this->_value['year'], $this->_value['month'], $this->_value['day']);
+      $query->add_where("($table.${main_column['column']} >= $from)");
+      $query->add_where("($table.${main_column['column']} < $from + INTERVAL 1 DAY)");
+    }
+    elseif (isset($this->_value['month'])) {
+      $from = sprintf("'%04d-%02d-01 00:00:00'", $this->_value['year'], $this->_value['month']);
+      $query->add_where("($table.${main_column['column']} >= $from)");
+      $query->add_where("($table.${main_column['column']} < $from + INTERVAL 1 MONTH)");
+    }
+    elseif (isset($this->_value['year'])) {
+      $from = sprintf("'%04d-01-01 00:00:00'", $this->_value['year']);
+      $query->add_where("($table.${main_column['column']} >= $from)");
+      $query->add_where("($table.${main_column['column']} < $from + INTERVAL 1 YEAR)");
+    }
+  }
+}
+
+/**
+ * A facet for Datestamp fields.
+ *
+ * @see datestamp_facet_category
+ */
+class datestamp_facet extends date_facet {
+  /**
+   * Constructor. 
+   *
+   * @param $field
+   *   The field corresponding to this facet.
+   * @param $active_path
+   *   Array representing the path leading to the active category, including the
+   *   active category itself. Defaults to an empty array, meaning no active
+   *   category.
+   */
+  function datestamp_facet($field, $active_path = array()) {
+    parent::date_facet($field, $active_path);
+  }
+
+  /**
+   * Updates a query for retrieving the root categories of this facet and their
+   * associated nodes within the current search results. 
+   *
+   * @param $query
+   *   The query object to update.
+   * @return
+   *   FALSE if this facet can't have root categories.
+   */
+  function build_root_categories_query(&$query) {
+    $db_info = _cck_facets_db_info($this->_field);
+    $main_column = array_shift($db_info['columns']);
+    $query->add_table($db_info['table'], 'vid', 'n', 'vid');
+    $query->add_field(NULL, "YEAR(FROM_UNIXTIME(${db_info['table']}.${main_column['column']}))", $this->_field['field_name'] .'_year');
+    $query->add_where($db_info['table'] .'.'. $main_column['column'] .' > 0');
+    $query->add_groupby($this->_field['field_name'] .'_year');
+    return TRUE;
+  }
+
+  /**
+   * This factory method creates categories given query results that include the
+   * fields selected in get_root_categories_query() or get_subcategories_query().
+   *
+   * @param $results
+   *   $results A database query result resource.
+   *
+   * @return
+   *   Array of categories.
+   */
+  function build_categories($results) {
+    $categories = array();
+    while ($result = db_fetch_object($results)) {
+      $categories[] = new datestamp_facet_category($this->_field, $result->{$this->_field['field_name'] .'_year'}, $result->{$this->_field['field_name'] .'_month'}, $result->{$this->_field['field_name'] .'_day'}, $result->count);
+    }
+    return $categories;
+  }
+}
+
+/**
+ * A facet category for Date fields. 
+ */
+class datestamp_facet_category extends date_facet_category {
+  
+  /**
+   * Constructs a category for the specified date.
+   *
+   * @param $year
+   *   Year corresponding to this category.
+   * @param $month
+   *   Month corresponding to this category. Optional, but must be specified if
+   *   $day is specified.
+   * @param $day
+   *   Day corresponding to this category. Optional.
+   * @param $count
+   *   The number of nodes associated to this category within the current
+   *   search. Optional.
+   */
+  function datestamp_facet_category($field, $year, $month = NULL, $day = NULL, $count = NULL) {
+    parent::date_facet_category($field, $year, $month, $day, $count);
+  }
+
+  /**
+   * Updates a query for retrieving the subcategories of this category and their
+   * associated nodes within the current search results. 
+   *
+   * This only needs to be overridden for hierarchical facets.
+   *
+   * @param $query
+   *   The query object to update.
+   * @return
+   *   FALSE if this facet can't have subcategories.
+   */
+  function build_subcategories_query(&$query) {
+    if (isset($this->_value['day'])) {
+      return FALSE; // No subcategories.
+    }
+    
+    $db_info = _cck_facets_db_info($this->_field);
+    $main_column = array_shift($db_info['columns']);
+    $query->add_table($db_info['table'], 'vid', 'n', 'vid');
+    if (isset($this->_value['month'])) {
+      $from = sprintf("'%04d-%02d-01 00:00:00'", $this->_value['year'], $this->_value['month']);
+      $query->add_field(NULL, "YEAR(FROM_UNIXTIME(${db_info['table']}.${main_column['column']}))", $this->_field['field_name'] .'_year');
+      $query->add_field(NULL, "MONTH(FROM_UNIXTIME(${db_info['table']}.${main_column['column']}))", $this->_field['field_name'] .'_month');
+      $query->add_field(NULL, "DAY(FROM_UNIXTIME(${db_info['table']}.${main_column['column']}))", $this->_field['field_name'] .'_day');
+      $query->add_where("(${db_info['table']}.${main_column['column']} >= $from)");
+      $query->add_where("(${db_info['table']}.${main_column['column']} < $from + INTERVAL 1 MONTH)");
+      $query->add_groupby($this->_field['field_name'] .'_day');
+      return TRUE;
+    }
+    elseif (isset($this->_value['year'])) {
+      $from = sprintf("'%04d-01-01 00:00:00'", $this->_value['year']);
+      $query->add_field(NULL, "YEAR(FROM_UNIXTIME(${db_info['table']}.${main_column['column']}))", $this->_field['field_name'] .'_year');
+      $query->add_field(NULL, "MONTH(FROM_UNIXTIME(${db_info['table']}.${main_column['column']}))", $this->_field['field_name'] .'_month');
+      $query->add_where("(${db_info['table']}.${main_column['column']} >= $from)");
+      $query->add_where("(${db_info['table']}.${main_column['column']} < $from + INTERVAL 1 YEAR)");
+      $query->add_groupby($this->_field['field_name'] .'_month');
+      return TRUE;
+    }
+    return FALSE; // Unreachable, unless something is wrong...
+  }
+
+  /**
+   * Updates a query for selecting nodes matching this category.
+   *
+   * @param $query
+   *   The query object to update.
+   */
+  function build_results_query(&$query) {
+    $db_info = _cck_facets_db_info($this->_field);
+    $main_column = array_shift($db_info['columns']);
+    // Since the same table might be joined multiple times in the query, we use
+    // the field's name as the table alias to create a unique table reference.
+    $table = $query->add_table($db_info['table'], 'vid', 'n', 'vid', $this->_field['field_name']);
+    if (isset($this->_value['day'])) {
+      $from = sprintf("'%04d-%02d-%02d 00:00:00'", $this->_value['year'], $this->_value['month'], $this->_value['day']);
+      $query->add_where("($table.${main_column['column']} >= UNIX_TIMESTAMP($from))");
+      $query->add_where("($table.${main_column['column']} < UNIX_TIMESTAMP($from + INTERVAL 1 DAY))");
+    }
+    elseif (isset($this->_value['month'])) {
+      $from = sprintf("'%04d-%02d-01 00:00:00'", $this->_value['year'], $this->_value['month']);
+      $query->add_where("($table.${main_column['column']} >= UNIX_TIMESTAMP($from))");
+      $query->add_where("($table.${main_column['column']} < UNIX_TIMESTAMP($from + INTERVAL 1 MONTH))");
+    }
+    elseif (isset($this->_value['year'])) {
+      $from = sprintf("'%04d-01-01 00:00:00'", $this->_value['year']);
+      $query->add_where("($table.${main_column['column']} >= UNIX_TIMESTAMP($from))");
+      $query->add_where("($table.${main_column['column']} < UNIX_TIMESTAMP($from + INTERVAL 1 YEAR))");
+    }
+  }
+}
+
+/**
+ * Checks the validity of a date or partial date.
+ */
+// TODO: avoid duplication with _date_authored_facet_check_date
+function _date_facets_check_date($year = NULL, $month = NULL, $day = NULL) {
+  if (!isset($year) || !is_numeric($year) || $year < 1) {
+    return FALSE;
+  }
+  if (isset($month) && (!is_numeric($month) || $month < 1 || $month > 12)) {
+    return FALSE;
+  }
+  if (isset($day) && (!isset($month) || !is_numeric($month) || !is_numeric($day) || !checkdate($month, $day, $year))) {
+    return FALSE;
+  }
+  
+  return TRUE;
+} 

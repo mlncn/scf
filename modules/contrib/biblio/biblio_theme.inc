@@ -1,5 +1,5 @@
 <?php
-// $Id: biblio_theme.inc,v 1.8.2.53 2009/03/06 03:12:57 rjerome Exp $
+// $Id: biblio_theme.inc,v 1.8.2.60 2009/03/31 21:08:36 rjerome Exp $
 /**
  *
  *   Copyright (C) 2006-2008  Ron Jerome
@@ -176,7 +176,7 @@ function theme_biblio_long($node, $base = 'biblio', $style = 'classic') {
   if ( strlen(trim($node->body)) && user_access('view full text') ) {
        $output .= '<h3>'.t('Full Text').':</h3>'.check_markup($node->body, $node->format, FALSE);
   }
-  
+
   if (biblio_access('export', $node)) {
     $output .= theme('biblio_export_links', $node->nid);
   }
@@ -194,10 +194,10 @@ function theme_biblio_tabular($node, $base = 'biblio', $teaser = false) {
      popups_add_popups();
   }
   $tid = $node->biblio_type;
-  $style_name = variable_get('biblio_style', 'classic');
+  $style_name = biblio_get_style();
   $style_function = "biblio_style_$style_name"."_author_options";
   module_load_include('inc','biblio',"biblio_style_$style_name");
-  $fields = _biblio_get_field_information($node->biblio_type);
+  $fields = _biblio_get_field_information($node->biblio_type, TRUE);
   $rows[] = array(
     array('data' => t('Title'), 'class' => 'biblio-row-title'),
     array('data' => $node->title)
@@ -276,7 +276,7 @@ function theme_biblio_tabular($node, $base = 'biblio', $teaser = false) {
         array('data' => t('Full Text'),  'valign' => 'top'),
         array('data' =>  check_markup($node->body, $node->format, FALSE))
     );
-    
+
   }
   $output = '<div id="biblio-node">';
   $output .= $node->biblio_coins;
@@ -413,7 +413,7 @@ function theme_biblio_format_authors($contributors, $options, $inline = false)
         }
       }
       else { // $rank > 0 // -> all authors except the first one
-        if($options['initialsBeforeAuthorFirstAuthor']) {
+        if($options['initialsBeforeAuthorStandard']) {
           $singleAuthorString = $author['firstname'].$options['AuthorsInitialsDelimStandard'].$author['lastname'];
         }
         else{
@@ -570,7 +570,7 @@ function theme_biblio_style(& $node, $base = 'biblio', $style_name = 'classic', 
  * @return unknown_type
  */
 function theme_biblio_entry($node, $base = 'biblio', $style = 'classic', $inline = false) {
-  $output  = '<div class="biblio-entry">' . "\n";
+  $output  = "\n".'<div class="biblio-entry">'."\n" ;
 
   // first add the styled entry...
   $output .= theme('biblio_style', $node, $base, $style, $inline);
@@ -603,7 +603,7 @@ function theme_biblio_entry($node, $base = 'biblio', $style = 'classic', $inline
     $output .= theme('biblio_download_links',$node);
   }
 
-  $output .= "</div>\n";
+  $output .= "\n</div>";
 
   return $output;
 }
@@ -847,6 +847,8 @@ function theme_biblio_alpha_line($type = 'author',$current = NULL, $path = NULL)
     case 'title':
       $options['query'] .= 'sort=title';
       $path = "$base/tg/";
+      $all_query['query'] = 'sort=title'. ($_GET['order']?'&order='.$_GET['order']:'');
+      $all = '['.l(t('Show ALL'), $base,$all_query).']' ;
       break;
     default:
       if (!isset ($_GET['sort']) || $_GET['sort'] == 'year' || $_GET['sort'] == 'type')
@@ -900,6 +902,7 @@ function theme_biblio_admin_author_edit_form($form){
 
   $output = theme('table', $header, $rows);
   $output .= drupal_render($form['merge']);
+  $output .= drupal_render($form['link']);
   $output .= drupal_render($form);
 
   return $output;

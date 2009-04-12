@@ -1,0 +1,12 @@
+; $Id: live.info,v 1.3 2008/06/28 18:41:15 Gurpartap Exp $
+name = Live
+description = Preview nodes and comments instantly, while authoring. Returns content securely from an Ajax call, viz filtered based upon the selected Input Format.
+package = Javascript
+core = "6.x"
+
+; Information added by drupal.org packaging script on 2008-10-08
+version = "6.x-1.0"
+core = "6.x"
+project = "live"
+datestamp = "1223503524"
+

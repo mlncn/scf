@@ -1,5 +1,5 @@
 <?php
-// $Id: og_views.views.inc,v 1.11 2008/12/31 05:41:47 weitzman Exp $
+// $Id: og_views.views.inc,v 1.13 2009/03/16 16:50:03 weitzman Exp $
 
 /**
  * Implementation of hook_views_handlers().
@@ -65,6 +65,9 @@ function og_views_views_handlers() {
       ),
       'og_views_handler_field_og_managelinkmy' => array(
         'parent' => 'views_handler_field',
+      ),
+      'og_views_handler_field_og_uid_groups' => array(
+        'parent' => 'views_handler_field_prerender_list',
       ),
       // argument
       'og_views_handler_argument_og_group_nid' => array(
@@ -264,9 +267,7 @@ function og_views_data_og_ancestry() {
       'field' => 'nid',
     ),
   );
-  
-  $help = 
-  
+
   $data['og_ancestry']['group_nid'] = array(
     'title' => t('Groups'),
     'help' => t('The groups for a post.'),
@@ -359,6 +360,15 @@ function og_views_data_og_uid() {
       'help' => t('<strong>Members</strong> are filtered for a specific group.'),
     ),
   ); 
+  $data['og_uid']['groups'] = array(
+    'title' => t('User\'s groups'),
+    'help' => t('Groups that a member belongs to.'),
+    'field' => array(
+      'field' => 'uid',
+      'handler' => 'og_views_handler_field_og_uid_groups',
+      'help' => t("OG: List of user's groups"),
+    ),
+  );
   $data['og_uid']['uid'] = array(
     'title' => t('Group member'),
     // 'help' => t('foo')

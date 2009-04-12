@@ -42,7 +42,7 @@ function content_profile_menu() {
     );
   }
   foreach (content_profile_get_types('names') as $type => $type_name) {
-    $items['user/%user/profile/'. $type] = array(
+    $items['user/%user/'. $type] = array(
       'title callback' => 'check_plain',
       'title' => drupal_ucfirst($type_name),
       'page callback' => 'content_profile_page_edit',

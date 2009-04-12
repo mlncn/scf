@@ -1,5 +1,5 @@
 <?php
-// $Id: views_bulk_operations_plugin_style.inc,v 1.1.2.22 2009/02/24 05:31:04 kratib Exp $
+// $Id: views_bulk_operations_plugin_style.inc,v 1.1.2.26 2009/04/01 04:00:53 kratib Exp $
 
 define('VBO_EXECUTION_DIRECT', 1);
 define('VBO_EXECUTION_BATCH', 2);
@@ -83,12 +83,16 @@ class views_bulk_operations_plugin_style extends views_plugin_style_table {
     else {
       $form_suffix = 1;
     }
-    return drupal_get_form('views_bulk_operations_form_' . $form_suffix, $this);
+    return drupal_get_form('views_bulk_operations_form__' . $form_suffix, $this);
   }
 
   function get_selected_operations() {
     $selected = array();
     foreach (array_filter($this->options['selected_operations']) as $key => $operation) {
+      if (module_exists('actions_permissions') && $this->options['all_operations'][$key]['type'] == 'action') {
+        $perm = 'execute ' . $this->options['all_operations'][$key]['label'] . ' ('. $this->options['all_operations'][$key]['callback'] .')';
+        if (!user_access($perm)) continue;
+      }
       $selected[$key] = t($this->options['all_operations'][$key]['label']);
     }
     return $selected;
@@ -118,15 +122,20 @@ class views_bulk_operations_plugin_style extends views_plugin_style_table {
     return $options;
   }
 
+  function uses_fields() {
+    if (isset($this->view->ignore_fields)) return FALSE;
+    return parent::uses_fields();
+  }
+
   private function populate_operations(&$options) {
     $operations = array();
 
-    $objects = views_bulk_operations_get_object_info();
-    foreach ($objects as $object_type => $info) {
+    module_load_include('inc', 'node', 'node.admin');
+    foreach (views_bulk_operations_get_object_info() as $object_type => $info) {
       $hook_name = $object_type .'_operations';
       foreach (module_invoke_all($hook_name) as $operation) {
-        if (empty($operation['callback'])) { continue; }
-        $key = md5($operation['callback'] . $operation['label']);
+        if (empty($operation['callback'])) continue;
+        $key = md5($operation['callback'] . (isset($operation['callback arguments']) ? serialize($operation['callback arguments']) : ''));
         $operations[$key] = array(
           'label'              => $operation['label'],
           'callback'           => $operation['callback'],
@@ -140,7 +149,7 @@ class views_bulk_operations_plugin_style extends views_plugin_style_table {
 
     $action_operations = actions_list() + $this->get_custom_actions();
     foreach ($action_operations as $callback => $operation) {
-      $key = md5($callback . $operation['description']);
+      $key = md5($callback);
       $operations[$key] = array(
         'label'              => $operation['description'],
         'callback'           => $callback,

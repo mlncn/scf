@@ -1,0 +1,48 @@
+<?php
+// $Id: cck_facets.module,v 1.23 2009/01/04 20:06:55 davidlesieur Exp $
+
+/**
+ * @file
+ * Provides basic functionality for modules that expose CCK fields as facets.
+ */
+
+/**
+ * Implementation of hook_faceted_search_collect().
+ *
+ * To ensure that all fields are not repeatedly iterated by every CCK facet
+ * module, this implementation of hook_faceted_search_collect() acts as the
+ * master and finds what module to call for each type of field.
+ */
+function cck_facets_faceted_search_collect(&$facets, $domain, $env, $selection, $arg = NULL) {
+  $fields = content_fields();
+  foreach ($fields as $field) {
+    if (!isset($selection) || isset($selection[$field['field_name']][1])) {
+      $hook = 'cck_facets_collect';
+      foreach (module_implements($hook) as $module) {
+        $function = $module .'_'. $hook;
+        if ($domain == 'text') {
+          $arg = $function($facets, $field, $domain, $env, $arg);
+        }
+        else {
+          $function($facets, $field, $domain, $env, $arg);
+        }
+      }
+    }
+  }
+  if ($domain == 'text') {
+    return $arg;
+  }
+}
+
+/**
+ * Return database storage information for the specified field.
+ *
+ * This is needed often, so results are cached.
+ */
+function _cck_facets_db_info($field) {
+  static $db_info = NULL;
+  if (!isset($db_info[$field['field_name']])) {
+    $db_info[$field['field_name']] = content_database_info($field);
+  }
+  return $db_info[$field['field_name']];
+}

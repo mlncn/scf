@@ -1,5 +1,5 @@
 <?PHP
-// $Id: biblio.install,v 1.30.2.81 2009/03/02 02:40:37 rjerome Exp $
+// $Id: biblio.install,v 1.30.2.82 2009/03/26 15:23:03 rjerome Exp $
 function biblio_install() {
   $result = array();
 
@@ -683,6 +683,12 @@ function biblio_schema() {
         'not null' => TRUE,
         'unsigned' => TRUE,
         'description' =>'Primary Key: Author ID',
+        ),
+      'aka' => array(
+        'type' => 'int',
+        'not null' => FALSE,
+        'unsigned' => TRUE,
+        'description' =>'Also known as, links this author entry with others so you can have variation on the name, but listing by cid will find all other (aka) author entries',
         ),
       'drupal_uid' => array(
         'type' => 'int',
@@ -1617,5 +1623,10 @@ function biblio_update_6016() {
                           MODIFY COLUMN biblio_number_of_volumes  VARCHAR(24),
                           MODIFY COLUMN biblio_issue              VARCHAR(24),
                           MODIFY COLUMN biblio_doi                VARCHAR(255)");
+  return $result;
+}function biblio_update_6017() {
+  $result = array();
+  $result[] = update_sql("ALTER TABLE {biblio_contributor_data} ADD COLUMN aka INTEGER UNSIGNED ");
+
   return $result;
 }

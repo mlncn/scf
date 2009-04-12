@@ -1,6 +1,6 @@
 <?PHP
 
-// $Id: biblio.import.export.inc,v 1.7.2.50 2009/03/10 01:09:56 rjerome Exp $
+// $Id: biblio.import.export.inc,v 1.7.2.52 2009/04/01 18:11:22 rjerome Exp $
 /**
  * @file
  * Functions that are used to import and export biblio data.
@@ -199,8 +199,9 @@ function biblio_import_form_submit($form, & $form_state) {
           'file' => './'. drupal_get_path('module', 'biblio') .'/biblio.import.export.inc'
         );
         batch_set($batch_op);
-        // only needed if not inside a form _submit handler :
-        batch_process('biblio');
+
+        $base = variable_get('biblio_base', 'biblio');
+        batch_process("$base/import");
 
       }else{ //not batch processing the file
         $session_id = microtime();
@@ -257,6 +258,27 @@ function biblio_import_batch_finished($success, $results, $operations) {
   db_query("DELETE FROM {biblio_import_cache} WHERE session_id = '%s'",$results['session_id']);
 
 }
+
+function biblio_import_from_url($URL) {
+  $handle = fopen($URL, "r"); // fetch data from URL in read mode
+  $data = "";
+  if ($handle)
+  {
+    while (!feof($handle))
+    {
+      $data .= fread($handle, 4096); // read data in chunks
+    }
+    fclose($handle);
+  }
+  else
+  {
+    $errorMessage = t("Error occurred: Failed to open ") . $URL; // network error
+    drupal_set_message($errorMessage, 'error');
+  }
+
+  return $data;
+}
+
 function biblio_export_form() {
   $form['pot'] = array (
     '#type' => 'fieldset',
@@ -719,6 +741,25 @@ function biblio_save_node($node, $batch = FALSE, $session_id = NULL) {
 
   return (isset($node->nid)) ? $node->nid : 0;
 }
+
+function biblio_crossref_xml_import($xml) {
+  global $node ;
+  $xml_parser = drupal_xml_parser_create($xml);
+  // use case-folding so we are sure to find the tag in
+  xml_parser_set_option($xml_parser, XML_OPTION_CASE_FOLDING, false);
+  xml_parser_set_option($xml_parser, XML_OPTION_SKIP_WHITE, true);
+
+  module_load_include('inc', 'biblio', 'crossref_unixref_parser');
+  xml_set_element_handler($xml_parser, 'unixref_startElement', 'unixref_endElement');
+  xml_set_character_data_handler($xml_parser, 'unixref_characterData');
+
+  xml_parse($xml_parser, $xml);
+  return $node;
+  //$form_state['values'] = array_merge($form_state['values'], $node);
+
+}
+
+
 /**
  * Import EndNote XML data.
  *

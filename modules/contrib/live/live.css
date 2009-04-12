@@ -1,0 +1,13 @@
+/* $Id: live.css,v 1.1 2008/06/28 18:41:15 Gurpartap Exp $ */
+
+div.live-progress-panel { 
+  background-color: #FBEDA5;/*#CF4342*/
+  color: #111111;
+  font-family: Arial, Helvetica, Verdana;
+  font-size: 14px;
+  padding: 3px 6px;
+  position: fixed;
+  right: 16px;
+  top: 0px;
+  z-index: 999;
+}

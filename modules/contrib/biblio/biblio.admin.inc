@@ -1,5 +1,5 @@
 <?php
-// $Id: biblio.admin.inc,v 1.9.2.52 2009/03/12 02:04:34 rjerome Exp $
+// $Id: biblio.admin.inc,v 1.9.2.57 2009/03/31 21:09:18 rjerome Exp $
 /**
  *   biblio.admin.inc
  *
@@ -33,7 +33,7 @@ function biblio_admin_ahah($form, $element, $value) {
 * Implementation of hook_settings().
 */
 function biblio_admin_settings() {
-  $version = '$Revision: 1.9.2.52 $ $Date: 2009/03/12 02:04:34 $';
+  $version = '$Revision: 1.9.2.57 $ $Date: 2009/03/31 21:09:18 $';
   $version = str_replace('$', '', $version);
   $form['biblio_rev'] = array(
     '#value' => $version,
@@ -68,6 +68,20 @@ function biblio_admin_settings() {
     '#return_value' => 1,
     '#default_value' => variable_get('biblio_view_only_own', 0),
     '#description' => t('This option restricts the users capability to view biblio entries.  They will only be able to see the entries which they have created and own.')
+  );
+  $form['authors'] = array(
+    '#type' => 'fieldset',
+    '#collapsible' => TRUE,
+    '#collapsed' => TRUE,
+    '#title' => t('Author'),
+    '#description' => ''
+  );
+  $form['authors']['biblio_auto_orphaned_author_delete'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Automatically delete orphaned authors'),
+    '#return_value' => 1,
+    '#default_value' => variable_get('biblio_auto_orphaned_author_delete', 0),
+    '#description' => t('Orphaned authors are those which are no longer linked to any entries as the result of a biblio update or delete.')
   );
   $form['block'] = array(
     '#type' => 'fieldset',
@@ -377,13 +391,14 @@ function biblio_admin_settings() {
     '#title' => t('Styling'),
     '#description' => t('You can set the default style for the /biblio page here.')
   );
-//  $form['style']['biblio_normalize'] = array(
-//    '#type' => 'checkbox',
-//    '#title' => t('Normalize author names when displaying biblio records'),
-//    '#return_value' => 1,
-//    '#default_value' => variable_get('biblio_normalize', 0),
-//    '#description' => t('Tries (doesn\'t always work) to reformat author names so that they are displayed in the format "Lastname, Initials" e.g. Smith, J.S. (Note: This setting does not modify the entry in the database, it only reformats it\'s presentation. This option can be turned off at any time to diplay the oringal format.)')
-//  );
+  $form['style']['biblio_style'] = array(
+    '#type' => 'radios',
+    '#title' => t('Style'),
+    '#default_value' => biblio_get_style(),
+    '#options' => _biblio_admin_get_styles(),
+    '#description' => t('Set the bibliographic style of the "list" view.')
+  );
+
   $form['style']['biblio_node_layout'] = array(
     '#type' => 'radios',
     '#title' => t('Node Layout'),
@@ -413,13 +428,6 @@ function biblio_admin_settings() {
     '#description' => t('Select a field from which an annotation will be displayed below biblo entry in "short" listings'),
     '#multiple' => FALSE,
     '#size' => 0
-  );
-  $form['style']['biblio_style'] = array(
-    '#type' => 'radios',
-    '#title' => t('Style'),
-    '#default_value' => variable_get('biblio_style', 'classic'),
-    '#options' => _biblio_admin_get_styles(),
-    '#description' => t('This alters the layout of the "list" (short) view.')
   );
   $form['syndication'] = array(
     '#type' => 'fieldset',
@@ -851,7 +859,7 @@ function _biblio_get_user_profile_form(& $form, $profile_user = FALSE) {
   $form['profile'] = array(
     '#type' => 'fieldset',
     '#collapsible' => TRUE,
-    '#collapsed' => ($profile_user) ? FALSE : TRUE,
+    '#collapsed' =>  TRUE,
     '#title' => ($profile_user) ? t('My publications') : t('Profile pages')
   );
   if(!$profile_user) {
@@ -906,6 +914,17 @@ function _biblio_get_user_profile_form(& $form, $profile_user = FALSE) {
     '#options' => $options,
     '#description' => t('This will link your profile to the selected author from the biblio database, then all publications containing this author to be displayed on your "Publications" tab.'),
     );
+    $options = array();
+    $options['system'] = t('System default');
+    $options = array_merge($options, _biblio_admin_get_styles() );
+    $form['profile']['biblio_user_style'] = array(
+    '#type' => 'radios',
+    '#title' => t('Style'),
+    '#default_value' => (isset($profile_user->biblio_user_style) ? $profile_user->biblio_user_style : 'system'),
+    '#options' => $options,
+    '#description' => t('Set the bibliographic style of the "list" view.')
+  );
+
   }
 }
 /*  This function parses the module directory for 'style' files, loads them and
@@ -957,7 +976,7 @@ function biblio_admin_get_query($name) {
 function biblio_admin_author_types_form($form_state, $op = NULL, $id = NULL) {
   switch ($op) {
     case 'edit':
-      $type = db_fetch_object(db_query("SELECT * FROM {biblio_contributor_type_data WHERE auth_type=%d",$id));
+      $type = db_fetch_object(db_query("SELECT * FROM {biblio_contributor_type_data} WHERE auth_type=%d",$id));
       $form['auth_type'] = array(
         '#type' => 'hidden',
         '#value' => $type->auth_type);
@@ -1165,27 +1184,61 @@ function biblio_admin_author_edit_form($form_state, $author_id) {
  $authors = db_query("SELECT * FROM {biblio_contributor_data} cd WHERE name LIKE '%%%s%%' AND cid != %d",$author->lastname, $author_id);
   unset($options);
   $base = variable_get('biblio_base', 'biblio');
-  while($author=db_fetch_array($authors)) {
-    $options[$author['cid']] = l($author['name'],$base.'/authors/'.$author['cid'].'/edit/');
-    if ($author['affiliation']) $options[$author['cid']] .= ' (' . $author['affiliation'] . ')';
+  while($other_author=db_fetch_array($authors)) {
+    if ((empty($other_author['aka']) && $author->aka != $other_author['cid'])) {
+      $merge_options[$other_author['cid']] = l($other_author['name'],$base.'/authors/'.$other_author['cid'].'/edit/');
+    }
+    $link_options[$other_author['cid']] = l($other_author['name'],$base.'/authors/'.$other_author['cid'].'/edit/');
+    $link_default_values[] = (!empty($other_author['aka']) || $author->aka == $other_author['cid']) ?$other_author['cid']:0;
+    if ($other_author['affiliation']) $options[$other_author['cid']] .= ' (' . $other_author['affiliation'] . ')';
   }
-  if ($options) {
+  if ($merge_options) {
     $form['merge'] = array(
       '#type' => 'fieldset',
       '#title' => t('Author Merge'),
-      '#description' => t('Select other author names which will be merged with this one.  You should only do this if you are sure the other authors represent the same author as the one being edited.'),
+      '#description' => t('Select other author names which will be merged.  Merging removes all the selected authors, then replaces any references to these authors with the author being edited above.  You should only do this if you are sure the other authors represent the same author as the one being edited. <B>THIS CANNOT BE UNDONE!</B>'),
       '#weight' => 5,
       '#collapsible' => TRUE,
-      '#collapsed' => FALSE,
+      '#collapsed' => TRUE,
     );
+
     $form['merge']['merge_authors'] = array(
       '#type' => 'checkboxes',
       '#title' => t('Similar authors'),
-	    '#options' => $options,
+	    '#options' => $merge_options,
       '#weight' => 12,
       '#required' => FALSE,
       '#multiple' => TRUE,
-    '#size' => min(count($options), 6),
+      '#size' => min(count($merge_options), 6),
+    );
+    $form['merge']['merge'] = array(
+      '#type' => 'submit',
+      '#value' => t('Merge')
+    );
+  }
+  if ($link_options) {
+    $form['link'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('Author Link'),
+      '#description' => t('Select other author names which will be linked.  Linking relates all the selected authors to the author being edited above, and and keeps each instance in the database.  You should only do this if you are sure the other authors represent the same author as the one being edited. '),
+      '#weight' => 5,
+      '#collapsible' => TRUE,
+      '#collapsed' => TRUE,
+    );
+
+    $form['link']['link_authors'] = array(
+      '#type' => 'checkboxes',
+      '#title' => t('Similar authors'),
+      '#default_value' => $link_default_values,
+      '#options' => $link_options,
+      '#weight' => 12,
+      '#required' => FALSE,
+      '#multiple' => TRUE,
+      '#size' => min(count($link_options), 6),
+    );
+    $form['link']['link'] = array(
+      '#type' => 'submit',
+      '#value' => t('Link')
     );
   }
   $form['submit'] = array(
@@ -1201,7 +1254,7 @@ function biblio_admin_author_edit_form_validate($form, &$form_state) {
   }
 }
 function biblio_admin_author_edit_form_submit($form, &$form_state) {
-
+  $op = $form_state['values']['op'];
   if ($form_state['values']['drupal_uid'] == 0 ) {
     $uid = $form['drupal_uid']['#default_value'];
     $cid = 0;
@@ -1219,12 +1272,27 @@ function biblio_admin_author_edit_form_submit($form, &$form_state) {
 
   drupal_write_record('biblio_contributor_data', $form_state['values'], 'cid');
   // merge authors
-  if (count($form_state['values']['merge_authors'])) {
-    $authors = implode(',', $form_state['values']['merge_authors']);
-    update_sql("UPDATE {biblio_contributor} SET cid={$form_state['values']['cid']} WHERE cid IN ($authors)");
-    update_sql("DELETE FROM {biblio_contributor_data} WHERE cid IN ($authors)");
+  if (isset($form_state['values']['merge_authors']) && $op == t('Merge')) {
+    $merge_authors = array_filter($form_state['values']['merge_authors']);
+    if (count($merge_authors) ) {
+      $authors = implode(',', $merge_authors);
+      db_query("UPDATE {biblio_contributor} SET cid={$form_state['values']['cid']} WHERE cid IN ($authors)");
+      db_query("DELETE FROM {biblio_contributor_data} WHERE cid IN ($authors)");
+    }
+  }
+  if (isset($form_state['values']['link_authors']) && $op == t('Link')) {
+    //db_query("UPDATE {biblio_contributor_data} SET aka=$form_state['values']['cid'] WHERE cid IN ($authors)");
+    foreach ($form_state['values']['link_authors'] as $key => $value) {
+      if ($value == 0) {
+        db_query("UPDATE {biblio_contributor_data} SET aka=$value WHERE cid=$key");
+      }
+      else {
+        db_query("UPDATE {biblio_contributor_data} SET aka={$form_state['values']['cid']} WHERE cid=$key");
+      }
+    }
   }
 }
+
 
 function biblio_admin_orphans_form($form_state) {
   $base = variable_get('biblio_base', 'biblio');
@@ -1254,6 +1322,7 @@ function biblio_admin_orphans_form_validate($form, &$form_state) {
 }
 
 function biblio_admin_orphans_form_submit($form, &$form_state) {
+  // Filter out unchecked authors
   $authors = array_filter($form_state['values']['authors']);
   update_sql('DELETE FROM {biblio_contributor_data} WHERE cid IN ('.implode(',',$authors).')');
   drupal_set_message(t('The orphaned authors ('.implode(',',$authors).') have been deleted.'));

@@ -1,0 +1,94 @@
+# $Id: cck_facets.pot,v 1.1 2008/09/03 23:10:55 davidlesieur Exp $
+#
+# LANGUAGE translation of Drupal (general)
+# Copyright YEAR NAME <EMAIL@ADDRESS>
+# Generated from files:
+#  cck_facets.module,v 1.21 2008/04/14 17:00:31 davidlesieur
+#  date_facets.module,v 1.6 2008/05/20 01:55:47 davidlesieur
+#  number_facets.module,v 1.5 2008/05/20 01:55:47 davidlesieur
+#  reference_facets.module,v 1.9 2008/05/20 01:55:47 davidlesieur
+#  text_facets.module,v 1.8 2008/05/29 21:35:59 davidlesieur
+#  cck_facets.info,v 1.5 2008/04/23 14:15:01 davidlesieur
+#  date_facets.info,v 1.2 2008/04/23 14:58:40 davidlesieur
+#  number_facets.info,v 1.4 2008/04/23 14:58:40 davidlesieur
+#  reference_facets.info,v 1.5 2008/04/23 14:58:40 davidlesieur
+#  text_facets.info,v 1.4 2008/04/23 14:58:40 davidlesieur
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PROJECT VERSION\n"
+"POT-Creation-Date: 2008-09-01 17:23-0400\n"
+"PO-Revision-Date: YYYY-mm-DD HH:MM+ZZZZ\n"
+"Last-Translator: NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <EMAIL@ADDRESS>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
+
+#: cck_facets.module:0
+msgid "cck_facets"
+msgstr ""
+
+#: date_facets.module:0
+msgid "date_facets"
+msgstr ""
+
+#: number_facets.module:0
+msgid "number_facets"
+msgstr ""
+
+#: reference_facets.module:0
+msgid "reference_facets"
+msgstr ""
+
+#: text_facets.module:0
+msgid "text_facets"
+msgstr ""
+
+#: cck_facets.info:0
+msgid "CCK Facets"
+msgstr ""
+
+#: cck_facets.info:0
+msgid ""
+"Provides basic functionality for modules that expose CCK fields as facets."
+msgstr ""
+
+#: cck_facets.info:0 date_facets.info:0 number_facets.info:0
+#: reference_facets.info:0 text_facets.info:0
+msgid "Faceted Search"
+msgstr ""
+
+#: date_facets.info:0
+msgid "CCK Date Facets"
+msgstr ""
+
+#: date_facets.info:0
+msgid "Exposes CCK Date fields as facets."
+msgstr ""
+
+#: number_facets.info:0
+msgid "CCK Number Facets"
+msgstr ""
+
+#: number_facets.info:0
+msgid "Exposes CCK Number fields as facets."
+msgstr ""
+
+#: reference_facets.info:0
+msgid "CCK Reference Facets"
+msgstr ""
+
+#: reference_facets.info:0
+msgid "Exposes CCK Node Reference and User Reference fields as facets."
+msgstr ""
+
+#: text_facets.info:0
+msgid "CCK Text Facets"
+msgstr ""
+
+#: text_facets.info:0
+msgid "Exposes CCK Text fields as facets."
+msgstr ""

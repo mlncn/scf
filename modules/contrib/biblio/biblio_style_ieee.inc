@@ -1,6 +1,6 @@
 <?php
 
-// $Id: biblio_style_ieee.inc,v 1.8.2.10 2009/03/01 01:59:10 rjerome Exp $
+// $Id: biblio_style_ieee.inc,v 1.8.2.12 2009/03/26 13:59:25 rjerome Exp $
 // by Jeffrey Dwoskin
 // A style closer to IEEE format
 // see http://standards.ieee.org/guides/style/section7.html#992
@@ -58,7 +58,10 @@ function biblio_style_ieee($node, $base = 'biblio', $inline = false) {
     default :
       if (!empty ($node->biblio_secondary_title)) {
         $output .= '<span class="biblio-title">&quot;';
-        $output .= $inline ? l("$node->title", "$base/viewinline/$node->nid") : l("$node->title", "node/$node->nid");
+          $link = ((variable_get('biblio_link_title_url', 0) && !empty($node->biblio_url)) ? $node->biblio_url : ($inline ? "$base/viewinline/$node->nid":"node/$node->nid" ) ) ;
+          $options['attributes'] = (variable_get('biblio_links_target_new_window',null) && variable_get('biblio_link_title_url', 0) && !empty($node->biblio_url)) ? array('target'=>'_blank') : null;
+          $output .= l($node->title, $link, $options);
+          //$output .= $inline ? l("$node->title", "$base/viewinline/$node->nid") : l("$node->title", "node/$node->nid");
         $output .= "&quot;, </span> \n";
         $output .= '<i>' . check_plain($node->biblio_secondary_title) . '</i>';
       } else {
@@ -95,7 +98,7 @@ function biblio_style_ieee($node, $base = 'biblio', $inline = false) {
       break; // generic
   }
   /*  if ($node->biblio_date) $output .= ', '. check_plain($node->biblio_date);
-  
+
   */
   return $output;
 }

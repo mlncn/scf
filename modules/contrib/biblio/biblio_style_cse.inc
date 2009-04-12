@@ -1,6 +1,6 @@
 <?php
 
-// $Id: biblio_style_cse.inc,v 1.9.2.16 2009/03/01 01:59:10 rjerome Exp $
+// $Id: biblio_style_cse.inc,v 1.9.2.18 2009/03/26 13:59:25 rjerome Exp $
 /**
  * Get the style information
  *
@@ -61,7 +61,9 @@ function biblio_style_cse($node, $base = 'biblio', $inline = false) {
         $output .= check_plain($node->biblio_year) . ".&nbsp;&nbsp;";
       }
       $output .= '<span class="biblio-title">';
-      $output .= $inline ? l("$node->title", "$base/viewinline/$node->nid") : l("$node->title", "node/$node->nid");
+        $link = ((variable_get('biblio_link_title_url', 0) && !empty($node->biblio_url)) ? $node->biblio_url : ($inline ? "$base/viewinline/$node->nid":"node/$node->nid" ) ) ;
+        $options['attributes'] = (variable_get('biblio_links_target_new_window',null) && variable_get('biblio_link_title_url', 0) && !empty($node->biblio_url)) ? array('target'=>'_blank') : null;
+        $output .= l($node->title, $link, $options);
       $output .= (strpos($node->title, '?'))? " </span>" : ". </span>";  // if the title ends in a question mark, don't put a period after it.
       $output .= (!empty ($node->biblio_secondary_title)) ? check_plain($node->biblio_secondary_title) . '. ' : '';
       $output .= (!empty ($node->biblio_volume))          ? check_plain($node->biblio_volume) : '';
