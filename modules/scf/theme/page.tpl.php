@@ -64,8 +64,8 @@
   <?php // using a preprocess function.                                ?>
   <?php if (user_access('administer site configuration')): ?>
                 <?php $links['mission_edit'] = array(
-                  'title' => t('Edit'), 
-                  'href' => 'admin/settings/site-information', 
+                  'title' => t('Edit'),
+                  'href' => 'admin/settings/site-information',
                   'attributes' => array('title' => t('Edit the site configuration which includes this mission statement')),
                   'query' => drupal_get_destination()); ?>
                 <?php print '<div class="clear-block">' . theme('links', $links, array('class' => 'action_links links inline')) . '</div>'; ?>
@@ -107,7 +107,7 @@
 
     <div id="footer_wrapper">
       <div id="footer">
-        <p id="badge">Powered by the Scientific Collaborative Framework (SCF).</p>
+        <p id="badge">Powered by the Science Collaboration Framework (SCF).</p>
         <div class="content">
           <?php print $footer_message; ?>
           <?php if (!empty($footer)): print $footer; endif; ?>
