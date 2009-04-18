@@ -6,20 +6,25 @@
  * Admin page callbacks for the biblioreference module.
  *
  * Much of this is borrowed from search modules's search.admin.inc.
- * Originally coded by benjamin melançon of Agaric Design Collective.
+ * Originally coded by Benjamin Melançon of Agaric Design Collective.
  */
 
 /**
  * Menu callback: confirm wiping of the index.
  */
 function biblioreference_wipe_confirm() {
-  return confirm_form(array(), t('Are you sure you want to re-index bibliography content?'), 'admin/settings/biblio/biblioreference', t('The index will be cleared.  Biblioreference autocomplete may not work on all content until re-indexing is complete, which may take more than one cron run.  This action cannot be undone.'), t('Re-index biblio content'), t('Cancel'));
+  return confirm_form(array(),
+    t('Are you sure you want to re-index bibliography content?'),
+    'admin/settings/biblio/biblioreference',
+    t('The index will be cleared.  Biblioreference autocomplete may not work on all content until re-indexing is complete, which may take more than one cron run.  This action cannot be undone.'),
+    t('Re-index biblio content'),
+    t('Cancel'));
 }
 
 /**
  * Handler for wipe the biblio index confirmation.
  */
-function search_wipe_confirm_submit(&$form, &$form_state) {
+function biblioreference_wipe_confirm_submit(&$form, &$form_state) {
   if ($form['confirm']) {
     biblioreference_index_wipe();
     drupal_set_message(t('The index will be rebuilt.'));
@@ -37,10 +42,12 @@ function search_wipe_confirm_submit(&$form, &$form_state) {
  */
 function biblioreference_settings_form() {
   $form = array();
-  $cron_last = variable_get('biblioreference_cron_last', 0);  // returns timestamp
-  $count = db_result(db_query("SELECT COUNT(nid) FROM {node} WHERE type = 'biblio' AND changed >= $cron_last"));
-
-  $status = '<p><strong>' . t('%count bibliographies remain to be indexed.', array('%count' => $count)) . '</strong></p>';
+  $sql = 'SELECT COUNT(*) FROM {node} JOIN {biblio} AS b USING (nid) '
+       . 'WHERE b.nid NOT IN '
+       . '(SELECT bk.nid FROM {biblioreference_keyword} AS bk)';
+  $count = db_result(db_query($sql));
+  $status = '<p><strong>' . t('%count bibliographies remain to be indexed.',
+    array('%count' => $count)) . '</strong></p>';
   $form['status'] = array(
     '#type' => 'fieldset',
     '#title' => t('Indexing status'),
@@ -75,9 +82,8 @@ function biblioreference_settings_form() {
 /**
  * Validate callback.
  */
-function biblioreference_admin_settings_validate($form, &$form_state) {
-  if ($form_state['values']['op'] == t('Re-index site')) {
+function biblioreference_settings_form_validate($form, &$form_state) {
+  if ($form_state['values']['op'] == t('Re-index biblio content')) {
     drupal_goto('admin/settings/biblio/biblioreference/wipe');
   }
 }
-
