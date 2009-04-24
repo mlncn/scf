@@ -1,0 +1,4 @@
+name = Synonyms Views field
+description = Synonyms views field 
+core = 6.x
+dependencies[] = views

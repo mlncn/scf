@@ -1,0 +1,146 @@
+<?php
+// $Id: $
+
+/**
+ * @file
+ * Implements hooks intercepting the deletion of nodes to preserve referential
+ * integrity.
+ */
+
+/**
+ * Implementation of hook_help().
+ */
+function referential_integrity_help($path, $arg) {
+  switch ($path) {
+    case 'admin/help#admin_menu':
+      return t(<<<EOT
+<p>This module does not preserve referential integrity at the database level.
+It does intercept the node delete confirmation forms and will block
+a user from directly deleting nodes other nodes link to via CCK's
+node reference fields.</p>
+EOT
+      );
+  }
+}
+
+/**
+ * Intercepts the deletion of nodes that are targets of node references.
+ *
+ * @param $form
+ * @param $form_state
+ */
+function pdonline_form_node_delete_confirm_alter(&$form, $form_state) {
+  $node = node_load($form['nid']['#value']);
+  $referrers = _pdonline_get_referrers($form['nid']['#value']);
+  
+  if (!empty($referrers)) {
+    $list = "<ul>\n";
+    foreach ($referrers as $ref) {
+      $list .= '  <li>' . l($ref->title, "node/{$ref->nid}") . "</li>\n";
+    }
+    $list .= "</ul>\n";
+    
+    $form['nodereference_warning'] = array(
+      '#value' => '<p>'. t('This node cannot be deleted because other nodes refer to it:') .'</p>' . $list,
+      '#weight' => -10,
+    );
+    
+    $query = $fragment = NULL;
+    
+    if (isset($_GET['destination'])) {
+      $path = $_GET['destination'];
+    } else {
+      $path = 'node/'. $node->nid;
+    }
+    
+    if (is_array($path)) {
+      $query = isset($path['query']) ? $path['query'] : NULL;
+      $fragment = isset($path['fragment']) ? $path['fragment'] : NULL;
+      $path = isset($path['path']) ? $path['path'] : NULL;
+    }
+    
+    $cancel =  l(t('Back'), $path,
+      array('query' => $query, 'fragment' => $fragment));
+    
+    $form['actions']['cancel'] = array('#value' => $cancel);
+    unset($form['description']);
+    unset($form['actions']['submit']);
+    drupal_set_title(t('Cannot delete node: "%title"',
+      array('%title' => $node->title)));
+  }
+}
+
+/**
+ * Intercepts deletion of nodes through the content admin interface.
+ *
+ * @param array $form
+ * @param array $form_state
+ */
+function pdonline_form_node_admin_content_alter(&$form, $form_state) {
+  if (isset($form_state['values']['operation']) &&
+    $form_state['values']['operation'] == 'delete') {
+    // Retrieve an array of all referenced nodes.
+    $referenced_nodes = array_filter($form_state['values']['nodes'],
+      '_pdonline_has_referrers');
+    // Setup form element to display nodes that won't be deleted.
+    $title = t('The following selected nodes won\'t be deleted because other '
+           . 'nodes refer to them.');
+    foreach ($referenced_nodes as $nid) {
+      $value .= "  " . $form['nodes'][$nid]['#prefix']
+              . $form['nodes'][$nid]['#suffix'];
+      unset($form['nodes'][$nid]);
+    }
+           
+    $form['referenced_nodes'] = array(
+      '#value' => $value,
+      '#prefix' => "<div>\n  <h3>$title</h3>\n  <ul>\n",
+      '#suffix' => "  </ul>\n</div>",
+    );
+    
+    // Subtract referenced nodes from nodes to be deleted.
+    $form_state['values']['nodes'] = array_diff(
+    $form_state['values']['nodes'], $referenced_nodes);
+  }
+}
+
+/**
+ * Returns a list of nodes that have node references to the given node.
+ * The nodes only contain nid and title.
+ *
+ * @param int $nid
+ * @return array
+ */
+function _pdonline_get_referrers($nid) {
+  $referrers = array();
+  $fields = content_fields();
+  
+  foreach ($fields as $field) {
+    if (isset($field['referenceable_types']) &&
+        in_array($node->type, $field['referenceable_types'])) {
+      $database_info = content_database_info($field);
+      $table = $database_info['table'];
+      $nid_column = $database_info['columns']['nid']['column'];
+      $sql = 'SELECT DISTINCT nid,title FROM %s JOIN node USING (nid) '
+           . 'WHERE %s = %d';
+      $result = db_query($sql, $table, $nid_column, $nid);
+      
+      while ($node = db_fetch_object($result)) {
+        $referrers[] = $node;
+      }
+    }
+  }
+  
+  return $referrers;
+}
+
+/**
+ * Returns TRUE if the given node is the target of at least one node reference,
+ * FALSE otherwise.
+ *
+ * @param int $nid
+ * @return bool
+ */
+function _pdonline_has_referrers($nid) {
+  watchdog('pdonline', $nid, array(), WATCHDOG_DEBUG);
+  return (count(_pdonline_get_referrers($nid)) > 0);
+}

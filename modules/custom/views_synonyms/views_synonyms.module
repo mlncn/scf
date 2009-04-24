@@ -1,0 +1,9 @@
+<?php
+
+
+function views_synonyms_views_api() {
+  return array(
+    'api' => 2,
+    'path' => drupal_get_path('module', 'views_synonyms'),
+  );
+}

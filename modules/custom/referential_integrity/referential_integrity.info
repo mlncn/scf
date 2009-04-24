@@ -1,0 +1,6 @@
+; $Id: $
+name = "Referential Integrity"
+description = "Blocks deletion of referenced nodes."
+package = "CCK - custom"
+dependencies[] = nodereference
+core = 6.x
