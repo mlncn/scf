@@ -52,7 +52,7 @@
 			ed.addButton('cleanword', {
 				title : 'cleanword.desc',
 				cmd : 'mceCleanword',
-				image : url + '/img/cleanword.gif'
+				image : url + '/images/cleanword.gif'
 			});
 
       ed.onEvent.add(function(ed, l) {
