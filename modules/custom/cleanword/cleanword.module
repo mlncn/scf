@@ -1,0 +1,32 @@
+<?php
+// $Id$
+
+/**
+ * @file
+ * Cleanword TinyMCE WYSIWYG plugin module
+ *
+ * Adds a plugin for WYSIWYG API's TinyMCE implementation that removes bad
+ * Microsoft Word (and other) formatting every time it notices a lot of text
+ * inserted.
+ */
+
+/**
+ * Implementation of hook_wysiwyg_plugin().
+ */
+function cleanword_wysiwyg_plugin($editor, $version) {
+  switch ($editor) {
+    case 'tinymce':
+      if ($version >= 2) {
+        return array(
+          'cleanword' => array(
+            'path' => drupal_get_path('module', 'cleanword') .'/plugin/editor_plugin.js',
+            'buttons' => array('cleanword' => t('Clean Word formatting')),
+//            'url' => 'http://drupal.org/project/cleanword',
+//            'extended_valid_elements' => array('table[class!id]'),
+          ),
+        );
+      }
+      break;
+  }
+}
+

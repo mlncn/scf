@@ -1,0 +1,8 @@
+; $Id$
+name = Clean Word TinyMCE plugin
+description = "Provides a plugin for WYSIWYG API's TinyMCE that strips bad (such as Microsoft Word) formatting from all input."
+dependencies[] = wysiwyg
+; use same package as WYSIWYG
+package = User interface
+core = 6.x
+
