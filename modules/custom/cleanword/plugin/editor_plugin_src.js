@@ -85,7 +85,7 @@
 					content = content.replace(new RegExp(rl[i], 'gi'), rl[i+1]);
 
 				if (this.editor.getParam("paste_convert_headers_to_strong", false)) {
-					content = content.replace(new RegExp('<p class=MsoHeading.*?>(.*?)<\/p>', 'gi'), '<p><b>$1</b></p>');
+					content = content.replace(new RegExp('<p class=MsoHeading.*?>(.*?)<\/p>', 'gi'), '<p><strong>$1</strong></p>');
 				}
 
 				content = content.replace(new RegExp('tab-stops: list [0-9]+.0pt">', 'gi'), '">' + "--list--");
