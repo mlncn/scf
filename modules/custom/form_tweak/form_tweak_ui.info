@@ -1,0 +1,6 @@
+; $Id$
+name = Form tweak administrative user interface
+description = Configure tweaks to Drupal form pages through the web interface.
+core = 6.x
+package = User interface
+

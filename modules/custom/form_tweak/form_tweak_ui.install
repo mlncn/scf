@@ -1,0 +1,32 @@
+<?php
+// $Id$
+
+/**
+ * @file
+ * Author field module install hooks.
+ */
+
+/**
+ * Implementation of hook_install().
+ */
+function form_tweak_ui_install() {
+  $success = db_query("UPDATE {system} SET weight = 25 WHERE name = 'form_tweak_ui'");
+  if ($success) {
+    drupal_set_message(
+      st('Form tweak user interface module installed.  Tweak forms inline or 
+      <a href="@url">edit configuration files</a>',
+      array('@url' => url('admin/settings/form_tweak')))
+    );
+  }
+  else {
+    drupal_set_message(st('The installation of Form tweak user interface module failed.'), 'error');
+  }
+}
+
+/**
+ * Implementation of hook_uninstall().
+ */
+function form_tweak_ui_uninstall() {
+  drupal_set_message(t('Form tweak user interface module has been uninstalled.'));
+}
+

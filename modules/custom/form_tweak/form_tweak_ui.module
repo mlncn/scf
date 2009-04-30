@@ -1,0 +1,22 @@
+<?php
+// $Id$
+
+/**
+ * @file
+ * The Form tweak module's user interface.
+ *
+ * Everything here is only available to people with permission, so we include
+ * almost the entire module conditionally.
+ */
+
+
+/**
+ * Implementation of hook_perm().
+ */
+function form_tweak_ui_perm() {
+  return array('tweak forms');
+}
+
+if (user_access('tweak forms')) {
+  module_load_include('inc', 'form_tweak', 'form_tweak_ui.admin');
+}

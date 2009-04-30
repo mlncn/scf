@@ -1,0 +1,229 @@
+<?php
+// $Id$
+
+/**
+ * @file
+ * The Form tweak module.
+ */
+
+/**
+ * Implementation of hook_help().
+ */
+function form_tweak_help($path) {
+  switch ($path) {
+    case 'admin/help#form_tweak':
+      return '<p>' . t('Form tweak offers the following ') . '</p>';
+  }
+}
+
+/**
+ * Implementation of hook_perm().
+ */
+function form_tweak_perm() {
+  return array('tweak forms');
+}
+
+/**
+ * Implementation of hook_form_alter().
+ */
+function form_tweak_form_alter(&$form, &$form_state, $form_id) {
+  if (isset($form['type']) && isset($form['#node'])
+    && ($form_id == $form['type']['#value'] .'_node_form') 
+    ) {
+    // we are on a node edit or add form 
+    ///////////////////////////////////////////////////
+    // Rename any submit buttons, default for all forms.
+    // leave out translation for now
+    ///////////////////////////////////////////////////
+    $buttons = fs_variables_load('form_tweak', 'buttons');
+    foreach ($buttons as $button => $value) {
+      if (isset($form['buttons'][$button])) {
+        $form['buttons'][$button]['#value'] = $value;
+      }
+    }
+  }
+}
+
+/**
+ * Implementation of hook_form_FORM_ID_alter() for node.
+ */
+// function form_tweak_form_node_type_form_alter(&$form, &$form_state) {
+// }
+
+// fs = file settings, a future agaric module
+// per Kathleen's advice, we are using config instead of settings directories
+// to distinguish from settings.php and to emphasize that these are 
+// configuration settings, not (for instance) per-user settings.
+
+// @TODO - provide for variables defined in settings.php to override all
+
+/**
+ * Get variables for a specific module and, optionally, category.
+ *
+ * The category option is for variables that will only be specially called.
+ * For general use variables all the place calling for the variable should 
+ * have to know is the module name and the variable name.
+ *
+ * In short, use of module_name.ini will be analogous to using settings.php
+ * (albeit with the welcomed-by-everyone requirement of module namespacing).
+ * Use of module_name.category.ini will be analogous to using a custom 
+ * database table to hold settings for your module.
+ */
+function fs_variables_load($module, $category = NULL) {
+  $variables = array();
+  $paths = fs_paths($module, $category);
+  foreach ($paths as $path) {
+    $variables = array_merge($variables, fs_parse_ini_file($path));
+  }
+  return $variables;
+}
+
+/**
+ * Get all available file paths for a given module and category.
+ *
+ * Note that this gives the paths in REVERSE order of precedence.  In 
+ * typical usage a combined array will be created with each new path
+ * overriding any already existing variables from the previous path.
+ *
+ * Modules can put their default settings in a settings subdirectory or
+ * directly in their modules directory.  Note that settings directly in
+ * the modules directory will override settings in the settings directory.
+ * We recommend your module not, ever, define settings in both places.
+ */
+function fs_paths($module, $category = NULL) {
+  $paths = array();
+  if (!is_string($module)) {
+    watchdog('fs', t('Module name must be a string.'), WATCHDOG_WARNING);
+    return $paths;
+  }
+  $var_path = $module;
+  if ($category && is_string($category)) {
+    $var_path .= '.' . $category;
+  }
+  $var_path .= '.ini';
+  $module_path = drupal_get_path('module', $module) . '/';
+  if (file_exists($path = $module_path . 'config/' . $var_path)) {
+    $paths[] = $path;
+  }
+  if (file_exists($path = $module_path . $var_path)) {
+    $paths[] = $path;
+  }
+  if (file_exists($path = conf_path() . '/config/' . $var_path)) {
+    $paths[] = $path;
+  }
+  // @TODO make checking the files directory conditional on it being
+  // readable only by the apache user-- if possible.  fileperms() is a start
+  $files_path = file_directory_path() . '/config/';
+  if (file_exists($path = $files_path . $var_path)) {
+    $paths[] = $path;
+  }
+  return $paths;
+}
+
+/**
+ * Wrapper function because I want to experiment with parsing methods.e
+ *
+ * Both PHP's ini parsing function and drupal_parse_ini_file take filename
+ * and return an array.
+ */
+function fs_parse_ini_file($file, $function = 'parse_ini_file') {
+  return $function($file);
+}
+
+// don't really want section headers, but we'll map them to fieldsets
+// @TODO will need logic to not write to the file if same as the default
+// steal subfolder creation code from imagecache or somesuch... that was hard to find -- imagecache_build_derivative has it
+
+/**
+ * Write array of values to a .ini-style file.
+ */
+function fs_write_ini_file($path, $values) {
+  $output = fs_ini($values);
+  // check the file, create if necessary
+  if (!fs_file_check_directory($path)) {
+    return FALSE;
+  }
+  // write data to file
+  return file_put_contents($path, trim($output)); 
+}
+
+/**
+* Write array data into an INI file format.
+* 
+* The data array has to be like this:
+* 
+*  Array
+*  (
+*      [Section1] => Array
+*          (
+*              [key1] => val1
+*              [key2] => val2
+*          )
+*      [Section2] => Array
+*          (
+*              [key3] => val3
+*              [key4] => val4
+*          )    
+*  )
+*
+* @param array $data
+*/ 
+function fs_ini(array $data) 
+{
+  $output = '';   
+  foreach ($data as $section => $values) 
+  { 
+    //values must be an array 
+    if (!is_array($values)) { 
+      continue; 
+    } 
+    //add section 
+    $output .= "[$section]\r\n"; 
+    //add key/value pairs 
+    foreach ($values as $key => $val) { 
+      $output .= "$key=$val\r\n"; 
+    } 
+    $output .= "\r\n"; 
+  }
+}
+
+/**
+ * Check that a directory exists and create it if it doesn't.
+ *
+ * Adapted from imagecache_build_derivative.
+ */
+function fs_file_check_directory($path) {
+  // get the folder for the final location of this preset...
+  $dir = dirname($path);
+
+  // Build the destination folder tree if it doesn't already exists.
+  if (!file_check_directory($dir, FILE_CREATE_DIRECTORY) && !mkdir($dir, 0775, true)) {
+    watchdog('fs', 'Failed to create file-based settings directory: %dir', array('%dir' => $dir), WATCHDOG_ERROR);
+    return false;
+  }
+  return TRUE;
+}
+
+/**
+ * Get a variable by name and module name.
+ *
+ * The module that provides the variable MUST provide a default in a .ini file.
+ */
+function fs_variable_get($module, $name, $category = NULL, $reset = FALSE) {
+  static $config;
+  $category = ($category) ? $category : '';
+  if (!$reset && isset($config[$module][$category][$name])) {
+    return $config[$module][$category][$name];
+  }
+  $vars = fs_variables_load($module, $category);
+  if (isset($vars[$name])) {
+    return $vars[$name];
+  }
+  else {
+    $msg = t("No default defined for configuration variable %name in module %module", array('%name' => $name, '%module' => $module));
+    if (!fs_variable_get('form_tweak', 'suppress_messages')) { // @TODO change to fs when we split the modules
+      drupal_set_message($msg, 'warning');
+    }
+    watchdog('fs', $msg, NULL, WATCHDOG_WARNING);
+  }
+}

@@ -1,0 +1,33 @@
+<?php
+// $Id$
+
+/**
+ * @file
+ * Author field module install hooks.
+ */
+
+/**
+ * Implementation of hook_install().
+ */
+function form_tweak_install() {
+  $success = db_query("UPDATE {system} SET weight = 25 WHERE name = 'form_tweak'");
+  if ($success) {
+    drupal_set_message(st('Form tweak module installed.'));
+  }
+  else {
+    drupal_set_message(st('The installation of Form tweak module failed.'), 'error');
+  }
+}
+
+/**
+ * Implementation of hook_uninstall().
+ */
+function form_tweak_uninstall() {
+//  $result = db_query("SELECT name FROM {variable} WHERE name LIKE 'author_field_%'");
+//  while ($row = db_fetch_object($result)) {
+//    variable_del($row->name);
+//  }
+
+  drupal_set_message(t('Form tweak module has been uninstalled.'));
+}
+
