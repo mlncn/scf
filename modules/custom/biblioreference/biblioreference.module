@@ -421,7 +421,7 @@ function biblioreference_alter_item(&$form, $key, $item, $fields) {
     if ($field['widget']['type'] == 'biblioreference_autocomplete') {
       // Add link to add new citation
       $suffix = '<div class="pdbiblio-add-new">';
-      $suffix .= t('* If your reference is not in PD Biblio, <a href="@url" target="_BLANK">add a new citation in PDBiblio</a> manually.  This link will take you to a new window. After creating the reference, please remember to add it to the article.', array('@url' => url('biblioreference/add/citation')));
+      if (user_access('create biblio')) $suffix .= t('If your reference is not in PD Biblio,  <a href="@url" target="_BLANK">add a new reference to PDBiblio</a> from PubMed or by entering it manually. After creating the reference, return here and add it to your response.', array('@url' => url('biblioreference/add/citation')));
       $suffix .= '</div>';
       $form[$key]['#suffix'] = $suffix;
     }

@@ -76,6 +76,7 @@ function biblioreference_widget_widget_settings($op, $widget) {
     case 'form':
       $form = array();
       $match = isset($widget['autocomplete_match']) ? $widget['autocomplete_match'] : 'contains';
+      $size = (isset($widget['size']) && is_numeric($widget['size'])) ? $widget['size'] : 120;  // twice the usual length to give autocomplete dropdown width
       if ($widget['type'] == 'biblioreference_autocomplete') {
         $form['autocomplete_match'] = array(
           '#type' => 'select',
@@ -87,14 +88,22 @@ function biblioreference_widget_widget_settings($op, $widget) {
           ),
           '#description' => t('Select the method used to collect autocomplete suggestions. Note that <em>Contains</em> can cause performance issues on sites with thousands of nodes.'),
         );
+        $form['size'] = array(
+          '#type' => 'textfield',
+          '#title' => t('Size of autocomplete textfield.'),
+          '#default_value' => $size,
+          '#element_validate' => array('_element_validate_integer_positive'),
+          '#required' => TRUE,
+        );
       }
       else {
         $form['autocomplete_match'] = array('#type' => 'hidden', '#value' => $match);
+        $form['size'] = array('#type' => 'hidden', '#value' => $size);
       }
       return $form;
 
     case 'save':
-      return array('autocomplete_match');
+      return array('autocomplete_match', 'size');
   }
 }
 
@@ -152,8 +161,8 @@ function biblioreference_widget_autocomplete_value($element, $edit = FALSE) {
   $field_key  = $element['#columns'][0];
   if (!empty($element['#default_value'][$field_key])) {
     $nid = $element['#default_value'][$field_key];
-    $value = db_result(db_query(db_rewrite_sql('SELECT n.title FROM {node} n WHERE n.nid = %d'), $nid));
-    $value .= ' --> to remove [nid:'. $nid .']';
+    $value = biblioreference_autocomplete_form_value($nid);
+    $value .= ' [nid:'. $nid .']';
     return array($field_key => $value);
   }
   return array($field_key => NULL);
@@ -189,21 +198,11 @@ function biblioreference_widget_autocomplete_process($element, $edit, $form_stat
     '#delta' => $element['#delta'],
     '#columns' => $element['#columns'],
   );
-  if (empty($element[$field_key]['#element_validate'])) {
+  // replace, don't add, to the validation
+//  if (empty($element[$field_key]['#element_validate'])) {
     $element[$field_key]['#element_validate'] = array();
-  }
+//  }
   array_unshift($element[$field_key]['#element_validate'], 'biblioreference_widget_autocomplete_validate');
-// instead of an author field, we search for everything via one field 
-/*
-$element['author'] = array(
-   '#type' => 'textfield',
-   '#autocomplete_path' => 'biblioreference/autocomplete/author',
-   '#maxlength' => '255',
-   '#title' => t('Author'),
-   '#required' => FALSE,
-   '#default_value' => isset($element['#value']['author']) ? $element['#value']['author'] : NULL,
- );
-*/
   // Used so that hook_field('validate') knows where to flag an error.
   $element['_error_element'] = array(
     '#type' => 'value',
@@ -233,17 +232,15 @@ function biblioreference_widget_autocomplete_validate($element, &$form_state) {
   if (!empty($value)) {
     preg_match('/^(?:\s*|(.*) )?\[\s*nid\s*:\s*(\d+)\s*\]$/', $value, $matches);
     if (!empty($matches)) {
-      // Explicit [nid:n].
+      // Explicit [nid:n] REQUIRED.  Authors, year, etc. too much to match on.
       list(, $title, $nid) = $matches;
-      if (!empty($title) && ($n = node_load($nid)) && $title != $n->title) {
-        form_error($element[$field_key], t('%name: title mismatch. Please check your selection.', array('%name' => t($field['widget']['label']))));
-      }
     }
     else {
+      // @TODO currently, this is guaranteed to fail (title only vs authors etc)
       // No explicit nid.
       // @TODO make a _biblioreference_widget_potential_references
       // that knows exactly what we're outputting
-      // or ideally just hide the nid with CSS and require that
+      // or ideally put the nid in a hidden field
       $reference = _nodereference_widget_potential_references($field, $value, 'equals', NULL, 1);
       if (empty($reference)) {
         form_error($element[$field_key], t('%name: found no valid post with that title.', array('%name' => t($field['widget']['label']))));
@@ -265,8 +262,7 @@ function biblioreference_widget_autocomplete_validate($element, &$form_state) {
  */
 function biblioreference_widget_allowed_values($field) {
 // @debug
-drupal_set_message('does this get called? <pre>'.var_export($field,TRUE).'</pre>');
-
+// drupal_set_message('does this get called? <pre>'.var_export($field,TRUE).'</pre>');  // answer:  appears not
   $references = _nodereference_widget_potential_references($field);
 // see developer notes if _biblioreference_potential_references wanted
   $options = array();

@@ -1,2 +1,20 @@
 <?php
+class BiblioreferenceTestCase extends DrupalWebTestCase {
+  /**
+   * Implementation of getInfo().
+   */
+  public static function getInfo() {
+    return array(
+      'name' => t('Biblioreference Biblio and PubMed enhancements'),
+      'description' => t('Ensure elements added to forms by biblioreference are present'),
+      'group' => t('Science Collaboration Framework'),
+    );
+  }
 
+  /**
+   * Test that the pop-up link to add from PubMed is present on node forms.
+   */
+  function testBiblioreferenceAddFromPubmed() {
+    // @TODO set up test content type(s) with biblioreferenced nodereference fields
+  }
+}

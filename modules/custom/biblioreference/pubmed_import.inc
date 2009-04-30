@@ -105,12 +105,13 @@ function biblioreference_pubmed_import_form() {
   $form['biblioreference_pubmed_id'] = array(
     '#type' => 'textfield',
     '#title' => t('PubMed ID'),
-    '#description' => t('One or more PubMed unique identifiers of articles.  If more than one, separate by spaces, commas, or semicolons.'),
+    '#description' => t('<p>Enter the PMID of your reference(s). If entering more than one ID, separate by spaces, commas or semicolons. You may enter up to 10 PMIDs at a time.</p>'),
     '#required' => TRUE,
   );
   $form['biblioreference_popup_pubmed_message'] = array(
     '#type' => 'markup',
-    '#value' => '<p><a href="http://www.ncbi.nlm.nih.gov/pubmed/" title="' . t("Open PubMed in a new window or tab to find PubMed IDs") . '" target="_blank">' . t("Go to PubMed") . '</a></p>',
+    '#value' => '<p></p><p>If you do not know the PMID, <a href="http://www.ncbi.nlm.nih.gov/pubmed/" title="' . t("Open PubMed in a new window or tab to find PubMed IDs") . '" target="_blank">' . t("Go to PubMed") . '</a>.</p>',
+    '#weight'=>10
   );
 
   // this matches the check in biblio.import.export.inc's biblio_save_node().
@@ -250,14 +251,22 @@ function biblioreference_pubmed_import_form_validate($form, &$form_state) {
 function biblioreference_pubmed_import_form_submit($form, &$form_state) {
   // clean array of Pubmed IDs from the validate function.
   $pmids = $form_state['values']['pmids'];
-  $uid = $form_state['values']['userid'];
+  if (isset($form_state['values']['userid'])) {
+    $uid = $form_state['values']['userid'];
+  }
+  else {
+    global $user;
+    $uid = $user->uid;
+  }
   // if we allow creation of free tagging terms, this will become complicated.
   // we will have to know the vocabulary and create the terms first
   $term_ids = array();
   $taxonomy = $form_state['values']['taxonomy']; // works because form tree true
-  foreach ($taxonomy AS $vid => $vocabulary) {
-    $vocab_term_ids = array_keys($vocabulary);  // this changes for free tags
-    $term_ids = array_merge($term_ids, $vocab_term_ids);
+  if (isset($taxonomy) && is_array($taxonomy)) {
+    foreach ($taxonomy AS $vid => $vocabulary) {
+      $vocab_term_ids = array_keys($vocabulary);  // this changes for free tags
+      $term_ids = array_merge($term_ids, $vocab_term_ids);
+    }
   }
   // @debug
   //drupal_set_message('term_ids: <pre>'.var_export($term_ids,TRUE).'</pre>');
@@ -306,6 +315,7 @@ function biblioreference_import_pubmed_by_pmid($pmid, $uid = 1, $term_ids = arra
 
   // needs to be included
   module_load_include('inc', 'biblio', 'biblio.keywords');
+  module_load_include('inc', 'biblio', 'biblio.import.export');
   // biblio_save_node calls node_save which triggers biblio_insert or _update
   $nid = biblio_save_node($biblio); // , $batch, $session_id);
 /* this is being done by biblio?
@@ -318,9 +328,7 @@ function biblioreference_import_pubmed_by_pmid($pmid, $uid = 1, $term_ids = arra
 */
     // Not worth the db query to get the title, but we have it already still.
   drupal_set_message(t('Imported bibliographic citation') . ' ' . l($biblio['title'], 'node/' . $nid));
-
 }
-
 
 /**
  * Load a single pubmed article XML by pubmed ID.
@@ -331,165 +339,110 @@ function biblioreference_import_pubmed_by_pmid($pmid, $uid = 1, $term_ids = arra
  * Ideally the fetching the xml would be a different step from parsing it, but
  * the simplexml_load_file function does it all with a .
  * or best get changes incorporated into gopubmed and keep dependency.
+ *
+ * @return array an array of values suitable for import into a biblio node
  */
 function biblioreference_parse_pubmed_for_biblio($pmid) {
-  $b = array();  // an array of values suitable for import into a biblio node
-  $db = 'pubmed';
+  $b = array();
 
   // ESummary Retrieves document summaries from a list of primary IDs
   // which we got from the ESearch
-//  $esummary_url = "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=$db&id=$pmid&retmode=xml";
-//  $esummary_load = simplexml_load_file($esummary_url);
-  $pmurl = 'http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=' . $pmid . '&retmode=xml';
-// @debug local file
-// $pmurl = '';
+  // $esummary_url = "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=$db&id=$pmid&retmode=xml";
+  // $esummary_load = simplexml_load_file($esummary_url);
+  $pmurl = 'http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?'
+         . "db=pubmed&id={$pmid}&retmode=xml";
   $pmxml = simplexml_load_file($pmurl);
   if (!is_object($pmxml)) {  // make sure the connection worked
-    drupal_set_message(t("Failed to fetch document summary object from %url.", array('%url' => $pmurl)), 'error');
-    // use au_alert - watchdog('biblioreference', t("
+    drupal_set_message(t("Failed to fetch document summary object from %url.",
+      array('%url' => $pmurl)), 'error');
     return;
   }
-  // drill down to what we need
   $pm = $pmxml->PubmedArticle->MedlineCitation;
-  // aliases to further drilling down, but note this hides the true hierarchy
-  $pma = $pm->Article;
-  $pmj = $pma->Journal;
-  $pmji = $pmj->JournalIssue;
-//@/debug
-// drupal_set_message('summary:<pre>'.var_export($pm,TRUE).'</pre>');
 
-
-  $article_link = biblioreference_pubmed_article_link($pmid);
-//@TODO replace below with robust functions that will try alternate versions
-  $title = (string) $pma->ArticleTitle;
-  $journal = (string) $pmj->Title;
-  $volume = (string) $pmji->Volume;
-  $issue = (string) $pmji->Issue;
-  $pages = (string) $pma->Pagination->MedlinePgn;
-  $pubdate_values = (array) $pmji->Pubdate;
-  $pubdate = implode(' ', $pubdate_values);
-  $abstract = $pma->Abstract->AbstractText;
-  $contributors = array();
-  // cat 1 = type 1 = ordinary authors for biblio articles
-  $cat = 1;
-  $contributors[$cat] = array();
-  foreach ($pma->AuthorList->Author as $author) {
-    $author = (array) $author;
-    $valid = array_shift($author);
-    $lastname = array_shift($author);
-    $forename = array_shift($author);
-    $initials = array_shift($author);
-    if (count($author)) {
-      //@debug
-      drupal_set_message('Remaining parts of author name:<pre>'.var_export($author,TRUE).'</pre>');
-    }
-    // a little silly, but we have to combine author names for biblio to parse
-    $name = $lastname . ', ' . $forename;
-    $contributors[$cat][] = array('name' => $name);
-  }
-/*
-      else if($summary['Name'] == "ePubDate")
-        $epubdate        = $summary;
-      else if($summary['Name'] == "Pagination")
-        $pagination      = $summary;
-      else if($summary['Name'] == "SortDate")
-        $sortdate        = $summary;
-      else if($summary['Name'] == "Links")
-        $links           = $summary;
-      else if($summary['Name'] == "PmcLiveDate")
-        $pmclivedate     = $summary;
-      else if($summary['Name'] == "XmlData")
-        $xmldata         = $summary;
-      else if($summary['Name'] == "FullJournalName")
-        $fullJournalName = $summary;
-      
-    }
-  if (!$fullJournalName) {
-    $journalname = $journal;
-  }
-  else {
-    $journalname = $fullJournalName;
-  }
-*/
-// Create pubmed url
-  $custom1 = "http://www.ncbi.nlm.nih.gov/pubmed/$pmid?dopt=Abstract";
-  // fetch abstract - we get this direct from the xml
-//  $abstract = biblioreference_pubmed_abstract($pmid);
-
-  // we have all our data, now assemble the biblio node array
-  $b['title'] = $title;
+  $b['title'] = $pm->Article->ArticleTitle;
   $b['biblio_citekey'] = $pmid;
-  // this is perfect for handling mesh terms, which should not be accessible
-  // by the user interface
-  if ($keywords) {
-    $b['biblio_keywords'] = $keywords;
-    if (strpos($keywords,';')) $keywords = str_replace(';', ',', $keywords);
-    $vid = variable_get('biblio_keyword_vocabulary', 0);
-    if ($vid  && variable_get('biblio_keyword_freetagging', 0)) {
-      $biblio['taxonomy']['tags'][$vid] .= $keywords;
-    }
-    $node['biblio_keywords'] = explode(',', $keywords);
+  $b['biblio_contributors'] = biblioreference_pubmed_contributors($pm);
+  // MedlineCitations are always articles from journals or books
+  $b['biblio_type'] = 102;
+  $b['biblio_date'] = biblioreference_pubmed_pubdate($pm);
+  $b['biblio_year'] = substr($b['biblio_date'], 0, 4);
+  $b['biblio_secondary_title'] = $pm->Article->Journal->Title;
+  $b['biblio_alternate_title'] = $pm->Article->Journal->ISOAbbreviation;
+  $b['biblio_volume'] = $pm->Article->Journal->JournalIssue->Volume;
+  $b['biblio_issue'] = $pm->Article->Journal->JournalIssue->Issue;
+  $b['biblio_pages'] = $pm_article->Pagination->MedlinePgn;
+  // not used?    $b['language = {' . $language . '},'. "\n";
+  $b['biblio_abst_e'] = $pm->Article->Abstract->AbstractText;
+  $b['biblio_url'] = biblioreference_pubmed_article_link($pmid);
+  $b['biblio_custom1'] = "http://www.ncbi.nlm.nih.gov/pubmed/$pmid?dopt=Abstract";
+  $b['biblio_custom7'] = $pmurl;
+
+  $doi = $pm->xpath('//ELocationID[@EIdType="doi"]/text()');
+  if (!empty($doi)) {
+    $b['biblio_doi'] = $doi[0];
   }
-  $b['biblio_contributors'] = $contributors;
-  // @CLEANUP delete legacy here in comments once shown no use
-  //      $authorArray = preg_split("/\s(and|&)\s/i", trim($entry['author']));
-  //        $node['biblio_contributors'][1][]= array('name' => $author, 'auth_type' => _biblio_get_auth_type(1, $node['biblio_type']));
-  //    if (!empty($entry['editor']))
-  //        $node['biblio_contributors'][2][]= array('name' => $author, 'auth_type' => _biblio_get_auth_type(2, $node['biblio_type']));
+  // not used!!  PARSEENTRIES, which saves the file, has no saving of custom!
+  //    $article_bib .= 'custom1 = {' . $custom1 . '},' . "\n";
+  //    $article_bib .= 'custom2 = {' . $search_term . '},' . "\n";
+  //    $article_bib .= 'custom3 = {' . $primaryId . '}' . "\n";
+  // also not used!  Saved by PARSEENTRIES, but were never entered by gopubmed
+  //      $node['biblio_type_of_work']    .= (!empty($entry['type'])) ? $entry['type'] : NULL;
+  //      $node['biblio_edition']         = (!empty($entry['edition'])) ? $entry['edition'] : NULL;
+  //      $node['biblio_section']         = (!empty($entry['chapter'])) ? $entry['chapter'] : NULL;
+  //      $node['biblio_place_published'] = (!empty($entry['address'])) ? $entry['address'] : NULL;
+  // @TODO add the above, possibly, and any other values we want
 
-    // historically this was automatically coded to 'article'
-    // See "Now creating the pubmed.bib file" part of gopubmed.module
-    //  $article_bib .= '@article{' . $summaryid . ',' . "\n";
-    // we can skip the entire switch ($entry['bibtexEntryType'] statement from
-    // biblio/bibtexParse/PARSEENTRIES.php but we should review to make sure
-    // "article" is the only type PubMed ever has
-    // (note that changing biblio_type changes the meaning of some fields.
-    $b['biblio_type'] = 102; // "article"
-    $b['biblio_date'] = biblioreference_au_if($pubdate);
-    $b['biblio_year'] = biblioreference_au_if($pubdate_values['Year']);
-    $b['biblio_secondary_title'] = biblioreference_au_if($journal);
-    $b['biblio_volume'] = biblioreference_au_if($volume);
-    $b['biblio_issue'] = biblioreference_au_if($issue);
-    $b['biblio_pages'] = biblioreference_au_if($pages);
-    if ($note != '') {  // @TOREVIEW this can result in no keywords if no note?
-      $b['biblio_notes'] = $note . ' Additional Keywords: ' . $keywordlist;
-    }
-    $b['biblio_isbn'] = $isbn;
-// not used?    $b['language = {' . $language . '},'. "\n";
-    $b['biblio_abst_e'] = $abstract; // linked by 'abstract' in prev impl
-    $b['biblio_url'] = biblioreference_au_if($article_link);  // 'url'
-    $b['biblio_custom1'] = $custom1;
-    $b['biblio_custom7'] = $pmurl; // the very xml used to lead everything
-// not used!!  PARSEENTRIES, which saves the file, has no saving of custom!
-//    $article_bib .= 'custom1 = {' . $custom1 . '},' . "\n";
-//    $article_bib .= 'custom2 = {' . $search_term . '},' . "\n";
-//    $article_bib .= 'custom3 = {' . $primaryId . '}' . "\n";
-// also not used!  Saved by PARSEENTRIES, but were never entered by gopubmed
-//      if (!empty($entry['booktitle'])) $node['biblio_secondary_title'] =  $entry['booktitle'];
-//      if (!empty($entry['series']))    $node['biblio_secondary_title'] =  $entry['series'];
-//      $node['biblio_date']            = (!empty($entry['month'])) ? $entry['month'] : NULL;
-//      $node['biblio_type_of_work']    .= (!empty($entry['type'])) ? $entry['type'] : NULL;
-//      $node['biblio_edition']         = (!empty($entry['edition'])) ? $entry['edition'] : NULL;
-//      $node['biblio_section']         = (!empty($entry['chapter'])) ? $entry['chapter'] : NULL;
-//      $node['biblio_place_published'] = (!empty($entry['address'])) ? $entry['address'] : NULL;
-//      $node['biblio_doi']             = (!empty($entry['doi'])) ? $entry['doi'] : NULL;
-// @TODO add the above, possibly, and any other values we want
-
-
-// @TODO do warnings right
-//    $results['watchdog_status'] = t("Publication not entered. PMID @pmid already there.", array('@pmid' => $primaryId));
-//  $watchdog_level = (isset($result['watchdog_level'])) ? $result['watchdog_level'] : WATCHDOG_INFO;
-//  watchdog('biblioreference', $result['watchdog_status'], $watchdog_level);
+  // @TODO do warnings right
+  //  $results['watchdog_status'] = t("Publication not entered. PMID @pmid already there.", array('@pmid' => $primaryId));
+  //  $watchdog_level = (isset($result['watchdog_level'])) ? $result['watchdog_level'] : WATCHDOG_INFO;
+  //  watchdog('biblioreference', $result['watchdog_status'], $watchdog_level);
   return $b;
 }
 
-function biblioreference_au_if($value) {
-  if (!isset($value)) {
-    return NULL;  // not sure what's going on
+/**
+ * Returns the list of contributors for import obtained from the given
+ * MedlineCitation element.
+ *
+ * @param object $pm
+ * @return array
+ */
+function biblioreference_pubmed_contributors($pm) {
+  // cat 1 = type 1 = ordinary authors for biblio articles
+  $cat = 1;
+  $contributors[$cat] = array();
+  foreach ($pm->Article->AuthorList->Author as $author) {
+    $lastname = (string)$author->LastName;
+    if (isset($author->ForeName)) {
+      $name = $lastname . ', ' . (string)$author->ForeName;
+    } elseif (isset($author->FirstName)) {
+      $name = $lastname . ', ' . (string)$author->FirstName;
+    } elseif (isset($author->CollectiveName)) {
+      $name = (string)$author->CollectiveName;
+    }
+    $contributors[$cat][] = array('name' => $name);
   }
-  // this makes no sense?  will it treat it as the array thing being passed in?
-  $value = (!empty($value)) ? $value : NULL;
-  return $value;
+
+  return $contributors;
+}
+
+/**
+ * Returns the publication date obtained from the given MedlineCitation's
+ * PubDate element. See the reference documentation for possible values:
+ * http://www.nlm.nih.gov/bsd/licensee/elements_descriptions.html#pubdate
+ * According to the above source it always begins with a four digit year.
+ *
+ * @param object $pm
+ * @return string
+ */
+function biblioreference_pubmed_pubdate($pm) {
+  $pub_date = $pm->Article->Journal->JournalIssue->PubDate;
+  if (isset($pub_date->MedlineDate)) {
+    $date = $pub_date->MedlineDate;
+  } else {
+    $date = implode(' ', (array)$pub_date);
+  }
+
+  return $date;
 }
 
 /**
@@ -529,36 +482,8 @@ function biblioreference_pubmed_abstract($pmid) {
     drupal_set_message(t("Failed to fetch object from %url.", array('%url' => $efetch)), 'error');
     return;
   }
-      
+
   $abstract = $efetch_load->Abstract->xpath("//AbstractText");
   $final_abstract = $abstract[0];
   return $final_abstract;
-}
-
-
-/**
- * Import pubmed data.
- *
- * @TODO remove or put it somewhere it makes sense
- * @param $data
- *   the contents of a bibtex file passed as one big string
- * @param $node
- *   an array (populated in biblio_import() ), containing the boiler plate
- *   information common to all nodes
- * @return
- *   an array of node ids
- */
-
-
-//// UTILITY FUNCTIONS - @TODO replace with module dependency
-
-if (!function_exists('au_alert')) {
-
-/**
- * Triggers a drupal_set_message and a watchdog alert at the same time.
- */
-function au_alert() {
-// @TODO
-}
-
 }
