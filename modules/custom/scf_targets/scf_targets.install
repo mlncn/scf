@@ -1,0 +1,96 @@
+<?php 
+
+function scf_targets_install() {
+  set_time_limit(500);
+  // sets the max time 
+  ini_set('max_execution_time',500);
+  
+  define('fields','fields');
+  define('type','type');
+  define('extra','extra');
+  define('groups','groups');
+  module_load_include('inc','scf_targets','cck');
+  $cck[] =scf_targets_get_target();
+   $cck[] =scf_targets_get_evidence();
+  foreach($cck as $content_type){
+  	//For each of them run drupal_execute on content copy
+  	  $form_state =array();
+  	  $form_state['values']['type_name'] = '<create>';
+	  $form_state['values']['macro'] = '$content = '. var_export($content_type, 1) .';';
+	  $form_state['values']['op'] = t('Import');
+	  drupal_execute('content_copy_import_form', $form_state);  
+  	  $cck_names[] = $content_type['type']['type'];
+  }
+  // url to the file 
+  $vocabs = scf_targets_import_vocabs();
+  variable_set('scf_targets_cck_install', $cck_names);
+  // sets it back to default
+  //print_r($cck_names);
+  views_invalidate_cache();
+  set_time_limit(30);
+  ini_set('max_execution_time',30);
+}
+function scf_targets_import_vocabs() {
+	/*Array of vocabularies with various information
+		key = vocab name
+		file_name == name of file containing term information
+		ref_vid reference vid in cck field types
+		*/
+  $vocabs = array (
+  	'Target type'=>array('nodes'=>array('scf_target')),
+  	'Protein'=>array('nodes'=>array('scf_target')),
+  	'Evidence'=>array('nodes'=>array('scf_evidence')),
+  	);
+  
+  module_load_include('inc', 'taxonomy', 'taxonomy.admin');
+  $vids = array();
+  foreach($vocabs as $name=>$vocab){
+  	$vocab_form_state= array();
+  	// create the vocab
+  	$vocab_form_state['values']['name']=$name;
+  	$vocab_form_state['values']['description']='';
+  	$vocab_form_state['values']['nodes'] = array();
+  	if (is_array($vocab['nodes'])) foreach ($vocab['nodes'] as $type) $vocab_form_state['values']['nodes'][$type]=$type;
+  	$vocab_form_state['op']='Save';
+  	drupal_execute('taxonomy_form_vocabulary', $vocab_form_state);
+  	// get the new vocab
+  	$vocabs[$name]['vid'] = $vocab_form_state['values']['vid'];
+  	$vids[] = $vocabs[$name]['vid'];
+  }
+
+  variable_set('scf_targets_vocab_install', $vids);
+  return $vocabs;
+}
+
+function scf_targets_uninstall() {
+  //FIXME: Delete contents too
+  set_time_limit(500);
+  // sets the max time 
+  ini_set('max_execution_time',500);
+  	$vocabs=variable_get('scf_targets_vocab_install', array());
+	// takes in VID, deletes the vocabulary
+	foreach($vocabs as $vocab) taxonomy_del_vocabulary($vocab);
+	
+	
+	$cck_names = variable_get('scf_targets_cck_install', array());
+	$placeholders = db_placeholders($cck_names, 'varchar');
+	$query= db_query("SELECT nid FROM {node} WHERE type in ($placeholders)",$cck_names);
+	// delete all content of the content types	
+	while ($row = db_fetch_object($query)) {
+	  node_delete($row->nid);
+	}
+	// delete the content types
+	foreach($cck_names as $delete){
+		node_type_delete($delete);
+	}
+	node_types_rebuild();
+ 	menu_rebuild();
+ 	variable_del('scf_targets_cck_install');
+ 	variable_del('scf_targets_childs');
+ 	variable_del('scf_targets_vocabs');
+ 	variable_del('scf_targets_parents');
+ 	variable_del('scf_targets_vocab_install');
+	//Delete the generated cck content types
+   set_time_limit(30);
+  ini_set('max_execution_time',30);
+}

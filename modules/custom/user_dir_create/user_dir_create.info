@@ -1,0 +1,3 @@
+core          = "6.x"
+description   = "Adds a user directory on creation of user"
+name          = "User Directory Create"

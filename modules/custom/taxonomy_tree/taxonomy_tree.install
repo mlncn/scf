@@ -1,0 +1,76 @@
+<?php
+// $Id: taxonomy_tree.install,v 1.2 2008/12/12 21:54:10 darthclue Exp $
+
+/**
+ * @file
+ * Installation routines for taxonomy dhtml module.
+ */
+
+/**
+ * Implementation of hook_install().
+ */
+function taxonomy_tree_install() {
+  // Create tables.
+  drupal_install_schema('taxonomy_tree');
+  
+  variable_set('taxonomy_tree_overview_title', 'Taxonomy Tree');
+}
+
+/**
+ * Implementation of hook_uninstall().
+ */
+function taxonomy_tree_uninstall() {
+  // Remove tables.
+  drupal_uninstall_schema('taxonomy_tree');
+  variable_del('taxonomy_tree_overview_title');
+  variable_del('taxonomy_tree_workflow');
+}
+
+/**
+ * Implementation of hook_schema().
+ */
+function taxonomy_tree_schema() {
+  $schema['taxonomy_tree'] = array(
+    'description' => t('Stores taxonomy dhtml settings.'),
+    'fields' => array(
+      'vid' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'description' => t('The {vocabulary}.vid of the vocabulary to which the term is assigned.'),
+        'default' => 0,
+      ),
+      'noi' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'description' => t('The number of items to show with the dhtml output.'),
+        'default' => 0,
+      ),
+      'depth' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'description' => t('The depth to use for hiearchical vocabularies'),
+        'default' => 0,
+      ),
+      'expblock' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'description' => t('Boolean to indicate if we are making this available on the block page.'),
+        'default' => 0,
+      ),
+      'count' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'description' => t('No numbers shown'),
+        'default' => 0,
+      ),
+    ),
+  );
+
+  return $schema;
+}
+

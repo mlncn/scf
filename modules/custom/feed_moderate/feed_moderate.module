@@ -1,0 +1,174 @@
+<?php
+function feed_moderate_flag($action, $flag, $content_id, $account)  {
+	if (in_array($flag->name,array('feed_remove','feed_publish'))) {
+		if ($node = node_load($content_id)) node_access_acquire_grants($node);
+	}
+}
+/*
+	implementation of hook_node_access_records
+*/
+function feed_moderate_node_access_records($node) {
+  $feed_remove = flag_get_flag('feed_remove');
+  $feed_publish = flag_get_flag('feed_publish'); 
+  if (in_array($node->type,feed_moderate_get_types()) && ($feed_remove->is_flagged($node->nid) || $feed_publish->is_flagged($node->nid))) {
+    $grants = array();
+    $grants[] = array(
+      'realm' => 'moderate_feeds',
+      'gid' => TRUE,
+      'grant_view' => TRUE,
+      'grant_update' => TRUE,
+      'grant_delete' => TRUE,
+      'priority' => 0,
+    );
+    return $grants;
+  }
+}
+/*
+	implementation of hook_node_grants
+*/
+function feed_moderate_node_grants($account, $op) {
+	
+  if (user_access('moderate feeds', $account)) {
+    $grants['moderate_feeds'] = array(1);
+  }
+  return $grants;
+}
+
+/*
+	implementation of hook_menu
+*/
+function feed_moderate_menu() {
+  $menu['feed-moderate/rebuildflag'] = array(
+    'title' => 'Rebuild Flag',
+    'description' => 'Rebuild flag',
+    'page callback' => 'feed_moderate_rebuild_flag_page',
+    'access arguments' => array('moderate feeds'),
+    'type'=>MENU_LOCAL_TASK,
+    'weight'=>100
+  ); 
+  return $menu;
+}
+/*
+	implementation of hook_menu
+*/
+function feed_moderate_rebuild_flag_page() {
+
+	//node_access_rebuild(); //rebuild access permisions
+	return feed_moderate_rebuild_flag();
+}
+
+function feed_moderate_get_types() {
+	static $types =null;
+	 
+	if (!is_array($types)) {
+	$ct_types = node_get_types();
+		$types = array();
+		// FIXME why is there no simplair method to get this information?! 
+		if (is_array($ct_types)) foreach ($ct_types as $key=>$val){
+		 	if (feedapi_enabled_type($key) && is_array($settings = feedapi_get_settings($key))) {
+		 		foreach ($settings['processors'] as $stats) if ($stats['content_type']) $types[$stats['content_type']]=$stats['content_type'];
+			}
+		}
+	}
+	return $types;
+}
+/*
+	Rebuild flag due to permissions / feed content type changes
+*/
+function feed_moderate_rebuild_flag() {
+	$flags['feed_remove'] = flag_get_flag('feed_remove'); 
+	$flags['feed_publish'] = flag_get_flag('feed_publish');
+	$flags_all = flag_get_default_flags(true);
+	foreach ($flags as $key => $flag) {
+		if (!$flag) {			
+			$flag = $flags_all[$key];
+			if ($flag) {
+				$flag->save(); 
+				$flag->enable();
+				$return[]= $key.' has been enabled with the current roles allowed to moderate feed and the content types that are feeds.';
+			}
+			$return[]=  'Error finding and updating '.$key.' flag. Please manually enable via and set via flags page.';
+		} else {
+			/*$types = array_keys(feedapi_get_types()); 
+	  		$types = array_combine($types,$types);*/
+			$flag->roles = array_keys(user_roles(TRUE,'moderate feeds'));
+			$flag->types = feed_moderate_get_types();
+			$flag->save();
+			$return[]=  $key.' has been updated with the current roles allowed to moderate feed and the content types that are feeds.';
+		}
+	}
+	return implode("<br/>",$return);
+	
+}
+/**
+ * Implementation of feed_moderate_nodeapi().
+ */
+function feed_moderate_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
+  switch ($op) {
+    case 'prepare':
+    	if (in_array($node->type, feed_moderate_get_types())) if (!$node->nid) $node->flag['feed_publish'] = 1; 
+    	break;  
+    case 'insert':
+		if (in_array($node->type, feed_moderate_get_types())) {
+			$flag = flag_get_flag('feed_publish');
+			// unpublish it
+			$flagged = 0;
+			if (!($flagged = $flag->is_flagged($node->nid))) {
+				$flagged = flag('flag','feed_publish',$node->nid);
+			} 
+			if ($flagged) drupal_set_message($node->title . ' been entered into feed moderation.');
+		}
+      break;
+  }
+}
+
+/**
+ * Implementation of hook_views_api().
+ */
+function feed_moderate_views_api() {
+  return array(
+    'api' => 2,
+    'path' => drupal_get_path('module', 'feed_moderate'),
+  );
+}
+
+function feed_moderate_perm() {
+	return array('moderate feeds');
+}
+/**
+ * Implementation of hook_flag_default_flags().
+ */
+
+function feed_moderate_flag_default_flags() {
+  $flags = array();
+  
+  $flags[] = array(
+    'content_type' => 'node',
+    'name' => 'feed_remove',
+    'title' => 'Remove from feed view',
+    'roles' => array_keys(user_roles(TRUE,'moderate feeds')),
+    'global' => True,
+    'flag_short' => 'Remove',
+    'unflag_short' => 'Bring Back to Unpublished Feeds',
+    'types' =>feed_moderate_get_types(),
+    'status' => TRUE,
+    'show_on_teaser'=>0,
+    'show_on_page'=>0,
+    'locked' => array('name', 'global', 'link_type'),
+  );
+   $flags[] = array(
+    'content_type' => 'node',
+    'name' => 'feed_publish',
+    'title' => 'Unpublish feed',
+    'roles' => array_keys(user_roles(TRUE,'moderate feeds')),
+    'global' => True,
+    'flag_short' => 'Unpublish feed',
+    'unflag_short' => 'Publish feed',
+    'types' =>feed_moderate_get_types(),
+    'status' => TRUE,
+    'show_on_teaser'=>0,
+    'show_on_page'=>0,
+    'locked' => array('name', 'global', 'link_type'),
+  ); 
+  return $flags;
+}

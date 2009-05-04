@@ -1,0 +1,275 @@
+<?php
+/**
+ * Implementation of hook_menu().
+ */
+function scf_targets_menu() {
+  $items['admin/settings/scf_targets'] = array(
+    'title' => 'SCF targets settings',
+    'description' => t('Settings for SCF targets'),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('scf_targets_settings'),
+    'access arguments' => array('import users'),
+    'file' => 'scf_targets.admin.inc',
+  );
+  return $items;
+}
+/**
+ * Implementation of hook_views_api().
+ * View provides node data for term 
+ */
+function scf_targets_views_api() {
+  return array(
+    'api' => 2,
+    'path' => drupal_get_path('module', 'scf_targets'),
+    //'path' => drupal_get_path('module', 'scf_targets') . '/includes',
+  );
+}
+
+/*
+	Implementation of hook_form_alter().
+	Form alter is being used to 'hide' the vocabulary form elements that are being used by targets so users
+	cannot change them. 
+*/
+function scf_targets_form_alter(&$form, &$form_state, $form_id) {
+	$childs = variable_get('scf_targets_childs',array('scf_evidence'));
+  $pos = strpos($form_id,'_node_form');
+  $type = substr($form_id,0,$pos);
+  // remove taxonomy that corresponds to the vocabulary
+  
+  $vocabs = variable_get('scf_targets_vocabs',array()) ;
+  if ($pos &&  in_array($form['type']['#value'],$childs)) {
+  	 $save_vocabs =array();
+  	 // if vocab set, use vocabs. else, unset all and use all vocabs associated with content type. 
+  	 $set = 0; 
+  	 foreach ($vocabs as $vid) {
+  	 	foreach ($form['taxonomy'][$vid]['#default_value'] as $tid) $save_vocabs[$vid][$tid] =$tid;
+      	unset($form['taxonomy'][$vid]);
+      	$set = 1; 
+      }
+      if ($set) { // save the term information 
+      	$form['save_taxonomy']=array(
+  			'#type'=>'value',
+  			'#value'=>$save_vocabs,
+  	  	);
+  	  }	else {
+  	  	unset($form['taxonomy']);
+  	  }
+  }
+}
+
+/*
+	Implementation of hook_nodeapi().
+*/
+function scf_targets_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
+  switch ($op) {
+  	case 'prepare':
+  		break;
+    case 'presave':
+    	/*
+    		Set the taxonomy term from arg(4) of the URL or from saved term (for editing). 
+    	*/
+    	$child = variable_get('scf_targets_childs',array('scf_evidence'));
+      	// Autopopulate the term from url 
+      	if (in_array($node->type,$child)) {
+      		if (!$node->nid) { // is add
+	      		$terms = explode(',',arg(4));
+	      		$terms_set = array();
+	      		
+	      		foreach ($terms as $term) {
+	      			$terms_set[$term] = taxonomy_get_term($term);
+	      		}
+	      		if (is_array($node->taxonomy)) $node->taxonomy = array_merge($node->taxonomy,$terms_set);
+	      		else $node->taxonomy = $terms_set;
+      		}
+      		else {
+      			// keep the present taxonomy if unset(all taxonomy
+      		 	if (!is_array($node->taxonomy)) $node->taxonomy = array();
+      		 	if (is_array($node->save_taxonomy)) { // merge in saved vocabulary 
+      		 		foreach($node->save_taxonomy as $key=>$terms){
+      		 			$node->taxonomy[$key] = $terms;
+      		 			// need to preserve the key
+      		 		} 
+      		 	}  		 	
+      		}
+		}
+      break;
+    case 'view':
+    	$parents = variable_get('scf_targets_parents',array('scf_target'));
+    	if (in_array($node->type,$parents)) {
+    		scf_targets_currentnode($node);
+      		$node->content['taxonomy_tree']['#value'] = scf_targets_taxonomytree();
+      		$node->content['taxonomy_tree']['#weight'] = 10;
+      	}
+      break;      
+  }
+}
+
+/*
+	Get the current node object; used to prevent having to pass node around. 
+*/
+function scf_targets_currentnode($in_node=null) {
+	static $node;
+	if ($in_node) $node = $in_node; 
+	return $node;
+}
+
+
+/*
+ * Actions for given term (+ Evidence)
+ * @param $tid
+ *   A term tid
+ * @return 
+ * string, actions for given temr
+*/
+function scf_targets_termactions($tid) {
+	$node = scf_targets_currentnode();
+	$links = array();
+	/*
+		Destination so redirected to parent target after creation 
+	*/
+	$nodeurl = ltrim(url('node/'.$node->nid),'/');
+	$query = array('query'=>array('destination'=>$nodeurl));
+	$childs = variable_get('scf_targets_childs',array('scf_evidence'));
+	foreach ($childs as $child) {
+		$type_info = node_get_types('type',$child);
+		if (node_access('create',$child) && node_access('update',$node)) $links[] = ' '.l('+ '. $type_info->name,'node/add/'.str_replace('_','-',$child).'/'.$node->nid .'/'.$tid, $query);
+	}
+	return implode("\n",$links);
+}
+function scf_targets_get_nodes_view($tid,$node='') {
+	if (!$node) $node = scf_targets_currentnode();
+	$view = views_get_view('scf_targets_nodes');
+	if (!is_object($view)) return '';
+	// setting the view up
+	$view->set_arguments(array($node->nid,$tid));
+	$view->init_display();
+    $view->pre_execute();
+    $view->execute();
+    if (!is_array($view->result) || count($view->result) <1) return 0;
+    return $view->result; 
+}
+/*
+ *	Nodes for term/node
+ * @param $tid
+ *   A term tid
+ * @return 
+ * 	String of all nodes for that term node 
+*/
+
+function scf_targets_get_nodes($tid) {
+	$output = array();
+	$node = scf_targets_currentnode();
+	$result = scf_targets_get_nodes_view($tid,$node);
+	if (!$result) return; 
+	// setting the view up
+	$query = array('query'=>array('destination'=>ltrim(url('node/'.$node->nid),'/')));
+    $output[] = '<div  class="scf-target-node-list">';  
+    foreach ($result as $child_node) {
+    	$links= array();
+    	$child_node_obj =node_load($child_node->nid);
+    	if (node_access('update',$child_node_obj)) $links['edit']  = l('Edit','node/'.$child_node->nid.'/edit',$query);
+    	if (node_access('delete',$child_node_obj)) $links['delete']  = l('x','node/'.$child_node->nid.'/delete',$query);
+    	//$output[] = '<li class="scf-target-node">' . l($child_node->node_title, 'node/'.$child_node->nid) . implode('',$links) . '</li>';  
+    	$output[] = theme('scf_targets_node',$child_node,$links);
+    }
+    $output[] = '</div>';
+    return implode("\n",$output);
+}
+
+/*
+ *Creates a taxonomy targets tree, a tree with vocabulary with actions. 
+ * @return
+ * 	taxonomy tree
+*/
+
+function scf_targets_taxonomytree() {
+	$output = array();
+	$vocabs= array();
+	$in_vocabs = variable_get('scf_targets_vocabs',array()) ;
+	if ($in_vocabs) { // if set, use only that vocab, else use vocab assoicted with node type. 
+		$vocab_all = taxonomy_get_vocabularies();
+		foreach ($in_vocabs as $voc) {
+			$vocabs[] = $vocab_all[$voc];
+		}
+	}else {
+		// get only the vocabs associated with the child terms. 
+		$childs = variable_get('scf_targets_childs',array('scf_evidence'));
+		foreach ($childs as $child) {
+			$vocabs =array_merge($vocabs, taxonomy_get_vocabularies($child));
+		}
+	}
+	foreach($vocabs as $vocab) {
+		taxonomy_tree_numbering($vocab->vid,'none');
+		taxonomy_tree_get_depth($vocab->vid,10);
+	}
+	$output = taxonomy_tree_generate_tree($vocabs,'scf_targets_term', 'scf_targets_get_nodes');
+	return $output;
+}
+
+
+
+function scf_targets_theme() {
+  return array(
+  	'scf_targets_term' =>array(
+  		'arguments' => array('data'=>NULL, 'child'=>NULL),
+  	),
+  	'scf_targets_node' =>array(
+  		'arguments' => array('node'=>NULL, 'links'=>NULL),
+  	),
+  );
+}
+/*
+	Theme function for node under tree
+*/
+function theme_scf_targets_node($node,$links) {
+	//return '<li class="scf-target-node">' . l($node->node_title, 'node/'.$node->nid) . implode('',$links) . '</li>'; 
+	$node_content = node_build_content(node_load($node->nid),TRUE,FALSE);
+	return '<li class="scf-target-node">'  
+		. l($node->node_title, 'node/'.$node->nid)
+		.' '. implode(' ',$links) 
+		. (trim($node_content->content['body']['#value'])?'<ul><div class="content">'
+		. $node_content->content['body']['#value']
+		. '</div></ul>':'')
+		. '</li>';
+}
+	
+/*
+	Theme function for term
+*/
+function theme_scf_targets_term($term,$child) {
+	$nodes =scf_targets_get_nodes_view($term['tid']) ;
+	if ($nodes) {
+		
+		foreach($nodes as $node) {
+			$count[$node->node_type] +=1;
+		}
+		foreach ($count as $type => $count) {
+			$type_info = node_get_types('type',$type);
+			$add .= $count . ' ' . $type_info->name;	
+		}
+		$add = ' ' . $add . ' ' ;
+	}
+	$output[] = '<li class="scf-target-term">';
+	$output[] =  l($term['title'],$term['href']). scf_targets_termactions($term['tid']). $add .$child; 
+	$output[] = '</li>';
+	return implode("\n",$output);
+}
+
+/*
+function scf_targets_printtree($vid,$parent) {
+	$output = array();
+ 	$terms = taxonomy_get_tree($vid,$parent,-1,1);
+	if ($terms) {
+		$output[] = '<ul>';
+		foreach($terms as $term) {
+			$output[] = '<li>' ;
+			$output[] =  $term->name . scf_targets_termactions($term);
+			$output[] = scf_targets_get_nodes($term);
+			$output = array_merge($output,scf_targets_printtree($vid,$term->tid));
+			$output[] = '</li>';					
+		}
+	 	$output[] = '</ul>';
+	 }
+	return $output; 
+}
+*/

@@ -1,0 +1,6 @@
+; $Id: user_import.info,v 1.3 2007/07/23 22:55:10 MegaGrunt Exp $
+name = User Import Content
+description = Provides Content Profile fields to user import. 
+core = 6.x
+dependencies[] = user_import
+dependencies[] = content_profile

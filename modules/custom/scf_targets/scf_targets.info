@@ -1,0 +1,7 @@
+core          = "6.x"
+description   = "Adds a taxonomy tree of selected vocabularies with node addition operations."
+name          = "scf targets"
+
+dependencies[] = taxonomy
+dependencies[] = taxonomy_tree
+dependencies[] = nodereference_url

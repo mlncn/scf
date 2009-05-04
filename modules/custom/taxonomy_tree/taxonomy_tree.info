@@ -1,0 +1,6 @@
+name = Taxonomy Tree
+description = Uses the jQuery plugin treeview to create taxonomy/tree page that displays taxonomy of a set vocabularies and provides a function to output a tree elsewhere.  
+version = VERSION
+core = 6.x
+package = Other
+dependencies[] = taxonomy

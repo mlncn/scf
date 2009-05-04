@@ -1,0 +1,442 @@
+<?php
+/*
+ * This module shares some code with taxonomy_tree/ is a havely modified verison of taxonomy_tree
+ */
+ 
+ 
+ 
+ 
+/**
+ * Implementation of hook_init()
+ */
+function taxonomy_tree_init() {
+	drupal_add_js(drupal_get_path('module', 'taxonomy_tree').'/warn.js');
+}
+
+/**
+ * Implementation of hook_theme()
+ */
+function taxonomy_tree_theme() {
+  return array(
+  	'taxonomy_tree_overview' =>array(
+  		'arguments' => array('data'=>NULL, 'child'=>NULL),
+  	),
+    'taxonomy_tree_admin' => array(
+      'arguments' => array('form' => array()),
+    ),
+  );
+}
+
+/**
+ * API for generating a taxonomy tree. call this function from anywhere to generate a tree based on one or more vocabulary
+ * $vocabs = an array of vocabularies. Can be: (int) a vocabulary ID, (object) a single vocabulary object, (array of object) an array of vocabulary objects.
+ */
+function taxonomy_tree_generate_tree($vocabs,  $itemtheme = 'menu_item', $children_append = '', $persist='cookie', $count=false){
+	drupal_add_js(drupal_get_path('module', 'taxonomy_tree') .'/treeview.js');
+	drupal_add_css(drupal_get_path('module', 'taxonomy_tree') .'/treeview.css');
+	//Construct an array of all vocabulary ID's that are going to be displayed as a tree
+	$vids = array();
+	if(is_array($vocabs)){	
+		foreach ($vocabs as $vocabulary) {
+			if(is_numeric($vocabulary)){
+				$vids[] = $vocabulary;
+			}else{
+				$vids[] = $vocabulary->vid;
+			}	    	
+	    }
+	}else{
+		if(is_numeric($vocabs)) {
+			$vids[] = $vocabs; 
+		} else {
+			$vids[] = $vocabs->vid; 
+		}
+	}
+	
+	
+	//For each of the vocabulary ID's construct the tree
+	foreach($vids as $vid){
+		
+		$output .= taxonomy_tree_menu_tree_output(taxonomy_tree_vocab_vert($vid), $itemtheme, $children_append,$persist);
+	}
+	return $output;
+}
+
+/* Sorting function that compares terms weights */
+/*
+function taxonomy_tree_weight_comp($a,$b) {
+	if ($a->weight==$b->weight)return 0;
+	return ($a->weight<$b->weight)?-1:1;
+}*/
+/**
+ * Create an object with all the information and hierarchy of vocabulary
+ */
+function taxonomy_tree_vocab_vert($vocabulary_id) {
+  //Get the taxonomy tree from drupal
+  $tree = taxonomy_get_tree($vocabulary_id);
+  //Get the display settings for numbering for this vocab
+  $numbering = taxonomy_tree_numbering($vocabulary_id);
+  //Get path settings for this vocab
+  $depth = taxonomy_tree_get_depth($vocabulary_id);
+  
+  
+  $taxonomy_menu = array();
+  //Process every term in the tree and create the taxonomy_menu object which contains all information and hierarchy of the vocabulary 
+  // it's already sorted by weight..
+  //usort($tree,'taxonomy_tree_weight_comp');
+  foreach ($tree as $term) {
+  	//Process only the top-most terms of the hierarchy
+    if ($term->parents[0]==0) {
+      $taxonomy_menu[$term->name] = taxonomy_tree_process_term($term,$depth,$numbering);
+    }
+  }
+  
+  return $taxonomy_menu;
+}
+
+/**
+ * Retrieve term data recursively
+ *
+ * @param term
+ * The term to process.  Expected structure is a single term from the array returned by taxonomy_get_tree.
+ *
+ * @param depth
+ * The depth at which we are processing.  We stop recursion if this is zero.
+ */
+function taxonomy_tree_process_term($term, $depth, $numbering) {
+	static $mlid=0, $vocabs = null;
+	if (!$vocabs) { // statically keep track of vocabulary information
+		$vocabs = taxonomy_get_vocabularies();
+	}	
+	/* FIXME er, not working? 
+	if (module_exists('view')) {
+		$view = views_get_view('taxonomy_term');
+		print_r(views_get_view('taxonomy_term'));
+		$path = $view->display['page']->display_options['path'];
+		$path = str_ireplace('%',$term->tid,$path);
+	}*/
+	$path = taxonomy_term_path($term);
+	if ($vocabs[$vid]->module=='taxonomy') { // only add extra depth for vocabularies handles by taxonomy
+	  switch ($depth) {
+	    case 0:
+	      $url = $path;
+	      break;
+	    case 10:
+	      $url = $path."/all";
+	      break;
+	    default:
+	      $url = $path."/$depth";
+	  }
+   } else {
+   	$url = $path;
+   }
+   if ($numbering !='none') {
+   	$count = taxonomy_tree_term_count_nodes($term, $depth, $numbering) ;
+  }
+  $active_path_tids =taxonomy_tree_get_active_path();
+  //Generate menu like tree object (to use the menu item theming function / generates ul/lis)
+  $taxonomy_menu = array('link' => array('href' => $url, 'title' => $term->name . ($count?' ('.$count.')':''), 'expanded' => 1,'in_active_trail'=>in_array($term->tid, $active_path_tids)?1:0, 'mlid'=>'tax'.$mlid, 'menu_name'=>$term->name , 'tid'=>$term->tid,'selected'=>in_array($term->tid, $active_path_tids['active'] )?1:0 ));
+  $mlid++;
+  
+  
+  if ($depth>0) {
+    if ($tree = taxonomy_get_children($term->tid,$term->vid)) {
+      $taxonomy_menu['below'] = array();
+      foreach ($tree as $child) {
+        $taxonomy_menu['below'][$child->name] = taxonomy_tree_process_term($child, $depth=='all'?$depth:$depth-1,$numbering);
+      }
+      //$taxonomy_menu['below']['#parent_tid'] = $term->tid; 
+    }
+    $taxonomy_menu['below']['#parent_tid'] = $term->tid; 
+  }
+  return $taxonomy_menu;
+}
+
+/**
+ * Implementation of hook_menu().
+ */
+function taxonomy_tree_menu() {
+  global $user;
+  $items['admin/settings/taxonomy_tree'] = array(
+    'title' => 'Taxonomy Tree',
+    'description' => t('Manage settings for taxonomy Tree.'),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('taxonomy_tree_admin'),
+    'access arguments' => array('administer taxonomy'),
+    'file' => 'taxonomy_tree.admin.inc',
+  );
+  
+    $items['taxonomy/tree'] = array(
+    'title' => variable_get('taxonomy_tree_overview_title', 'Taxonomy Tree'),
+    'access arguments' => array('access content'),
+    'page callback' => 'taxonomy_tree_taxonomy_tree',
+    'type' => MENU_CALLBACK,
+  );
+  return $items;
+}
+
+function taxonomy_tree_taxonomy_tree() {
+  $output = '<div id="taxonomy-tree">List of the vocabularies:</div><div id="treecontrol"><a href="#" title="Collapse the entire tree below">Collapse All</a> <a href="#" title="Expand the entire tree below">Expand All</a> <a href="#" title="Toggle the tree below, opening closed branches, closing open branches">Toggle All</a></div>';
+  $vocabularies = taxonomy_tree_get_vocabularies(TRUE);	
+  $output .= taxonomy_tree_generate_tree($vocabularies, 'taxonomy_tree_overview','','location',true);
+    
+  return $output;
+}
+
+
+function theme_taxonomy_tree_overview($item, $child){
+	//print_r($item);
+	//Add correct classes
+	$class = ($item['in_active_trail'] ? 'open' : ($child ? 'closed' : ''));
+	if ($item['selected']) {
+		$left = '<span class="taxonomy-tree-selected-term">';
+		$right = '</span>';
+	}
+	//Add to link
+	//Generate count for each term		
+	return '<li class="'. $class .'">'. $left. theme('menu_item_link', $item) .$right. $child ."</li>\n";
+
+}
+
+function taxonomy_tree_menu_tree_output($tree, $itemtheme = 'menu_item', $children_append = '',$persist='cookie') {
+  $output = '';
+	//Getting the items from the tree into $items array
+	$items = array();
+	$parent  = $tree['#parent_tid'];
+	unset($tree['#parent_tid']);
+	foreach ($tree as $data) {
+		if (!$data['link']['hidden']) {
+		  $items[] = $data;
+		}
+	}
+	
+	//Get count of items
+	$num_items = count($items);
+	
+	//Loop through items and create output	
+	foreach ($items as $i => $data) {
+		$extra_class = NULL;
+		if ($i == 0) {
+			$extra_class = 'first';
+		}
+		if ($i == $num_items - 1) {
+			$extra_class = 'last';
+		}
+		
+		
+		//Make the link
+		
+		//Render child into a variable
+		if ($data['below']) {
+			// child elements should have no ul class 
+			$child = taxonomy_tree_menu_tree_output($data['below'],$itemtheme, $children_append,NULL); 
+		}
+		
+		//Put link into LI
+		if($itemtheme == 'menu_item'){
+			//If we're using default menu theme hooks
+			$link = theme('menu_item_link', $data['link']);
+			$output .= theme('menu_item', $link, $data['link']['has_children'], $child, $data['link']['in_active_trail'], $extra_class);
+		}else{
+			//If we're using custom theme hook send entire term
+			$output .= theme($itemtheme, $data['link'], $child);
+		}
+	
+	}
+	if ($children_append && $parent) {
+		$output .= $children_append($parent);
+	} 
+  return trim($output) ? '<ul class="'.($persist?'treeview '.$persist:'').'">'.$output.'</ul>' : '';
+}
+
+function taxonomy_tree_get_active_path() {
+	static $is_decided,$tids;
+	if (arg(0) != 'taxonomy' && arg(1) != 'tree') return array('active'=>array());
+	if (!$is_decided) {
+		$i = 1 ;
+		$tids = array();
+		$tids['active'] = array();
+		while ($tid=arg($i)) {
+			if (is_numeric($tid) && !in_array($tid,$tids)) {
+				$parents =taxonomy_get_parents_all($tid);
+				//$tids[] = $tid;
+				foreach($parents as $pid) $tids[] = $pid->tid; 
+				$tids['active'][] = $tid;
+			}
+			
+			$i++;
+		}
+		$is_decided = true;
+	}
+	return $tids; 
+}
+/**
+ * Implementation of hook_help().
+ */
+function taxonomy_tree_help($path, $arg) {
+  switch ($path) {
+    case 'admin/modules#description':
+      return '<p>'. t("A user interface for taxonomy featuring a collapsible list.") .'</p>';
+    case 'admin/help#taxonomy_tree':
+    case 'admin/settings/taxonomy_tree':
+      $output = '<p>';
+      $output .= "This provides a taxonomy/tree page that displays set vocabularies with given settings.";
+      return $output;
+  }
+}
+
+/**
+ * Return the number of items (noi) to display for the provided vocabulary id.
+ *
+ * @param vid
+ * The vocabulary id to get noi data for.
+ */
+function taxonomy_tree_get_noi($vid) {
+  $noi_return = 25;
+  $result = db_query("SELECT v.vid, v.noi FROM {taxonomy_tree} v WHERE v.vid = '%s'", $vid);
+  while ($noi_row = db_fetch_object($result)) {
+    $noi_return = $noi_row->noi;
+  }
+
+  return $noi_return;
+}
+
+/**
+ * Rewrite of taxonomy_get_vocabularies to allow us to pull in additional information from the taxonomy_tree table.
+ *
+ * @param exposed
+ * If TRUE, we only return vocabularies that are set for exposure with a number of items to display greater than 0.
+ */
+function taxonomy_tree_get_vocabularies($exposed = FALSE) {
+  if ($exposed) {
+    $result = db_query(db_rewrite_sql('SELECT v.*, t.noi, t.depth, t.expblock, t.count FROM {vocabulary} v LEFT JOIN {taxonomy_tree} t ON v.vid = t.vid WHERE t.expblock=1 AND t.noi>0 ORDER BY v.weight, v.name', 'v', 'vid'));
+  }
+  else {
+    $result = db_query(db_rewrite_sql('SELECT v.*, t.noi, t.depth, t.expblock, t.count FROM {vocabulary} v LEFT JOIN {taxonomy_tree} t ON v.vid = t.vid ORDER BY v.weight, v.name', 'v', 'vid'));
+  }
+
+  $vocabularies = array();
+  $node_types = array();
+  while ($voc = db_fetch_object($result)) {
+    $vocabularies[$voc->vid] = $voc;
+  }
+
+  return $vocabularies;
+}
+
+/**
+ * Retrieve term count recursively
+ * Rewrite of taxonomy_term_count_nodes to allow us to eliminate children from the count.
+ *
+ * @param term
+ * The term to process.  Expected structure is a single term from the array returned by taxonomy_get_tree.
+ *
+ * @param depth
+ * The depth at which we are processing.  We stop recursion if this is zero.
+ */
+function taxonomy_tree_term_count_nodes($term, $depth, $numbering) {
+  $count = 0;
+  /*if ($numbering == 'min') $depth = 0;   
+  $result=taxonomy_select_nodes(array($term->tid),'or',$depth,false);
+  while($row = db_fetch_array($result)) {
+  	$count++;  	
+  }*/
+  
+  if ($numbering) $depth = 0;
+  if($modules = module_implements('taxonomy_tree_term_count_nodes')) {
+  	$func = array_shift($modules) . '_taxonomy_tree_term_count_nodes' ;
+  	return $func($term,$depth,$numbering);
+  }
+  $tree =taxonomy_get_tree($term->vid,$term->tid,-1,$depth);
+  foreach($tree as $tid) $tids[] = $tid->tid; 
+  $tids[] = $term->tid; 
+  if (module_exists('nat')) { 
+		$node = array_keys(nat_get_nids(array($term->tid))); //Get node
+		$node= node_load($node[0]);
+  }
+  $join = '';
+  $where = '';
+  $exclude_states = variable_get('taxonomy_tree_workflow',array());
+   if (module_exists('workflow') && $exclude_states) {
+  	
+  	$join = ' LEFT JOIN {workflow_node} wn ON wn.nid = n.nid ';
+  	$where = ' AND ( wn.sid IS NULL OR wn.sid NOT IN ('.db_placeholders($exclude_states, 'int').') )';
+  	$args = array_merge($tids,$exclude_states);
+  }	
+  
+  $placeholders = db_placeholders($tids, 'int');
+ 	if ($node) $sql ='SELECT COUNT(n.nid) AS c FROM {term_node} t INNER JOIN {node} n ON t.vid = n.vid AND n.type != "'.$node->type.'" '
+ 		.$join.' WHERE n.status = 1 AND t.tid IN ('.$placeholders.')'.$where; 
+ 	else $sql = 'SELECT COUNT(n.nid) AS c FROM {term_node} t INNER JOIN {node} n ON t.vid = n.vid '
+ 		.$join.' WHERE n.status = 1 AND t.tid IN ('.$placeholders.') '.$where;
+ 		
+ $result = db_query($sql, $args);
+ $terms = db_fetch_object($result);
+ $count  = $terms->c ; 
+
+  
+  return $count;
+}
+
+/**
+ * Retrieve the depth for a specific vocab.
+ *
+ * @param vid
+ * The vocabulary id to return the depth for.
+ */
+function taxonomy_tree_get_depth($vid, $overide=null) {
+	static $nums = array();
+	if ($overide!==null){
+		$nums[$vid] = $overide;
+	}elseif (!isset($nums[$vid])) {
+	  $result = db_query('SELECT t.depth FROM {taxonomy_tree} t WHERE t.vid = %d', $vid);
+	  $voc = db_fetch_object($result);
+	  $nums[$vid] = $voc->depth;
+	}  
+  return $nums[$vid];
+}
+
+/*
+	get whether the numbers should be displayed
+*/
+function taxonomy_tree_numbering($vid, $overide=null) {
+	static $nums = array();
+	if ($overide!==null){
+		$nums[$vid] = $overide;
+	}elseif (!isset($nums[$vid])) {
+		$result = db_query('SELECT t.count FROM {taxonomy_tree} t WHERE t.vid = %d', $vid);
+  		$voc = db_fetch_object($result);
+  		$nums[$vid] = ($voc->count==2?'none':( $voc->count==1?'min':false));
+	}  
+  return $nums[$vid];
+}
+/**
+ * Implementation of hook_block()
+
+function taxonomy_tree_block($op = "list", $delta = 0) {
+  if($op == "list") {
+    $vocabularies = taxonomy_tree_get_vocabularies(TRUE);
+    foreach ($vocabularies as $vocabulary) {
+      $blocks[$vocabulary->vid]["info"] = 'Taxonomy DHTML: '. $vocabulary->name;
+    }
+    return $blocks;
+  }
+  elseif ($op == 'view') {
+    if (user_access("access content")) {
+      $vocabularies = taxonomy_tree_get_vocabularies(TRUE);
+      $block["subject"]= t($vocabularies[$delta]->name);
+      $block["content"]= menu_tree_output(taxonomy_tree_vocab_vert($vocabularies[$delta]->vid));
+      return $block;
+    }
+  }
+}
+ */
+    /* Use form alter to change the view f notification tags
+ function taxonomy_tree_form_alter(&$form, $form_state, $form_id){
+ 	
+ 	
+ 	if($form_id == 'notifications_tags_user_form'){
+ 		//print '<pre>';
+ 		//print_r($form);
+ 	}
+ }
+*/

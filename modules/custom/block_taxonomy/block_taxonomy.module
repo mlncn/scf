@@ -1,0 +1,207 @@
+<?php
+
+/**
+ * Implementation of hook_menu().
+ * Adds a settings page.
+ */
+function block_taxonomy_menu() {
+  //Create the admin settings form page/menu
+  $menu['admin/settings/block_taxonomy'] = array(
+    'title' => 'Block taxonomy',
+    'description' => 'Configure the effects of block taxonomy',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('block_taxonomy_settings'),
+    'access arguments' => array('administer site configuration'),
+    'file' => 'block_taxonomy.admin.inc',
+  );
+  return $menu;
+}
+/**
+ * Implementation of hook_block().
+ * Calls the function to show all types for that block. 
+ */
+
+function block_taxonomy_block($op = "list", $delta = 0,$edit='') {
+	//Load settings
+  if($op == "list") {
+      $blocks['block_taxonomy_block']["info"] = 'Block taxonomy';
+      $blocks['block_taxonomy_block']["visibility"] = 0;
+    return $blocks;
+  }
+  elseif ($op == 'view') {
+    if (user_access("access content")) {
+    	// moved this code up here to retrieve TIDS for title URL and not repeat any code. 
+	    // check if it's a node with valid ID, else return
+		if (arg(0) == "node" && is_numeric(arg(1))) {
+			$nid = arg(1);
+			/* Load the node */
+			$node = node_load($nid);
+			// check if it's of a type to display block
+			$types = variable_get('block_taxonomy_block_content_types',array());
+			/* Format node's taxonomy in format of an array of TIDs*/
+			$parents = array();
+			$display_childsib = 0;
+			if (module_exists('nat') && ($term = nat_get_term($nid)) && variable_get('block_taxonomy_block_nat_term',1) ){
+				$display_childsib = variable_get('block_taxonomy_block_nat_childsib',1);
+				$tax[$term->tid]= $term->tid;
+				if (variable_get('block_taxonomy_block_not_parent',1)) {
+					$parents=array_keys(taxonomy_get_parents($term->tid));
+				}
+				
+			}
+			$set_vocabs= variable_get('block_taxonomy_vocabs', array());
+			if (is_array($node->taxonomy)) foreach($node->taxonomy as $taxonomy) {
+				if (!in_array($taxonomy->tid,$parents) && (!$set_vocabs || in_array($taxonomy->vid,$set_vocabs))) $tax[$taxonomy->tid] = $taxonomy->tid;
+			}
+			
+			if ($node && in_array($node->type, $types) && is_array($tax)) {
+				$path = 'taxonomy/tree/'.implode('/',$tax);
+   			   $block["subject"]=l(variable_get( 'block_taxonomy_block_title', 'Taxonomy'), $path) ;	
+		       $block["content"]= block_taxonomy_show_block($tax,$display_childsib) . '<div class="block-taxonomy-link">'.l(variable_get('block_taxonomy_block_link_txt', 'View entire context'), $path).'</div>';
+		       return $block;
+		    }
+    	}
+    }
+  }
+  elseif($op == 'save'){
+  	variable_set('block_taxonomy_block_title',$edit['title2']?$edit['title2']:'Taxonomy');
+  	variable_set('block_taxonomy_block_link_txt',$edit['linktext']?$edit['linktext']:'Taxonomy');
+  } else {
+  
+   $form['title2'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Linkable Block Title'),
+      '#default_value' => variable_get('block_taxonomy_block_title', 'Taxonomy'),
+      '#description' => 'Use this block title if you want to retain a link to taxonomy tree. Leave first block blank when using this title. <br/> Use the first block title if you want a plain text block title. '
+    );
+    $form['linktext'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Linkable Block Title'),
+      '#default_value' => variable_get('block_taxonomy_block_link_txt', 'View entire context'),
+      '#description' => 'Specify the link text to view entire context'
+    );
+	return $form;
+  }
+}
+
+
+/*
+ see if this term has marked children.
+ Changed to be unrecursive to slim down time; check on each level of children to 'pass' state. 
+*/
+function block_taxonomy_has_been_marked(&$children) {
+	foreach($children as $value) {
+		if ($value['mark']+$value['marked'] > 0) return 1; 
+		//$val += block_taxonomy_has_been_marked($value['children']);
+	}
+	return 0;
+}
+/*
+	Find all the information the print_tree functions needs to know to display the tree. 
+	Takes in vocabularlyid vid, current term id tid, current_depth, taxonomy terms to mark, and default path to link to. 
+*/
+function block_taxonomy_make_tree($vid, $tid, $current_depth, &$tax,$min_links=0,$display_childsib=0,$in_mark=0) {
+	/*
+	* Get the current level's children. 
+	* Taxonomy statically keeps this information after it's initially retrieved so it
+	* shouldn't have too much performance diffrence
+	* compared to calling it once for the entire tree. 
+	*/
+	$c_tree = taxonomy_get_tree($vid,$tid,-1,1);
+	$all_mark= 0;
+	/*this level of the tree's information*/
+	$this_level = array();
+	foreach ($c_tree as $term) {
+		
+		$mark =in_array($term->tid,$tax)?1:0;
+		$all_mark+= $mark; 
+		// get the children
+		$children = block_taxonomy_make_tree($vid, $term->tid, $current_depth+1, $tax,$min_links,$display_childsib,$display_childsib?($in_mark?$in_mark:$mark):0);
+		// get path, NAT extra takes care of node/ pathing. 
+		$this_path = taxonomy_term_path($term);
+		/*The Link. It will not necessarly be shown; that is determined in print_tree*/
+		$link = l($term->name,$this_path);
+		$save_link = $link ; // save link in case of later 'restore' due to sibling/child 
+		if ($min_links && !$mark && !$in_mark) $link = $term->name;
+		/*Bold if this term was in the taxonomy of this node.*/
+		if ($mark) $link = '<strong>'.$link . '</strong>';
+		$this_level[$term->tid] = array('link'=>$link,'mark'=>$mark, 'marked'=>( block_taxonomy_has_been_marked( $children))
+			|| $in_mark?1:0,'children'=>$children, 'save_link'=>$save_link);
+	}
+	if ($display_childsib&&$all_mark) foreach($this_level as $key=>$val)  {
+		$this_level[$key]['marked'] = 1 ;
+		if (!$val['mark']) $this_level[$key]['link'] = $this_level[$key]['save_link'];
+	}
+	// gop through this level and mark everything 
+	return $this_level; 
+	
+}
+/*
+takes the array from make_tree and prints it out with formating and logical differences
+Takes in the tree, current depth, suppressNext (internal use only), and max to allow
+*/
+function block_taxonomy_print_tree(&$children, $depth, $suppressNext=0, &$max=3,$in_class='',$ul_menu='block-taxonomy-menu',$padding=1) {
+	/*Go throw current level and decide what to show, and do it on the children recursively */
+	$print_ul = false;
+	foreach($children as $key=>$child) {
+	
+		if ($child['marked']||$child['mark']) {
+			$child_string = null;
+			$class = true;
+			if ($max==-1 || $depth < $max || $child['mark']) $valtemp = $child['link'];
+			elseif ($depth == $max || ($depth>=$max && $suppressNext)) {
+				$valtemp = '...';
+				$class = false;
+			}
+			
+			/* capture the condition of what was going to be ... was instead marked so the child nodes is termed to '...'
+			(captures the condition that the child is also marked untill a valid supressed (...) level is found.).*/
+			if ($max!=-1 && ($depth >= $max && $child['mark']) || ($supressNext && $child['mark'])) {
+				$suppressNext = 1;
+			} else {
+				$suppressNext = 0;
+			}
+			/* If printing this value, pad it.*/
+			//if ($valtemp) $val .= '<div style="padding-left:'. $depth * 5 . 'px">' .$valtemp.'</div>' . "\n";
+			if ($child['children']) {
+			
+				$child_string = block_taxonomy_print_tree($child['children'],$depth+1,$suppressNext,$max,$in_class,$ul_menu,$padding);
+			}
+			if ($valtemp) {
+				$print_ul = true;
+				/*if val being printed, print as LI with apprioete class*/
+				$val .= '<li class="block-taxonomy-li '.$in_class.' '.((!$class || !$ul_menu) ?'':($child['marked']&&$child['children']?'expanded':'leaf')).'">' .$valtemp. ' '.$child_string.'</li>' . "\n";
+			}
+			else $val .= $child_string;
+		}
+		
+	}
+	return (($print_ul || $padding)?'<ul class="block-taxonomy-menu  '.$ul_menu.'">'.$val.'</ul>':$val);
+}
+/*
+main block code
+*/
+function block_taxonomy_show_block(&$tax,$display_childsib=0) {		
+	/*
+		Goes through relavent taxonomy for all vocabularies and shows that vocab in structed away when relavent
+	*/
+	/*Get all vocabularies*/
+	$set_vocabs= variable_get('block_taxonomy_vocabs', 'not_set');
+	$vocabs = taxonomy_get_vocabularies();
+	foreach ($vocabs as $vocab) if ($set_vocabs == 'not_set' || in_array($vocab->vid, $set_vocabs)) $vids[] = $vocab->vid;
+	$tree= array();
+	/*Call function for each vocab and merge the arrays*/
+	$min_links = variable_get('block_taxonomy_block_links',1);
+	foreach ($vids as $vid) {
+		$tree =array_merge($tree,block_taxonomy_make_tree($vid,0,$current_depth,$tax,$min_links,$display_childsib));
+	}
+	$ul_menu =variable_get('block_taxonomy_block_menu',1)?'menu':'';
+	/*Get the get the max allowed and make sure it's relavent. */
+	$max = variable_get('block_taxonomy_block_content_max',3); 
+	$dhtml = variable_get('block_taxonomy_block_dhtml_menu',1); 
+	$padding = variable_get('block_taxonomy_block_retain_padding',0); 
+	$max = is_numeric($max) && $max>=-1?$max:3; 
+	if ($display_childsib) $max=-1; 
+	/*return the printed blocks*/
+	return $tree?block_taxonomy_print_tree($tree, 0, false, $max,($dhtml?'dhtml-menu':''),$ul_menu,$padding):null;
+} 

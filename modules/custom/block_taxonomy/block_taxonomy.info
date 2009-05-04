@@ -1,0 +1,4 @@
+name = Block taxonomy
+description = Creates blocks displaying taxonomy information of a content type
+core = 6.x
+dependencies[] = taxonomy

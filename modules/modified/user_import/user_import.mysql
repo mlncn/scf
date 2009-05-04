@@ -1,0 +1,33 @@
+#
+# Table structure for table `user_import`
+#
+CREATE TABLE `user_import` (
+  `iid` int(10) unsigned NOT NULL auto_increment,
+  `name` varchar(25) NOT NULL default '',
+  `filename` varchar(50) NOT NULL default '',
+  `oldfilename` varchar(50) NOT NULL default '',
+  `filepath` tinytext NOT NULL,
+  `started` int(11) NOT NULL default '0',
+  `pointer` int(10) NOT NULL default '0',
+  `total` int(10) NOT NULL default '0',
+  `processed` int(10) NOT NULL default '0',
+  `valid` int(10) NOT NULL default '0',
+  `first_line` int(1) NOT NULL default '0',
+  `contact` int(1) NOT NULL default '0',
+  `username_space` int(1) NOT NULL default '0',
+  `send_email` int(1) NOT NULL default '0',
+  `field_match` longtext NOT NULL,
+  `roles` varchar(255) NOT NULL default '',
+  `setting` varchar(10) NOT NULL default '',
+  PRIMARY KEY  (`iid`)
+);
+# --------------------------------------------------------
+#
+# Table structure for table `user_import_errors`
+#
+CREATE TABLE `user_import_errors` (
+  `iid` int(10) NOT NULL default '0',
+  `data` longtext NOT NULL,
+  `error` varchar(25) NOT NULL default '',
+  KEY `iid` (`iid`)
+);

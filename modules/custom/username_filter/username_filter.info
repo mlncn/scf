@@ -1,0 +1,4 @@
+name = User name filter 
+description = Provides extra ajax username filter (exposed only)
+core = 6.x
+dependencies[] = views

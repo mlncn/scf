@@ -1,0 +1,23 @@
+<?php
+
+function user_import_extra_install() {
+  drupal_install_schema('user_import_extra');
+}
+
+
+function user_import_extra_uninstall() {
+  drupal_uninstall_schema('user_import_extra');
+  variable_del('user_import_extra_save_uids');
+}
+
+function user_import_extra_schema() {  
+  $schema['user_import_extra'] = array(
+    'fields' => array(
+      'uid' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      'mail' => array('type' => 'int', 'not null' => TRUE, 'default' => 0), 
+    ),
+    'primary key' => array('uid'),
+  );
+
+  return $schema;
+}

@@ -1,0 +1,4 @@
+name = User Import Temporary Block
+description = Provides temporary block functionality to user import so admin has time to modify other aspects of the user before inviting them to site. 
+core = 6.x
+dependencies[] = user_import

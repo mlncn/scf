@@ -1,0 +1,159 @@
+<?php
+// $Id: taxonomy_treecheck.module,v 1.1.2.5 2008/08/06 23:07:13 rellis Exp $
+
+/**
+ * @file
+ * Use taxonomy manager style checkboxes. 
+ */
+
+
+
+/**
+ * Implementation of hook_form_{taxonomy_form_vocabulary}_alter().
+ */
+function taxonomy_treecheck_form_taxonomy_form_vocabulary_alter (&$form, &$form_state) {
+	
+  $form['settings']['taxonomy_treecheck'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Use taxonomy manager style checkboxes'),
+    '#default_value' => (int) in_array($form['vid']['#value'], variable_get('taxonomy_treecheck_vids', array())),
+    '#description' => t('Instead of select allow users to use taxonomy manager tree style checkboxes.'),
+  );
+	$form['settings']['taxonomy_treecheck'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Use taxonomy manager style checkboxes/radios'),
+    '#default_value' => (int) in_array($form['vid']['#value'], variable_get('taxonomy_treecheck_vids', array())),
+    '#description' => t('Instead of select allow users to use taxonomy manager tree style checkboxes (radios).'),
+  );
+  $types = node_get_types();
+  foreach ($types as $key=>$val) $content_types[$val->type] = $val->name;
+	
+	$form['settings']['taxonomy_treecheck_content_types'] = array(
+	  '#type' => 'checkboxes',
+	  '#title' => t('Content types as radios'),
+	   '#default_value' =>  variable_get('taxonomy_treecheck_cts', array()),
+	  '#options' => $content_types,
+	  '#description' => t('Content types as radios instead of checkboxes when using taxonomy manager selection'),
+	);
+  $form['#submit'][]   = 'taxonomy_treecheck_taxonomy_form_vocabulary_submit';
+}
+
+/**
+ * Submit callback for 'taxonomy_form_vocabulary'.
+ * Saves settings to variables 'taxonomy_treecheck_vids' and 'taxonomy_treecheck_show_terms_vids'.
+ */
+function taxonomy_treecheck_taxonomy_form_vocabulary_submit($form, &$form_state) {
+  	$vid = $form_state['values']['vid'];
+    $vids = variable_get('taxonomy_treecheck_vids', array());
+    if (!empty($form_state['values']['taxonomy_treecheck'])) {
+      $vids[$vid] = $vid;
+    }
+    else {
+      unset($vids[$vid]);
+    }
+    variable_set('taxonomy_treecheck_vids', $vids);
+    variable_set('taxonomy_treecheck_cts', $form_state['values']['taxonomy_treecheck_content_types']);
+}
+
+/**
+ * Implementation of hook_form_alter().
+*/
+function taxonomy_treecheck_form_alter(&$form, &$form_state, $form_id) {
+	
+  if ($form_id == $form['type']['#value'] . '_node_form') {
+  
+  
+    //Check if it should be radio buttons or checkboxes
+  	$supress_multi = false;
+  	$cts =variable_get('taxonomy_treecheck_cts', array());
+    if ($cts[$form['type']['#value']]) $supress_multi= true;
+    
+    //Check if NAT exists
+	$nat =module_exists('nat');
+   
+   foreach(variable_get('taxonomy_treecheck_vids', array()) as $vid) {
+      // Vocabulary in use on this form?
+     
+      if (isset($form['taxonomy'][$vid]) && $form['taxonomy'][$vid]['#type'] == 'select') {
+          $new_options = array();
+          $old_tax =$form['taxonomy'][$vid];
+             $form['taxonomy'][$vid] = array(
+			    '#type' => 'taxonomy_manager_tree',
+			    '#vid' => $vid,
+			    '#default_value' => is_array($old_tax['#default_value']) ? $old_tax['#default_value'] : array(),
+			    '#render_whole_tree' => TRUE,
+			    '#pager' => FALSE,
+			    '#parent' => 0,
+			    '#add_term_info' => FALSE,
+			    '#expand_all' => 0,
+			    '#tree_is_required' => $old_tax['#required'],
+			    '#required' => FALSE,
+			    '#multiple' => $supress_multi?FALSE:(isset($old_tax['#multiple']) ? $old_tax['#multiple'] : FALSE),
+			    '#title' => $old_tax['#title'],
+			    '#field_name' => $vid,
+			    '#columns' => 0,
+			    '#description' => $old_tax['#description'],
+			  );
+      	$validate = true;	
+      }
+	    if ($nat) {
+		   	if ($form['nat']['related'][$vid]) {
+		   		 $old_tax =$form['nat']['related'][$vid];
+	             $form['nat']['related'][$vid] = array(
+				    '#type' => 'taxonomy_manager_tree',
+				    '#vid' => $vid,
+				    '#default_value' => is_array($old_tax['#default_value']) ? $old_tax['#default_value'] : array(),
+				    '#render_whole_tree' => TRUE,
+				    '#pager' => FALSE,
+				    '#parent' => 0,
+				    '#add_term_info' => FALSE,
+				    '#expand_all' => 0,
+				    '#tree_is_required' => FALSE,
+				    '#required' => FALSE,
+				    '#multiple' => TRUE,
+				    '#title' => $old_tax['#title'],
+				    '#field_name' => $vid,
+				    '#columns' => 0,
+				    '#description' => $old_tax['#description'],
+				  );
+	      		$validate = true;
+		   	}
+	   	}
+    }
+   	if ($validate)  $form['#validate'][]= 'taxonomy_treecheck_node_form_validate'; 
+   	// apply box to nat related terms
+   	
+  }
+  
+}
+
+/**
+ * Validation callback for '*_node_form'.
+ */
+function taxonomy_treecheck_node_form_validate(&$form, &$form_state) {
+	if (module_exists('nat')) {
+		$nid = $form_state['values']['nid'];
+		if ($nid) {
+			$terms  = nat_get_terms($nid);	
+		}	
+	}
+	$vids = variable_get('taxonomy_treecheck_vids', array());
+	if (!is_array($form_state['values']['taxonomy'])) return;
+	foreach ($form_state['values']['taxonomy'] as $vid=>$val) {
+		if (!in_array($vid,$vids)) continue; //only work on those set for
+		$form_state['values']['taxonomy'][$vid] =$val['selected_terms'];
+		
+		if ($terms && count(array_intersect_key($terms,$val['selected_terms']))) {
+			form_set_error('taxonomy','Sorry, but you cannot choice terms that are associated with node via NAT module.');
+		}
+	}
+	if (module_exists('nat') && is_array($form_state['values']['nat']['related'])){
+		foreach ($form_state['values']['nat']['related'] as $vid=>$val) {
+			if (!in_array($vid,$vids)) continue; //only work on those set for
+			$form_state['values']['nat']['related'][$vid] =$val['selected_terms'];
+		} 
+	if ($terms && count(array_intersect_key($terms,$val['selected_terms']))) {
+			form_set_error('taxonomy','Sorry, but you cannot choice terms that are associated with node via NAT module.');
+		}
+	}
+}

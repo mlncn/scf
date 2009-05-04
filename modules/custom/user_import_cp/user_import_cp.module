@@ -1,0 +1,142 @@
+<?php
+function user_import_cp_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
+  switch ($op) {
+    case 'validate':
+      break;
+  }
+}
+
+// $Id: $
+
+/**
+ * @file
+ * Import content profile module properties.
+ */
+
+/**
+ * Implementation of hook_user_import_form_field_match().
+ */
+function user_import_cp_user_import_form_field_match() {
+	$types= content_profile_get_types();
+  $info =_content_type_info();
+ 
+  foreach($types as $type=>$type_info) {
+  	// doesn't handle multidimensional arrays 
+  	$key = 'content_profile_'.$type;
+  	$type_full = $info['content types']['profile'];
+  	if ($type_info->has_title) {
+  		$fields[$key]['title'] = t($type_info->name .' ' .$type_full['title_label']);
+  	}
+  	if ($type_info->has_body) {
+  		$fields[$key]['body'] = t($type_info->name .' ' .$type_full['body_label']);
+  	} 
+  	$fields_array = $type_full['fields'];
+  	if (is_array($fields_array)) {
+  		foreach($fields_array as $field=>$field_info) {
+  			$fields[$key][$field] = $type_info->name .' ' .$field_info['widget']['label'];
+  		}
+  	}
+  	// get vocabularies
+  	$vocabs = taxonomy_get_vocabularies($type);
+  	foreach($vocabs as $vocab) {
+  		// use taxonomy due to inability to use multidimensional arrays here
+  		$fields[$key]['taxonomy_'.$vocab->vid] = $type_info->name .' taxonomy - ' .$vocab->name;
+  	}
+  }
+  return $fields;
+}
+
+/**
+ * Implementation of hook_user_import_data().
+ */
+function user_import_cp_user_import_data($settings, $column_settings, $module, $field_id, $data, $column_id) {
+  if (strpos($module,'content_profile_') === false) return; 
+  return trim($data[$column_id]);
+}
+
+/**
+ * Implementation of hook_user_import_after_save().
+ */
+function user_import_cp_user_import_after_save($settings, $account, $password, $fields) {
+  // import info to profile
+  // foreach content profile content type defined (all keys starting with content profile
+  $vocabs = taxonomy_get_vocabularies();
+  foreach ($fields as $key=>$ct_values) {
+  	  $type =str_replace('content_profile_','',$key);
+	  if ($type && $type!=$key && is_array($ct_values)) {
+	  	$node_form=array();
+	 	module_load_include('inc','node','node.pages');
+  		// foreach field 
+  		$node = false;
+  		foreach($ct_values as $field=>$value) {
+  			
+  			if (strpos($field,'taxonomy_') !== false) {
+  				 $vid =str_replace('taxonomy_','',$field);
+  				 // is a tagging vocabulary, implode and set
+  				 if ($vocabs[$vid]->tags) {
+  				 	$node_form['values']['taxonomy']['tags'][$vid] = implode(",",$value);
+  				 } else { // is a regular vocabulary, look up the TIDs 
+  				 	$all_terms = array();
+  				 	// array of terms (value is an array that can contain multiple comma seperated terms 
+  				 	foreach($value as $terms) $all_terms =array_merge($all_terms,explode(",",$terms));
+  				 	foreach($all_terms as $term){
+  				 		
+  				 		if ($term=trim($term)){
+  				 			$posible_terms = taxonomy_get_term_by_name($term);
+  				 			foreach ($posible_terms as $posible_term) {
+  				 				if ($posible_term->vid == $vid) {
+  				 					$node_form['values']['taxonomy'][$vid][$posible_term->tid] =$posible_term->tid;  
+  				 					break;
+  				 				}
+  				 			}
+  				 		}	
+  				 	}
+  				 }
+  			} else {
+	  			switch($field) {
+	  				case 'title':
+	  				case 'body':
+	  					$node_form['values'][$field]  = implode("\n",$value);
+	  					break;	
+	  				default:
+	  					$node_form['values'][$field][]['value'] = implode("\n",$value);
+	  				break;
+	  			}
+  			}
+  		}
+  		if (!$node_form['values']['title']) $node_form['values']['title'] = $account->name?$account->name:$account->uid;
+  		// form expects a node
+	  	$node = content_profile_load($type,$account->uid);
+	  	if (!$node) {
+	  		$node = (object) array(
+		    'uid' => (string) $account->uid,
+		    'name' => (string) $account->name,
+		    'type' => $type,
+		    'language' => '',
+		    'body' => NULL,
+		    'title' => NULL,
+		    'format' => NULL,
+		    'status' => true,
+		    'promote' => false,
+		    'sticky' => false,
+		    'created' => time(),
+		    'revision' => false,
+		    'comment' => '0',
+		  );
+  		}
+  		$node_form['values']['op']= 'Save';
+  		drupal_execute($type.'_node_form', $node_form,$node);
+  	 	$errors = form_get_errors();
+		if (count($errors)) {
+	  		drupal_set_message('Sorry, issues in creating '.$content_type.' for '.$account->name.' ('.$account->uid.').' . 'Errors were: '. implode("<br>",$errors),'error');
+	  		form_set_error('',  '', TRUE);
+	  		continue; 
+	  	}
+	  }
+  }
+  return;
+}
+
+
+
+

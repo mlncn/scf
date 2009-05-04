@@ -1,0 +1,5 @@
+name = Feed Moderate 
+description = Feed moderation (publish/unpublish) via flags and views bulk operations 
+core = 6.x
+dependencies[] = views_bulk_operations
+dependencies[] = flag

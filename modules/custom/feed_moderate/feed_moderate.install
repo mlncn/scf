@@ -1,0 +1,10 @@
+<?php
+
+// enable the default flags
+function feed_moderate_enable() {
+	drupal_set_message(feed_moderate_rebuild_flag());
+	drupal_set_message('Please '.l('rebuild','feed-moderate/rebuildflag').' flag after setting moderate flag to roles.');
+}
+function feed_moderate_install() {
+	db_query("UPDATE {system} SET weight = 4 WHERE name = 'feed_moderate'"); // make nodeapi insert operates after searchblock to prevent warning 
+}

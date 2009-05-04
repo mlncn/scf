@@ -1,0 +1,1 @@
+Adds taxonomy manager selection tree to taxonomy selection. Set options in individual vocabulary edit form. 

@@ -1,0 +1,13 @@
+; $Id: taxonomy_treecheck.info,v 1.1.2.1 2008/06/19 23:09:53 rellis Exp $
+name = Taxonomy treecheck
+description = Integrate content manager's tree with taxonomy selection. 
+dependencies[] = taxonomy
+dependencies[] = taxonomy_manager
+core = 6.x
+
+; Information added by drupal.org packaging script on 2008-08-06
+version = "6.x-1.1"
+core = "6.x"
+project = "taxonomy_other"
+datestamp = "1218066022"
+

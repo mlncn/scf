@@ -1,0 +1,9 @@
+<?php
+
+
+function username_filter_views_api() {
+  return array(
+    'api' => 2,
+    'path' => drupal_get_path('module', 'username_filter'),
+  );
+}

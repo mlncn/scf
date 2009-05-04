@@ -1,0 +1,101 @@
+<?php
+function user_dir_create_menu() {
+  //Create settings - Upload a file  
+  $menu['admin/user/user_dir'] = array(
+    'title' => 'User Directory',
+    'description' => 'Set directory created on user addition',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('user_dir_create_set'),
+    'access arguments' => array('administer site configuration')
+  );
+  return $menu;
+}
+
+/*
+ * Menu Callback; block taxonomy admin settings form.
+ */
+function user_dir_create_set(){
+	//Get node types
+	$form['user_dir'] = array(
+    '#type' => 'textfield',
+    '#title' => 'User directory pattern',
+    '#description'=>'Use %u to indicate userID. Example: u%u. <br/>(Changing this will not create directories for pre-existing users)',
+    '#required'=>true,
+    '#default_value'=> $dir = variable_get('user_dir_create_dir_pattern','u%u')
+  	);
+	$form['batch'] = array(
+  			'#type' => 'submit',
+  			'#value' => 'Batch',
+  			'#description'=>'Submit and batch create directories for existing users<br/><br/>'
+		);
+	$form['batch_desc']= array(
+		'#value'=>'Submit and batch create directories for existing users<br/><br/>'
+	);
+	//Form submit button
+	$form['submit'] = array(
+  			'#type' => 'submit',
+  			'#value' => 'Submit',
+		);
+	 
+	 
+  	return $form;
+}
+/*
+ * sets the user_directory
+ */
+function user_dir_create_set_submit($form, &$form_state) {
+	variable_set('user_dir_create_dir_pattern',$form_state['values']['user_dir']);
+	if ($form_state['values']['op']== 'Batch') {
+	
+		$result = db_query("SELECT u.uid FROM {users} u WHERE u.status = 1");
+    	while ($u = db_fetch_object($result)) {
+      		user_dir_create_create_dir($u->uid);
+    	}
+	}
+}
+function user_dir_create_create_dir($uid ) {
+	$dir = variable_get('user_dir_create_dir_pattern','u%u');
+	$dir = str_ireplace('%u',$uid, $dir);
+	$dir = file_directory_path() . '/'.$dir;
+	if ( !is_dir($dir)) {
+		if (mkdir($dir, 0777)) {
+			drupal_set_message('Created directory: ' . $dir); 
+			mkdir($dir.'/image', 0777);
+		} else {
+			drupal_set_message('Issues creating directory: ' . $dir,'error'); 
+		}
+		
+	} else {
+		drupal_set_message('Directory already exists: ' . $dir); 
+	}
+}
+function user_dir_create_user($type, $edit, &$account, $category = NULL) {
+  switch ($type) {
+    case 'insert':
+  	  	user_dir_create_create_dir($account->uid);
+      break;
+    case 'validate':
+      return $edit;
+  }
+  return;
+}
+
+/*
+	Get the user directory relative to the file_directory_path
+*/
+function user_dir_create_get_directory($uid='') {
+	global $user; 
+	if (!$uid) $uid = $user->uid;
+	$dir = variable_get('user_dir_create_dir_pattern','u%u');
+	$dir = str_ireplace('%u',$uid, $dir);
+	return $dir; 
+}
+function user_dir_create_get_directory_image($uid='') {
+	global $user; 
+	if (!$uid) $uid = $user->uid;
+	$dir = variable_get('user_dir_create_dir_pattern','u%u');
+	$dir = str_ireplace('%u',$uid, $dir);
+	return $dir . '/image'; 
+}
+
+?>

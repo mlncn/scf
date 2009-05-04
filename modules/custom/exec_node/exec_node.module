@@ -1,0 +1,23 @@
+<?php
+/*
+	functionality in exec_node.admin.inc 
+*/
+/**
+ * Implementation of hook_menu().
+ * Adds a settings page.
+ */
+function exec_node_menu() {
+  //Create settings - Upload a file
+  
+  
+  $menu['admin/content/exec_node'] = array(
+    'title' => 'Node Importer',
+    'description' => 'add vocab/node/terms from file ',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('exec_node_process_file'),
+    'access arguments' => array('administer site configuration'),
+    'file' => 'exec_node.admin.inc',
+  );
+  return $menu;
+}
+

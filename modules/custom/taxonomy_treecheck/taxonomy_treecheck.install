@@ -1,0 +1,29 @@
+<?php
+// $Id: taxonomy_treecheck.install,v 1.1.2.1 2008/08/06 23:18:26 rellis Exp $
+
+/**
+ * Implementation of hook_install().
+ */
+function taxonomy_treecheck_install() {
+  // Create tables.
+  drupal_install_schema('taxonomy_treecheck');
+  // Make compatible with i18ntaxonomy.
+  db_query("UPDATE {system} SET weight = 12 WHERE name = 'taxonomy_treecheck' AND type = 'module'");
+}
+
+/**
+ * Implementation of hook_uninstall().
+ */
+function taxonomy_treecheck_uninstall() {
+  // Remove tables.
+  drupal_uninstall_schema('taxonomy_treecheck');
+}
+
+/**
+ * Implementation of hook_update_N().
+ */
+function taxonomy_treecheck_update_6100() {
+  $ret = array();
+  $ret[] = update_sql("UPDATE {system} SET weight = 11 WHERE name = 'taxonomy_treecheck' AND type = 'module'");
+  return $ret;
+}
