@@ -1,0 +1,12 @@
+; $Id: rdf.info,v 1.5 2009/02/16 13:27:09 arto Exp $
+name = RDF Proxy
+description = Allows to mirror distant RDF resources which can be cached locally via SPARQL queries.
+package = RDF
+dependencies[] = rdf
+dependencies[] = sparql
+dependencies[] = views
+dependencies[] = rdfcck
+
+core = 6.x
+php = 5.2
+
