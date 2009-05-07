@@ -31,6 +31,9 @@ function form_tweak_form_alter(&$form, &$form_state, $form_id) {
     && ($form_id == $form['type']['#value'] .'_node_form') 
     ) {
     // we are on a node edit or add form 
+    if (fs_variable_get('form_tweak', 'save_and_edit_button')) { 
+      form_tweak_save_and_edit_button(&$form, &$form_state, $form_id);
+    }
     ///////////////////////////////////////////////////
     // Rename any submit buttons, default for all forms.
     // leave out translation for now
@@ -50,6 +53,37 @@ function form_tweak_form_alter(&$form, &$form_state, $form_id) {
 // function form_tweak_form_node_type_form_alter(&$form, &$form_state) {
 // }
 
+/**
+ * Adds a save and edit button to a node add or edit form.
+ *
+ * This is a sub-implementation of hook_form_alter() and could be moved to a
+ * conditionally included file to reduce memory load.
+ */
+function form_tweak_save_and_edit_button(&$form, &$form_state, $form_id) {
+  // modeled on modules/node/node.pages.inc $form['buttons']['submit']
+  $form['buttons']['save_and_edit'] = array(
+    '#type' => 'submit',
+    '#access' => !variable_get('node_preview', 0) || (!form_get_errors() && isset($form_state['node_preview'])),
+    '#value' => t('Save and edit'),
+    '#weight' => 4,
+    '#submit' => array(
+      'node_form_submit',
+      'form_tweak_save_and_edit_submit',
+    ),
+  );
+}
+
+/**
+ * Called by our Save and edit button, this modifies the redirect to add /edit.
+ */
+function form_tweak_save_and_edit_submit($form, &$form_state) {
+  $old_redirect = $form_state['redirect'];
+  // if statement is probably unnecessary check
+  if (substr($old_redirect, 0, 4) == 'node') {
+    $form_state['redirect'] = $old_redirect . '/edit';
+  }
+}
+
 // fs = file settings, a future agaric module
 // per Kathleen's advice, we are using config instead of settings directories
 // to distinguish from settings.php and to emphasize that these are 
@@ -64,18 +98,29 @@ function form_tweak_form_alter(&$form, &$form_state, $form_id) {
  * For general use variables all the place calling for the variable should 
  * have to know is the module name and the variable name.
  *
+ * To call all variables associated with a module each category must be 
+ * requested separately.
+ *
  * In short, use of module_name.ini will be analogous to using settings.php
  * (albeit with the welcomed-by-everyone requirement of module namespacing).
  * Use of module_name.category.ini will be analogous to using a custom 
  * database table to hold settings for your module.
  */
-function fs_variables_load($module, $category = NULL) {
-  $variables = array();
-  $paths = fs_paths($module, $category);
-  foreach ($paths as $path) {
-    $variables = array_merge($variables, fs_parse_ini_file($path));
+function fs_variables_load($module, $category = '', $reset = FALSE) {
+  static $variables = array();
+  if (!$reset || !isset($variables[$module][$category])) {
+    if (!isset($variables[$module])) {
+      $variables[$module] = array();
+    }
+    $paths = fs_paths($module, $category);
+    foreach ($paths as $path) {
+      $variables[$module][$category] = array_merge(
+        $variables,
+        fs_parse_ini_file($path)
+      );
+    }
   }
-  return $variables;
+  return $variables[$module][$category];
 }
 
 /**
@@ -90,7 +135,7 @@ function fs_variables_load($module, $category = NULL) {
  * the modules directory will override settings in the settings directory.
  * We recommend your module not, ever, define settings in both places.
  */
-function fs_paths($module, $category = NULL) {
+function fs_paths($module, $category = '') {
   $paths = array();
   if (!is_string($module)) {
     watchdog('fs', t('Module name must be a string.'), WATCHDOG_WARNING);
@@ -208,14 +253,11 @@ function fs_file_check_directory($path) {
  * Get a variable by name and module name.
  *
  * The module that provides the variable MUST provide a default in a .ini file.
+ *
+ * Static caching is handled in fs_variables_load().
  */
-function fs_variable_get($module, $name, $category = NULL, $reset = FALSE) {
-  static $config;
-  $category = ($category) ? $category : '';
-  if (!$reset && isset($config[$module][$category][$name])) {
-    return $config[$module][$category][$name];
-  }
-  $vars = fs_variables_load($module, $category);
+function fs_variable_get($module, $name, $category = '', $reset = FALSE) {
+  $vars = fs_variables_load($module, $category, $reset);
   if (isset($vars[$name])) {
     return $vars[$name];
   }
