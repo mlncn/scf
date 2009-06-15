@@ -1,0 +1,131 @@
+<?php
+/**
+ * @file entrezview.install
+ */
+
+/**
+ * Implementation of hook_install().
+ *
+ * Adding an action is a one-time thing best done in the
+ * .install file to avoid doing ugly things, so we will add our flag the same
+ * way that flag module adds its demonstration bookmark flag in flag.install.
+ */
+function entrezview_install() {
+  if (!flag_get_flag('entrez_biblio_removed')) {
+    // make sure we don't try to create a flag that exists
+    $flag = flag_flag::factory_by_content_type('node');
+    $configuration = _entrezview_default_flag();
+    $flag->form_input($configuration);
+    $flag->save();
+    // flush flag info cache
+    flag_get_flags(NULL, NULL, NULL, TRUE);
+  }
+  else {
+    drupal_set_message(t('Flag entrez_biblio_removed exists.  It is fairly certainly from this module (flags take on their own life in the flag database so we do not delete on uninstall), but it is unexpected to find it already there on install.'), 'warning');
+  }
+  // add action so that removing a flag unpublishes it (often redundant)
+  entrezview_au_insert_flag_action('entrez_biblio_removed', 'flag', 'node_unpublish_action');
+  // add action so that approving a previously rejected flag also publishes it.
+  entrezview_au_insert_flag_action('entrez_biblio_removed', 'unflag', 'node_publish_action');
+}
+
+/**
+ * Dummy implementation of hook_flag_default_flags().
+ *
+ * See http://drupal.org/node/305086#default-flags
+ *
+ * We are not using hook_flag_default_flags() because we need to also add an
+ * action for our flag.  We provide a single configuration and not an array of 
+ * flags and  'content_type' => 'node' has already been passed to the factory.
+ *
+ * Certain options for the below array such as flag_confirmation are not used.
+ *
+ * No t():  Flag saves text values to the db in English and translates later.
+ */
+function _entrezview_default_flag() {
+  $roles = array_merge(
+    array_keys(user_roles(FALSE, 'administer biblio')),
+    array_keys(user_roles(FALSE, 'edit all biblio entries'))
+  );
+  $flag_configuration = array(
+    'name' => 'entrez_biblio_removed',
+    'title' => 'Bibliographies Removed from Import',
+    'roles' => $roles,
+    'global' => TRUE, // same flag for everyone who can access it; not per-user
+    'types' => array('biblio'),
+    'flag_short' => 'Reject biblio',
+    'flag_long' => 'Remove bibliography from consideration.',
+    'flag_message' => 'Removed from consideration for import and display.',
+    'unflag_short' => 'Publish bibliography',
+    'unflag_long' => 'Add to displayed bibliographies.',
+    'unflag_message' => 'Added to displayed and updated bibliographies.',
+    'link_type' => 'toggle',
+    'show_on_page' => FALSE,
+    'show_on_teaser' => FALSE,
+    'show_on_form' => TRUE,
+    'status' => TRUE, // automatically enable
+    'locked' => array('content_type', 'name', 'types', 'global'),
+  );
+  return $flag_configuration;
+}
+
+/**
+ * Add a flag_action for an action callback for a flag.
+ *
+ * For example, add a node_unpublish_action as an operation for when 
+ * a node is flagged with the entrez_biblio_removed flag.
+ *
+ * The function flag_actions_insert_action takes a flag ID (fid), flag/unflag
+ * (event), threshold, the action function we want performed (callback), and 
+ * an array of parameters typically gathered from extra data submitting the 
+ * form and containing nothing of interest.
+ *
+ * In the user interface 'flag' event is chosen with threshold 'reaches' and
+ * 'unflag' event is indicated with with the option 'falls below'. 
+ *
+ * Currently this helper wrapper function assumes a threshold of 1.  @TODO 
+ * refactor to take a flag action as an array.
+ */
+function entrezview_au_insert_flag_action($flag_name, $flag_op, $action_callback) {
+  // make sure it doesn't already exist, or we'll create duplicates
+  $entrez_flag_actions = flag_actions_get_actions($flag_name);
+  foreach ($entrez_flag_actions as $fa) {
+    if ($fa->callback == $action_callback && $fa->event == $flag_op) {
+      watchdog(
+        'entrezview',
+        "Flag action @action_callback on @flag_op event already exists for flag @flag_name.",
+        array(
+          '@action_callback' => $action_callback,
+          '@flag_op' => $flag_op,
+          '@flag_name' => $flag_name,
+        ), 
+        WATCHDOG_NOTICE
+      );
+      return;
+    }
+  }
+  // can only set action if the flag is initialized...
+  $flag = flag_get_flag($flag_name);
+  if (!$flag) {
+    watchdog(
+      'entrezview',
+      'Flag @flag_name not available to set actions on.',
+      array(
+        '@flag_name' => $flag_name,
+      ), 
+      WATCHDOG_WARNING
+    );
+    return;
+  }
+  $parameters = array();
+  flag_actions_insert_action($flag->fid, $flag_op, 1, $action_callback, $parameters);
+}
+
+/**
+ * Implementation of hook_uninstall().
+ */
+function entrezview_uninstall() {
+  // Drupal takes care of deleting from system table
+  // No clean way to remove the flag, as it gets added to the database and may
+  // take on a life of its own
+}

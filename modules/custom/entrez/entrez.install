@@ -1,0 +1,133 @@
+<?php
+// $Id$
+/**
+ * @file
+ * Database table creation for Entrez module.
+ */
+
+/**
+ * Implementation of hook_install().
+ */
+function entrez_install() {
+  drupal_install_schema('entrez');
+}
+
+/**
+ * Implementation of hook_schema().
+ *
+ * Note:  Pro Drupal Development models use of t() to translate 'description' 
+ * for field definitions, but Drupal core does not use them.  We follow core. 
+ */
+function entrez_schema() {
+  $schema = array();
+  $schema['entrez_hash'] = array(
+    'fields' => array(
+      'pubmed_id' => array('type' => 'int', 'not null' => TRUE),
+      'md5' => array('type' => 'char', 'length' => 32, 'not null' => TRUE),),
+    'primary key' => array('pubmed_id'),
+  );
+  $schema['entrez_query'] = array(
+    // Table description.
+    'description' => 'Stores current and history of Entrez search queries.',
+    // Field definitions.
+    'fields' => array(
+      'qdate' => array(
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+        'description' => 'The UNIX timestamp at which a query was entered.
+          Used two identify queries in history and to get latest for use.',
+      ),
+      'query' => array(
+        'type' => 'text',
+        'size' => 'normal',
+        'not null' => TRUE,
+        'default' => '',
+        'description' => 'Hold the search string used to query NCBI Entrez.',
+      ),
+      'min_date' => array(
+        'type' => 'datetime',
+        'not null' => TRUE,
+        'description' => 'The oldest date for which to search for publications.',
+      ),
+      'max_date' => array(
+        'type' => 'datetime',
+        'not null' => TRUE,
+        'description' => 'The newest date for which to search for publications.',
+      ),
+    ),
+    // Index declarations.
+    'primary key' => array('qdate'),
+  );
+  return $schema;
+}
+
+/**
+ * Implementation of hook_uninstall().
+ */
+function entrez_uninstall() {
+  drupal_uninstall_schema('entrez');
+  // variable_del('example_var');
+}
+
+/**
+ * Install database entrez_query table.
+ *
+ * See http://drupal.org/node/150220 for why this cannot reuse hook_schema.
+ */
+function entrez_update_6000() {
+  $ret = array();
+  $schema_entrez_query = array(
+    // Table description.
+    'description' => 'Stores current and history of Entrez search queries.',
+    // Field definitions.
+    'fields' => array(
+      'qdate' => array(
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+        'description' => 'The UNIX timestamp at which a query was entered.
+          Used two identify queries in history and to get latest for use.',
+      ),
+      'query' => array(
+        'type' => 'text',
+        'size' => 'small',
+        'not null' => TRUE,
+        'default' => '',
+        'description' => 'Hold the search string used to query NCBI Entrez.',
+      ),
+      'min_date' => array(
+        'type' => 'datetime',
+        'not null' => TRUE,
+        'description' => 'The oldest date for which to search for publications.',
+      ),
+      'max_date' => array(
+        'type' => 'datetime',
+        'not null' => TRUE,
+        'description' => 'The newest date for which to search for publications.',
+      ),
+    ),
+    // Index declarations.
+    'primary key' => array('qdate'),
+  );
+  db_create_table($ret, 'entrez_query', $schema_entrez_query);
+  return $ret;
+}
+
+/**
+ * Implementation of hook_update_N().
+ *
+ * Increase size of query column in entrez_query table.
+ */
+function entrez_update_6001() {
+  $ret = array();
+  $spec = array(
+    'type' => 'text',
+    'size' => 'normal',
+    'not null' => TRUE,
+    'default' => '',
+    'description' => 'Hold the search string used to query NCBI Entrez.',
+  );
+  db_change_field($ret, 'entrez_query', 'query', 'query', $spec);
+  return $ret;
+}

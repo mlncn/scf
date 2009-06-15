@@ -1,0 +1,9 @@
+name = "Entrez Views"
+description = "[entrezview] Administrative Views for Entrez import to Biblio"
+core = 6.x
+dependencies[] = entrez
+dependencies[] = views
+dependencies[] = views_bulk_operations
+dependencies[] = flag
+package = Biblio
+files[] = entrezview.module

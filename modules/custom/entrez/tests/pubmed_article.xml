@@ -1,0 +1,131 @@
+<PubmedArticle>
+<MedlineCitation Status="Publisher" Owner="NLM">
+<PMID>19479730</PMID>
+<DateCreated>
+<Year>2009</Year>
+<Month>5</Month>
+<Day>29</Day>
+</DateCreated>
+<Article PubModel="Print-Electronic">
+<Journal>
+<ISSN IssnType="Electronic">1097-0193</ISSN>
+<JournalIssue CitedMedium="Internet">
+<PubDate>
+<Year>2009</Year>
+<Month>May</Month>
+<Day>28</Day>
+</PubDate>
+</JournalIssue>
+<Title>Human brain mapping</Title>
+</Journal>
+<ArticleTitle>Cerebral blood flow changes induced by pedunculopontine nucleus stimulation in patients with advanced Parkinson's disease: A [(15)O] H(2)O PET study.</ArticleTitle>
+<Pagination>
+<MedlinePgn/>
+</Pagination>
+<Abstract>
+<AbstractText>Patients with advanced Parkinson's disease (PD) develop disabling axial symptoms, including gait disturbances, freezing and postural instability poorly responsive to levodopa replacement therapy. The pedunculopontine nucleus (PPN) is involved in locomotion, control of posture, and behavioral states [i.e. wakefulness, rapid eye movement sleep]. Recent reports suggested that PPN modulation with deep brain stimulation (DBS) may be beneficial in the treatment of axial symptoms. However, the mechanisms underlying these effects are still unknown. We used [(15)O] H(2)O PET to investigate regional cerebral blood flow in three patients with advanced PD who underwent a new experimental surgical procedure with implantation of unilateral PPN-DBS. Patients were studied Off-medication with stimulator Off and On, both at rest and during a self-paced alternating motor task of the lower limbs. We used SPM2 for imaging data analysis, threshold P &lt; 0.05 corrected at the cluster level. Stimulation induced significant regional cerebral blood flow increment in subcortical regions such as the thalamus (P &lt; 0.006), cerebellum (P &lt; 0.001), and midbrain region (P &lt; 0.001) as well as different cortical areas involving medial sensorimotor cortex extending into caudal supplementary motor area (BA 4/6; P &lt; 0.001). PPN-DBS in advanced PD resulted in blood flow and presumably neuronal activity changes in subcortical and cortical areas involved in balance and motor control, including the mesencephalic locomotor region (e.g. PPN) and closely interconnected structures within the cerebello-(rubro)-thalamo-cortical circuit. Whether these findings are associated with the DBS-PPN clinical effect remains to be proven. However, they suggest that PPN modulation may induce functional changes in neural networks associated with the control of lower limb movements. Hum Brain Mapp, 2009. (c) 2009 Wiley-Liss, Inc.</AbstractText>
+</Abstract>
+<Affiliation>Toronto Western Research Institute (Division of Brain, Imaging and Behaviour - Systems Neuroscience, BIB-SN), UHN, University of Toronto, Toronto, Ontario, Canada.</Affiliation>
+<AuthorList>
+<Author>
+<LastName>Ballanger</LastName>
+<FirstName>Benedicte</FirstName>
+<Initials>B</Initials>
+</Author>
+<Author>
+<LastName>Lozano</LastName>
+<FirstName>Andres M</FirstName>
+<Initials>AM</Initials>
+</Author>
+<Author>
+<LastName>Moro</LastName>
+<FirstName>Elena</FirstName>
+<Initials>E</Initials>
+</Author>
+<Author>
+<LastName>van Eimeren</LastName>
+<FirstName>Thilo</FirstName>
+<Initials>T</Initials>
+</Author>
+<Author>
+<LastName>Hamani</LastName>
+<FirstName>Clement</FirstName>
+<Initials>C</Initials>
+</Author>
+<Author>
+<LastName>Chen</LastName>
+<FirstName>Robert</FirstName>
+<Initials>R</Initials>
+</Author>
+<Author>
+<LastName>Cilia</LastName>
+<FirstName>Roberto</FirstName>
+<Initials>R</Initials>
+</Author>
+<Author>
+<LastName>Houle</LastName>
+<FirstName>Sylvain</FirstName>
+<Initials>S</Initials>
+</Author>
+<Author>
+<LastName>Poon</LastName>
+<FirstName>Yu Yan</FirstName>
+<Initials>YY</Initials>
+</Author>
+<Author>
+<LastName>Lang</LastName>
+<FirstName>Anthony E</FirstName>
+<Initials>AE</Initials>
+</Author>
+<Author>
+<LastName>Strafella</LastName>
+<FirstName>Antonio P</FirstName>
+<Initials>AP</Initials>
+</Author>
+</AuthorList>
+<Language>ENG</Language>
+<PublicationTypeList>
+<PublicationType>JOURNAL ARTICLE</PublicationType>
+</PublicationTypeList>
+<ArticleDate DateType="Electronic">
+<Year>2009</Year>
+<Month>5</Month>
+<Day>28</Day>
+</ArticleDate>
+</Article>
+<MedlineJournalInfo>
+<MedlineTA>Hum Brain Mapp</MedlineTA>
+<NlmUniqueID>9419065</NlmUniqueID>
+</MedlineJournalInfo>
+</MedlineCitation>
+<PubmedData>
+<History>
+<PubMedPubDate PubStatus="entrez">
+<Year>2009</Year>
+<Month>5</Month>
+<Day>30</Day>
+<Hour>9</Hour>
+<Minute>0</Minute>
+</PubMedPubDate>
+<PubMedPubDate PubStatus="pubmed">
+<Year>2009</Year>
+<Month>5</Month>
+<Day>30</Day>
+<Hour>9</Hour>
+<Minute>0</Minute>
+</PubMedPubDate>
+<PubMedPubDate PubStatus="medline">
+<Year>2009</Year>
+<Month>5</Month>
+<Day>30</Day>
+<Hour>9</Hour>
+<Minute>0</Minute>
+</PubMedPubDate>
+</History>
+<PublicationStatus>aheadofprint</PublicationStatus>
+<ArticleIdList>
+<ArticleId IdType="doi">10.1002/hbm.20815</ArticleId>
+<ArticleId IdType="pubmed">19479730</ArticleId>
+</ArticleIdList>
+</PubmedData>
+</PubmedArticle>

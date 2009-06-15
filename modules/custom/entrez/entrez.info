@@ -1,0 +1,10 @@
+name = "Entrez import to Biblio"
+description = "[entrez] Fetch NCBI publications via entrez as Biblio nodes (primarily for PubMed)"
+core = 6.x
+dependencies[] = biblio
+dependencies[] = content
+; dependencies[] = nodereference
+dependencies[] = search
+; search only provides some helper functions, but requiring a core module to be enabled seems a fair trade for avoiding code duplication
+package = Biblio
+files[] = entrez.module
