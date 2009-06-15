@@ -274,50 +274,51 @@ function _feedapi_node_save($feed_item, $feed_nid, $settings = array()) {
     }
   }
   // Constructs the node object.
-  $node = new stdClass();
-  if (isset($feed_item->nid)) {
-    $node->nid = $feed_item->nid;
-    $node->vid = db_result(db_query("SELECT vid FROM {node_revisions} WHERE nid = %d", $node->nid));
-  }
-  // Determines the node type.
-  if (empty($settings['content_type'])) {
-    $ct_types = node_get_types();
-    $ct_options = array();
-    if (is_array($ct_types)) {
-      foreach ($ct_types as $key => $data) {
-        if (!feedapi_enabled_type($key)) {
-          $ct_options[$key] = $data->name;
-        }
-      }
-    }
-    if (array_key_exists('story', $ct_options)) {
-      $node->type = 'story';
-    }
-    else {
-      $node->type = current(array_keys($ct_options));
-    }
-  }
-  else {
-    $node->type = $settings['content_type'];
-  }
-  
-  if (feedapi_enabled_type($node->type)) {
-    if ($error_msg !== TRUE) {
-      drupal_set_message(t('Please disable FeedAPI for !item content-type.', array('!item' => $node->type)), 'error');
-      $error_msg = TRUE;
-    }
-    return FALSE;
-  }
-  
-  // Get the default options from the cont
-  $options = variable_get('node_options_'. $node->type, FALSE);
-  if (is_array($options)) {
-    $node->status = in_array('status', $options) ? 1 : 0;
-    $node->promote = in_array('promote', $options) ? 1 : 0;
-    $node->sticky = in_array('sticky', $options) ? 1 : 0;
-  }
-  else {
-    $node->status = 1;
+  if (!$feed_item->nid) {
+   	$node = new stdClass();
+  	node_invoke_nodeapi($node, 'load');
+	// Determines the node type.
+	  if (empty($settings['content_type'])) {
+	    $ct_types = node_get_types();
+	    $ct_options = array();
+	    if (is_array($ct_types)) {
+	      foreach ($ct_types as $key => $data) {
+	        if (!feedapi_enabled_type($key)) {
+	          $ct_options[$key] = $data->name;
+	        }
+	      }
+	    }
+	    if (array_key_exists('story', $ct_options)) {
+	      $node->type = 'story';
+	    }
+	    else {
+	      $node->type = current(array_keys($ct_options));
+	    }
+	  }
+	  else {
+	    $node->type = $settings['content_type'];
+	  }
+	  
+	  if (feedapi_enabled_type($node->type)) {
+	    if ($error_msg !== TRUE) {
+	      drupal_set_message(t('Please disable FeedAPI for !item content-type.', array('!item' => $node->type)), 'error');
+	      $error_msg = TRUE;
+	    }
+	    return FALSE;
+	  }
+	  
+	  // Get the default options from the cont
+	  $options = variable_get('node_options_'. $node->type, FALSE);
+	  if (is_array($options)) {
+	    $node->status = in_array('status', $options) ? 1 : 0;
+	    $node->promote = in_array('promote', $options) ? 1 : 0;
+	    $node->sticky = in_array('sticky', $options) ? 1 : 0;
+	  }
+	  else {
+	    $node->status = 1;
+	  }
+  } else {
+    $node = node_load($feed_item->nid);
   }
   $feed_node = node_load($feed_nid);
   $node->title = $feed_item->title;
@@ -333,9 +334,6 @@ function _feedapi_node_save($feed_item, $feed_nid, $settings = array()) {
   node_object_prepare($node);
   if (!isset($feed_item->nid)) {
     $node->created = (isset($settings['node_date']) && $settings['node_date'] == 'feed') ? $feed_item->options->timestamp : time();
-  }
-  else {
-    $node->created = db_result(db_query("SELECT created FROM {node} WHERE nid = %d", $feed_item->nid));
   }
   $node->uid = $feed_node->uid;
   
