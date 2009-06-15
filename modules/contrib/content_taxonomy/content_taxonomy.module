@@ -1,6 +1,6 @@
 <?php
 
-// $Id: content_taxonomy.module,v 1.2.2.15.2.17 2009/02/02 18:07:50 mh86 Exp $
+// $Id: content_taxonomy.module,v 1.2.2.15.2.23 2009/05/14 14:03:11 mh86 Exp $
 
 /**
  * @file
@@ -73,6 +73,7 @@ function content_taxonomy_field_settings($op, $field) {
       
       $options_voc = array();
       foreach (taxonomy_get_vocabularies() as $voc) {
+        _content_taxonomy_localize_vocabulary($voc);
         $options_voc[$voc->vid] = $voc->name;
       }
       
@@ -151,7 +152,7 @@ function content_taxonomy_field_settings($op, $field) {
  * Implementation of hook_field().
  */
 function content_taxonomy_field($op, &$node, $field, &$items, $teaser, $page) {
-  switch ($op) {      
+  switch ($op) {         
     case 'presave':
       if ($field['save_term_node']) {
         static $_content_taxonomy_array_cleared;
@@ -166,7 +167,9 @@ function content_taxonomy_field($op, &$node, $field, &$items, $teaser, $page) {
               continue;
             }
             elseif (is_array($node->taxonomy[$field['vid']])) {
-              $node->taxonomy[$field['vid']][] = $entry['value'];
+              if (!in_array($entry['value'], $node->taxonomy[$field['vid']])) {
+                $node->taxonomy[$field['vid']][] = $entry['value'];
+              }
             }
             // when saving an existing node without presenting a form to the user,
             // the terms are objects keyed by tid. there's no need to re-set these
@@ -214,6 +217,7 @@ function content_taxonomy_field_formatter_info() {
 function theme_content_taxonomy_formatter_default($element) {
   if (!empty($element['#item']['value'])) {
     $term = taxonomy_get_term($element['#item']['value']);
+    _content_taxonomy_localize_term($term);
     return check_plain($term->name);
   }
 }
@@ -225,6 +229,7 @@ function theme_content_taxonomy_formatter_default($element) {
 function theme_content_taxonomy_formatter_link($element) {
   if (!empty($element['#item']['value'])) {
     $term = taxonomy_get_term($element['#item']['value']);
+    _content_taxonomy_localize_term($term);
     return l($term->name, taxonomy_term_path($term), array('rel' => 'tag', 'title' => $term->description));
   }
 }
@@ -256,6 +261,7 @@ function content_taxonomy_allowed_values($field) {
   
   if (is_array($tree)) {
     foreach ($tree as $term) {
+      _content_taxonomy_localize_term($term);
       if ($field['widget']['show_depth']) {
         $value = str_repeat(' - ', $term->depth) . $term->name;
       }
@@ -283,11 +289,13 @@ function content_taxonomy_allowed_values_groups($field) {
   //if children in no group
   $default_terms = taxonomy_get_children($parent);
   foreach ($default_terms as $default_term) {
+    _content_taxonomy_localize_term($default_term);
     $options[$default_term->tid] = check_plain($default_term->name);
   }
   
   foreach (taxonomy_get_children($group_parent) as $group) {
     foreach (taxonomy_get_children($group->tid) as $term) {
+      _content_taxonomy_localize_term($term);
       $options[$group->name][$term->tid] = check_plain($term->name);
       unset($options[$term->tid]);
     }
@@ -331,6 +339,21 @@ function content_taxonomy_form_alter(&$form, $form_state, $form_id) {
       }
     }
     _content_taxonomy_taxonomy_unset($form['taxonomy'], $_content_taxonomy_vids);
+    
+    //hide empty 'Vocabularies' fieldsets
+    $empty_fieldset = TRUE;
+    foreach ($form['taxonomy'] as $key => &$value) {
+      if (is_array($value) && !empty($value)) {
+        $empty_fieldset = FALSE; 
+        break;
+      }
+    }
+    if($empty_fieldset) {
+      // creating an empty taxonomy array is causing errors on preview in the taxonomy module
+      // so we create an empty value field as placeholder, which is going to prevent the errors
+      $form['taxonomy'] = array('#tree' => TRUE);
+      $form['taxonomy']['key'] = array('#type' => 'value', '#value' => 0);
+    }
   }
 }
 
@@ -357,7 +380,12 @@ function content_taxonomy_taxonomy($op, $type, $array = NULL) {
             $tid = $array['tid'];
             if ($tid) {
               $db_info = content_database_info($field);
-              db_query('DELETE FROM {'. $db_info['table'] .'} WHERE '. $db_info['columns']['value']['column'] .' = %d', $tid);
+              if ($field['multiple']) {
+                db_query('DELETE FROM {'. $db_info['table'] .'} WHERE '. $db_info['columns']['value']['column'] .' = %d', $tid);
+              }
+              else {
+                db_query('UPDATE {'. $db_info['table'] .'} SET '. $db_info['columns']['value']['column'] .'= NULL  WHERE '. $db_info['columns']['value']['column'] .' = %d', $tid);
+              }
               $needs_refresh = TRUE;
               watchdog('content', 'Entries with term id = %tid have been deleted out of %table for field %field_name.', array('%tid' => $tid, '%table' => $db_info['table'], '%field_name' => $field_name));
             }
@@ -413,11 +441,42 @@ function _content_taxonomy_get_all_terms() {
     $options[0] = '---';
     foreach (taxonomy_get_vocabularies() as $voc) {
       foreach (taxonomy_get_tree($voc->vid) as $term) {
+        _content_taxonomy_localize_term($term);
         $options[$voc->name][$term->tid] = str_repeat('- ', $term->depth) . $term->name;
       }
     } 
   }
   return $options;
+}
+
+/**
+ * Localize a term by replacing its name attribute with its localized version
+ * for the current language.
+ *
+ * @param $term
+ *   The term to localize.
+ *
+ * This is based on i18ntaxonomy_localize_terms(), but with less overhead.
+ */
+function _content_taxonomy_localize_term(&$term) {
+  // If this term's vocabulary supports localization.
+  if (module_exists('i18ntaxonomy') && i18ntaxonomy_vocabulary($term->vid) == I18N_TAXONOMY_LOCALIZE) {
+    $term->name = tt("taxonomy:term:$term->tid:name", $term->name);
+  }
+}
+
+/**
+ * Localize a vocabulary by replacing its name attribute with its localized
+ * version for the current language.
+ *
+ * @param $vocabulary
+ *   The vocabulary to localize.
+ */
+function _content_taxonomy_localize_vocabulary(&$vocabulary) {
+  // If this vocabulary supports localization.
+  if (module_exists('i18ntaxonomy') && i18ntaxonomy_vocabulary($vocabulary->vid) == I18N_TAXONOMY_LOCALIZE) {
+    $vocabulary->name = tt("taxonomy:vocabulary:$vocabulary->vid:name", $vocabulary->name);
+  }
 }
 
 /**
@@ -431,9 +490,9 @@ function _content_taxonomy_taxonomy_unset(&$form, $vids) {
   if (empty($vids) || empty($form)) {
     return;
   }
-  foreach ($form as $key => &$value) {
+  foreach ($form as $key => $value) {
     if ($key == 'tags') {
-      _content_taxonomy_taxonomy_unset($value, $vids);
+      _content_taxonomy_taxonomy_unset($form[$key], $vids);
     }
     elseif (is_object($value) && in_array($value->vid, $vids)) {
       unset($form[$key]);

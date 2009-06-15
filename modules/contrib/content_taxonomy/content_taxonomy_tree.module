@@ -1,6 +1,6 @@
 <?php
 
-// $Id: content_taxonomy_tree.module,v 1.1.2.4 2008/08/20 16:54:36 mh86 Exp $
+// $Id: content_taxonomy_tree.module,v 1.1.2.5 2009/05/14 16:58:22 mh86 Exp $
 
 
 
@@ -93,7 +93,7 @@ function content_taxonomy_tree_process($element, $edit, &$form_state, $form) {
   $field_name = $element['#field_name'];
   $field = $form['#field_info'][$field_name];
   $field_key  = $element['#columns'][0];
-  
+
   if (is_array($element['#value'])) {
     if (array_key_exists($field_key, $element['#value'])) {
       //validation function where values are set haven't been called yet for this form element
@@ -143,6 +143,7 @@ function content_taxonomy_tree_process($element, $edit, &$form_state, $form) {
  */
 function content_taxonomy_tree_validate($element, &$form_state) {
   $field = $form_state['#field_info'][$element['#field_name']];
+  $field_key  = $element['#columns'][0];
 
   $values = content_taxonomy_tree_form2data($element, $form_state, $field);
   
@@ -150,8 +151,12 @@ function content_taxonomy_tree_validate($element, &$form_state) {
   //if $element['#value'] is empty, it's validated by form.inc
   //otherwise we have to check this by our own
   if ($field['required'] && is_null($values[0]['value']) && !empty($element['#value'])) {
-    form_error($element['value'], t('!name field is required.', array('!name' => $element['#title'])));
+    form_error($element[$field_key], t('!name field is required.', array('!name' => $element['#title'])));
   }
+  if (($field['multiple'] >= 2) && (count($element['#value']) > $field['multiple'])) {
+      form_error($element[$field_key], t('%name: this field cannot hold more than @count values.', array('%name' => t($field['widget']['label']), '@count' => $field['multiple'])));
+   }
+  
   form_set_value($element, $values, $form_state);
   
 }

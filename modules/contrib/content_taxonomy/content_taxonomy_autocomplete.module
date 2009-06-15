@@ -1,5 +1,5 @@
 <?php
-// $Id: content_taxonomy_autocomplete.module,v 1.2.2.4.2.12 2009/02/02 17:26:38 mh86 Exp $
+// $Id: content_taxonomy_autocomplete.module,v 1.2.2.4.2.15 2009/05/14 17:10:13 mh86 Exp $
 
 /**
  * @file
@@ -141,7 +141,6 @@ function content_taxonomy_autocomplete_widget(&$form, &$form_state, $field, $ite
  * returns the taxonomy term name for term ids
  */
 function content_taxonomy_autocomplete_value($element, $edit = FALSE) {
-  //dsm("content_taxonomy_autocomplete_value");
   $field_key = $element['#columns'][0];
   $terms = array();
   if (count($element['#default_value'])) {
@@ -196,7 +195,7 @@ function content_taxonomy_autocomplete_process($element, $edit, $form_state, $fo
  */
 function content_taxonomy_autocomplete_validate($element, &$form_state) {
   $field_name = $element['#field_name'];
-  $field = content_fields($field_name);
+  $field = content_fields($field_name, $element['#type_name']);
   $field_key  = $element['#columns'][0];
   
   //if the element parents array contains the field key, we have to remove it
@@ -209,10 +208,13 @@ function content_taxonomy_autocomplete_validate($element, &$form_state) {
   $value = $element['#value'];
  
   $extracted_ids = content_taxonomy_autocomplete_tags_get_tids($value, $field['vid'], content_taxonomy_field_get_parent($field), $field['widget']['extra_parent']);
-  
+
   if (!$field['multiple'] && count(content_taxonomy_autocomplete_split_tags($value, $field['vid'])) > 1) {
     form_set_error($field['field_name'] .'][value', t('You can provide only one value'));
     return;
+  }
+  else if (($field['multiple'] >= 2) && (count(content_taxonomy_autocomplete_split_tags($value, $field['vid'])) > $field['multiple'])) {
+    form_set_error($field['field_name'] .'][value', t('%name: this field cannot hold more than @count values.', array('%name' => t($field['widget']['label']), '@count' => $field['multiple'])));
   }
   if ($field['widget']['new_terms'] == 'deny') {
     if (is_array($extracted_ids['non_existing_terms'])) {
@@ -313,10 +315,9 @@ function content_taxonomy_autocomplete_tags_get_tids($typed_input, $vid, $parent
     // If a user has escaped a term (to demonstrate that it is a group,
     // or includes a comma or quote character), we remove the escape
     // formatting so to save the term into the DB as the user intends.
-    $typed_term = str_replace('""', '"', preg_replace('/^"(.*)"$/', '\1', $typed_term));
-    $typed_term = trim($typed_term);
+    $typed_term = trim(str_replace('""', '"', preg_replace('/^"(.*)"$/', '\1', $typed_term)));
     if ($typed_term == "") { continue; }
-
+    
     // See if the term exists in the chosen vocabulary
     // and return the tid, otherwise, add a new record.
     $possibilities = taxonomy_get_term_by_name($typed_term);
@@ -387,15 +388,15 @@ function content_taxonomy_autocomplete_merge_tags($terms, $vid) {
       if ($term->vid == $vid) {
         //if ($tid && in_array($term->tid,drupal_map_assoc(array_keys((taxonomy_get_children($tid,$vid)))))) {
           // Commas and quotes in terms are special cases, so encode 'em.
+          $name = $term->name;
           if (preg_match('/,/', $term->name) || preg_match('/"/', $term->name)) {
-            $term->name = '"'.preg_replace('/"/', '""', $term->name).'"';
+            $name = '"'. preg_replace('/"/', '""', $name) .'"';
           }
-          $typed_terms[] = $term->name;
+          $typed_terms[] = $name;
        // }
       }
     }
   }
-
   return implode(', ', $typed_terms);
 }
 

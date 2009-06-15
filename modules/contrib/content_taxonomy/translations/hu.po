@@ -1,21 +1,21 @@
-# Hungarian translation of content_taxonomy (6.x-1.x-dev)
+# Hungarian translation of content_taxonomy (6.x-1.0-beta6)
 # Copyright (c) 2009 by the Hungarian translation team
 # Generated from files:
 #  content_taxonomy_tree.module,v 1.1.2.4 2008/08/20 16:54:36 mh86
-#  content_taxonomy.module,v 1.2.2.15.2.13 2008/09/17 14:23:54 mh86
-#  content_taxonomy_autocomplete.module,v 1.2.2.4.2.7 2008/08/20 16:54:36 mh86
+#  content_taxonomy.module,v 1.2.2.15.2.17 2009/02/02 18:07:50 mh86
+#  content_taxonomy_options.module,v 1.1.4.7.2.4 2008/12/27 11:25:27 mh86
 #  content_taxonomy/includes/content_taxonomy.token.inc: n/a
+#  content_taxonomy_autocomplete.module,v 1.2.2.4.2.12 2009/02/02 17:26:38 mh86
 #  content_taxonomy.info,v 1.1.2.2.2.1 2008/04/30 08:05:19 mh86
 #  content_taxonomy_autocomplete.info,v 1.1.2.4.2.1 2008/04/30 08:05:19 mh86
 #  content_taxonomy_options.info,v 1.1.2.5.2.1 2008/04/30 08:05:19 mh86
 #  content_taxonomy_tree.info,v 1.1.2.1 2008/04/30 08:05:19 mh86
-#  content_taxonomy_options.module,v 1.1.4.7.2.3 2008/08/20 16:54:36 mh86
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: content_taxonomy (6.x-1.x-dev)\n"
-"POT-Creation-Date: 2009-01-12 07:38-0600\n"
-"PO-Revision-Date: 2008-11-23 07:36-0600\n"
+"Project-Id-Version: content_taxonomy (6.x-1.0-beta6)\n"
+"POT-Creation-Date: 2009-02-15 18:27-0600\n"
+"PO-Revision-Date: 2009-01-26 03:24-0600\n"
 "Last-Translator: Balogh Zoltán\n"
 "Language-Team: Hungarian http://forditas.mindworks.hu\n"
 "MIME-Version: 1.0\n"
@@ -27,13 +27,17 @@ msgstr ""
 msgid "!name field is required."
 msgstr "„!name” mező nincs kitöltve."
 
-#: content_taxonomy.module:332,340
+#: content_taxonomy.module:354,362
 msgid "content"
 msgstr "tartalom"
 
-#: content_taxonomy_autocomplete.module:150
-msgid "Preview"
-msgstr "Előnézet"
+#: content_taxonomy_options.module:97
+msgid "- None -"
+msgstr "- Nincs -"
+
+#: content_taxonomy_options.module:95
+msgid "N/A"
+msgstr "Nincs adat"
 
 #: includes/content_taxonomy.token.inc:10
 msgid "Name of top taxonomy term"
@@ -42,10 +46,6 @@ msgstr "Legelső taxonómiakifejezés neve"
 #: includes/content_taxonomy.token.inc:11
 msgid "ID of top taxonomy term"
 msgstr "A legelső taxonómiakifejezés azonosítója"
-
-#: content_taxonomy.module:123
-msgid "Advanced settings"
-msgstr "Haladó beállítások"
 
 #: content_taxonomy.module:80
 msgid "Vocabulary"
@@ -163,34 +163,19 @@ msgstr ""
 "Egy numerikus értéket megadva a megjelenő hierarhia mélysége "
 "korlátozható. Üresen hagyva megjelenik a teljes hierarhia."
 
-#: content_taxonomy.module:129
-msgid "Hide default taxonomy fields on the node form"
-msgstr ""
-"Az alapértelmezett taxonómia mezők elrejtése a tartalom beküldő "
-"űrlapon"
-
-#: content_taxonomy.module:131
-msgid ""
-"If this option is set for at least one Content Taxonomy Field per "
-"Content Type, default fields from the core Taxonomy module get hidden."
-msgstr ""
-"Ha ez a lehetőség ki van választva legalább egy tartalom "
-"taxonómia mezőre tartalom típusonként, akkor az alap taxonómia "
-"modul alapértelmezett mezői el lesznek rejtve."
-
-#: content_taxonomy.module:185
+#: content_taxonomy.module:198
 msgid "As Text"
 msgstr "Mint szöveg"
 
-#: content_taxonomy.module:190
+#: content_taxonomy.module:203
 msgid "As Link"
 msgstr "Mint hivatkozás"
 
-#: content_taxonomy.module:332
+#: content_taxonomy.module:354
 msgid "Deleted field %field_name and its data."
 msgstr "%field_name mező az adataival együtt törölve."
 
-#: content_taxonomy.module:340
+#: content_taxonomy.module:362
 msgid ""
 "Entries with term id = %tid have been deleted out of %table for field "
 "%field_name."
@@ -265,11 +250,11 @@ msgstr ""
 msgid "\"Maximum length\" must be a positive integer."
 msgstr "A „maximális hossz” értéknek pozitív egésznek kell lennie."
 
-#: content_taxonomy_autocomplete.module:182
+#: content_taxonomy_autocomplete.module:214
 msgid "You can provide only one value"
 msgstr "Csak egy értéket lehet megadni"
 
-#: content_taxonomy_autocomplete.module:187
+#: content_taxonomy_autocomplete.module:219
 msgid "New tags are not allowed"
 msgstr "Az új elemek nem engedélyezettek"
 
@@ -277,23 +262,23 @@ msgstr "Az új elemek nem engedélyezettek"
 msgid "content_taxonomy_autocomplete"
 msgstr "content_taxonomy_autocomplete"
 
-#: content_taxonomy_options.module:17
+#: content_taxonomy_options.module:27
 msgid "Checkboxes/Radios"
 msgstr "Jelölőnégyzetek/választógombok"
 
-#: content_taxonomy_options.module:25
+#: content_taxonomy_options.module:35
 msgid "Select List"
 msgstr "Legördülő lista"
 
-#: content_taxonomy_options.module:44
+#: content_taxonomy_options.module:54
 msgid "Settings for Options"
 msgstr "Lehetőségek beállítása"
 
-#: content_taxonomy_options.module:50
+#: content_taxonomy_options.module:60
 msgid "Indent child terms with ' - ' signs"
 msgstr "Gyermek kifejezések bekezdése „ - ” jelekkel"
 
-#: content_taxonomy_options.module:52
+#: content_taxonomy_options.module:62
 msgid ""
 "If this option is checked, a hierarchy gets visualized by indenting "
 "child terms, otherwise it's a flat list"
@@ -302,13 +287,13 @@ msgstr ""
 "gyermek kifejezések bekezdve jelennek meg, ellenkező esetben csak "
 "egyszerű lista lesz."
 
-#: content_taxonomy_options.module:55
+#: content_taxonomy_options.module:65
 msgid "Parent term for OptGroups in select fields"
 msgstr ""
 "Szülő kifejezés az <em>OptGroups</em> számára a legördülő "
 "listákban"
 
-#: content_taxonomy_options.module:59
+#: content_taxonomy_options.module:69
 msgid ""
 "This settings applies only for select fields. Select a parent term "
 "containg the grouping terms. Grouping terms should be parents of the "
@@ -401,4 +386,8 @@ msgstr "A kifejezések szótárának neve"
 #: includes/content_taxonomy.token.inc:15
 msgid "ID of terms vocabulary"
 msgstr "A kifejezések szótárának azonosítója"
+
+#: content_taxonomy.module:141
+msgid "@field-title term"
+msgstr "@field-title kifejezés"
 
