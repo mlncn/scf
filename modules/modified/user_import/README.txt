@@ -2,8 +2,8 @@
                      D R U P A L    M O D U L E
 ********************************************************************
 Name: user import module
-Author: Robert Castelo <www.cortextcommunications.com>
-Drupal: 4.7.x
+Author: Robert Castelo <www.codepositive.com>
+Drupal: 6.x
 ********************************************************************
 DESCRIPTION:
 
@@ -11,27 +11,29 @@ Import users into Drupal from a csv file (comma separated file).
 
 Features include:
 
-* Creates an account for each user.
-* Match csv columns to profile fields.  
-* Can optionally use the file's first row to map csv data to user profile fields.
-* Option to create Usernames based on data from file, e.g. "John" + "Smith" => "JohnSmith".
-* Usernames can be made of abbreviated data from file, e.g. "Jane" + "Doe" => "JDoe".
-* Option to create random, human readable, Usernames.
+* Creates an account for each user
+* Match csv columns to profile fields.
+* Can optionally use the file's first row to map csv data to user profile fields
+* Option to create Usernames based on data from file, e.g. "John" + "Smith" => "JohnSmith"
+* Usernames can be made of abbreviated data from file, e.g. "Jane" + "Doe" => "JDoe"
+* Option to create random, human readable, Usernames
 * Option to import passwords
-* Option to create random passwords for each user.
-* Can set user roles.
-* Option to send welcome email, with account details to each new user.
+* Option to create random passwords for each user
+* Can set user roles
+* Option to send welcome email, with account details to each new user
 * Can set each user's contact form to enabled
-* Test mode option to check for errors.
-* Processing can be triggered by cron or manually by an administrator.
-* Can stagger number of users imported, so that not too many emails are sent at one time.
-* Multiple files can be imported/tested at the same time.
+* Test mode option to check for errors
+* Processing can be triggered by cron or manually by an administrator
+* Can stagger number of users imported, so that not too many emails are sent at one time
+* Multiple files can be imported/tested at the same time
 * Import into Organic Groups
+* Import into Node Profile 
 * Option to make new accounts immediately active, or inactive until user logs in
 * Use CSV file already uploaded through FTP (useful for large imports)
-* Designed to be massively scalable.
+* Designed to be massively scalable
 
 Supported CSV File Formats:
+
 Make sure csv file has been saved with 'Windows' line endings.
 If file import fails with "File copy failed: source file does not exist." try
 setting the file extension to .txt.
@@ -50,34 +52,56 @@ INSTALLATION:
 Note: It is assumed that you have Drupal up and running.  Be sure to
 check the Drupal web site if you need assistance.
 
-1. Place the entire user_import directory into your Drupal modules/
-   directory.
+1. Place the entire user_import directory into your Drupal directory:
+   sites/all/modules/
    
 
 2. Enable the user_import modules by navigating to:
 
-     administer > modules
+   administer > build > modules
      
   Click the 'Save configuration' button at the bottom to commit your
-  changes.
+  changes. 
+
+ADDITIONAL OPTIONS 
+
+* NodeProfile Import
+
+If data is to be imported into NodeProfile nodes the following module
+needs to be installed and enabled:
+ 
+  Node Import
+  http://drupal.org/project/node_import
+
+
   
   
 ********************************************************************
-USAGE
+USAGE     
+
+
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -    
+  For more detailed instructions (with pictures) please go to the 
+  documentation pages for this module:
+
+  http://drupal.org/node/137653
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+        
 
 1. To set permissions of who can import users into the site, navigate to:
 
-'administer' 
-    -- 'access control' (admin/access)
+'Administer' 
+    -- 'User management'
+        -- 'Access control' (admin/user/access)
     
 
 2. To import users, navigate to:
 
-'administer'
-    -- 'settings'
-        -- 'user imports'  (admin/settings/user_import)
+'Administer'
+    -- 'User management'
+        -- 'User imports'  (admin/user/user_import)
         
-3. Select 'Import' tab.
+3. Select 'Import' tab (admin/user/user_import/add)
 
 4. Press the 'browse' button to select a file to import,
     or select a file already added through FTP.
@@ -110,6 +134,47 @@ USAGE
 14. Click "Import" to complete the import.
 
 
+Note that Date fields are not yet supported.
+
+Note that passwords can only be imported as plain text, and will be converted to MD5 by Drupal. 
+
+
+        ---------------------------
+         OPTIONS FOR OTHER MODULES
+        --------------------------- 
+
+-- NODEPROFILE --
+
+* NodeProfile node fields will be available when matching csv data to Drupal fields.  
+
+* Date fields are not supported yet.
+
+* Text fields that have their widget set to 'Select list' are not supported yet. The workaround is to set the field's 
+  widget to 'Text Field' before the import then set it back to 'Select list' once the import is completed. 
+
+New user imported:
+
+  A NodeProfile node will be created if there is data for that node, if there is no data the node will not be created.
+
+
+
+--  CIVICRM --
+
+1. Import all the necessary fields to civicrm with the import module from CIVICRM.
+
+2. Import the users to Drupal using User Import module.
+
+3. Make sure the e-mail addresses imported to CIVICRM are the same as the ones imported to Drupal.
+
+4. In CIVICRM use the option to synchronize Drupal users with CIVICRM contacts.
+
+
+
+
+
+
+
+
 ********************************************************************
 AUTHOR CONTACT
 
@@ -126,7 +191,8 @@ AUTHOR CONTACT
 ********************************************************************
 ACKNOWLEDGEMENT
 
-- Initial starting point for this module was a script by David McIntosh (neofactor.com).
-
-
+- Initial reference point for this module was a script by David McIntosh (neofactor.com).
 - Documentation help Steve (spatz4000)
+- patch by mfredrickson
+- patch by idealso
+- code from Nedjo Rogers

@@ -1,0 +1,160 @@
+--- user_import.module.orig	2009-04-28 17:38:16.000000000 +1200
++++ user_import.module	2009-04-28 17:35:37.000000000 +1200
+@@ -535,11 +535,11 @@
+   $form_state['values'] = _user_import_settings_save($form_state['values']);
+   $form_state['values']['save']['update'] = NULL;
+   $form_state['values']['import_template_id'] = NULL;
+   $form_state['values']['save']['name'] = NULL;
+   $form_state['redirect'] = $form_state['values']['return_path'];
+-  _user_import_process($form_state['values']); 
++  _user_import_batch_run($form_state['values']);
+ }
+ 
+ function user_import_add_file_form(&$form, $ftp_files = NULL) {
+ 
+     $form['browser'] = array(
+@@ -649,27 +649,88 @@
+ }
+ 
+ function user_import_continue($import_id = NULL) {
+ 
+     if (!empty($import_id) && is_numeric($import_id)) {
+-        
++
+     $import = _user_import_settings_select($import_id);
+-    _user_import_process($import);
++      _user_import_batch_run($import);
++    }
++    else {
++      drupal_goto('admin/user/user_import');
+     }
+-    
+-    drupal_goto('admin/user/user_import');
+ }
+ 
+ function user_import_import($import_id = NULL) {
+ 
+     if (!empty($import_id) && is_numeric($import_id)) {
+-        
++
+     $import = _user_import_settings_select($import_id);
+     _user_import_initialise_import($import);
+     }
+-    
+-    drupal_goto('admin/user/user_import');
++    else {
++      drupal_goto('admin/user/user_import');
++    }
++}
++
++/**
++ * Imports using Batch API
++ * 
++ * @param int $import_id
++ */
++function _user_import_batch_run($import) {
++
++    $batch = array(
++      'operations' => array(
++        array('_user_import_batch_process', array($import))
++      ),
++      'title' => $import['setting'] == 'test' ? t('Processing user import test') : t('Processing user import'),
++      'init_message' => t('Starting import'),
++      'error_message' => t('Import failed')
++    );
++    batch_set($batch);
++    batch_process('admin/user/user_import');
++
++}
++
++/**
++ * Callback for batch processing. Ensures the import is property initialised,
++ * then starts (or continues) the import in batches of 100 users
++ *
++ */
++function _user_import_batch_process($import, &$context) {
++
++    if (!isset($context['sandbox']['import'])) {
++      $context['sandbox']['import'] = $import;
++      $context['sandbox']['file_bytes'] = filesize($import['filepath']);
++    }
++    else {
++      $import = $context['sandbox']['import'];
++    }
++
++    if (in_array($import['setting'], array('import', 'test'))) {
++      $import = _user_import_process($import, 100);
++    }
++    if (in_array($import['setting'], array('imported', 'tested'))) {
++      // finished
++      $context['finished'] = 1;
++    }
++    else {
++      // use our byte position in the file to show progress
++      if ($context['sandbox']['file_bytes']) {
++        $context['finished'] = min(array(0.99, ($import['pointer'] / ($context['sandbox']['file_bytes']))));
++      }
++      else {
++        // no idea how far through we are
++        $context['finished'] = 0;
++      }
++
++      $context['message'] = t('Imported @count users', array('@count' => $import['processed']));
++    }
++
++    $context['sandbox']['import'] = $import;
++
+ }
+ 
+ function user_import_errors_display($import_id = NULL) {
+ 
+   if (empty($import_id) || !is_numeric($import_id)) drupal_goto('admin/user/user_import');
+@@ -1333,15 +1394,20 @@
+   }
+   
+   return FALSE;
+ }
+   
+-function _user_import_process($settings) {  
++function _user_import_process($settings, $import_max_override = null) {  
+ 
+     user_import_load_supported();
+     $line_max = variable_get('user_import_line_max', 1000);
+-    $import_max = variable_get('user_import_max', 250);
++    if ($import_max_override) {
++      $import_max = $import_max_override;
++    }
++    else {
++      $import_max = variable_get('user_import_max', 250);
++    }
+     $field_match = _user_import_unconcatenate_field_match($settings['field_match']);
+     $update_setting = _user_import_update_user_check($settings['options']['update_user']);
+     $update_setting_per_module = $settings['options']['update_user'];
+     
+     ini_set('auto_detect_line_endings', true);
+@@ -1512,11 +1578,11 @@
+             $import['pointer'] = 0;
+             $import['processed'] = 0;
+             $import['valid'] = 0;
+             _user_import_errors_display_delete($import['import_id']);
+             _user_import_settings_save($import);
+-            _user_import_process($import);
++            _user_import_batch_run($import);
+             break;
+             
+         case 'template':
+             unset($import['filename']);
+             unset($import['oldfilename']);
+@@ -1527,11 +1593,11 @@
+             $import['valid'] = 0;
+             _user_import_settings_save($import);
+             break;
+             
+         default:
+-            _user_import_process($import);
++            _user_import_batch_run($import);
+             drupal_set_message(t('Imported'));
+             break;
+     }
+     
+     return;

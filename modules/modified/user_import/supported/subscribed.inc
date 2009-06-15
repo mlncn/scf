@@ -1,17 +1,12 @@
 <?php
-// $Id: $
-
-/**
- * @file
- * Import subscribed module properties.
- */
+// $Id: subscribed.inc,v 1.5 2009/03/21 22:32:42 MegaGrunt Exp $
 
 /**
  * Implementation of hook_user_import_form_fieldsets().
  */
 function subscribed_user_import_form_fieldset($import, $collapsed) {
 
-  if (module_exists('publication') && module_exists('schedule')) {
+ if (module_exists('publication') && module_exists('schedule')) {
 
     $publications = publication_select_publications('enewsletter');
     if (empty($publications)) return;
@@ -23,28 +18,28 @@ function subscribed_user_import_form_fieldset($import, $collapsed) {
         '#collapsed' => $collapsed,
         '#tree' => TRUE,
     );
-
+    
     foreach ($publications as $publication) {
-
+    
       $type = $publication->type;
-
+      
       $form['subscribed'][$type] = array(
           '#type' => 'fieldset',
           '#title' => check_plain($type),
       );
-
+      
     }
-
+    
     reset($publications);
     $subscribed = $import['options']['subscribed'];
-
+ 
     foreach ($publications as $publication) {
-
+      
       $options = array();
       $schedules = schedule_select_schedules($type, $publication->publication_id);
       $options[0] = t('No Subscription');
-
-      foreach ($schedules as $schedule) {
+      
+      foreach ($schedules as $schedule) {                     
         $options[ $schedule['schedule_id'] ] = $schedule['schedule_title'];
       }
 
@@ -57,30 +52,40 @@ function subscribed_user_import_form_fieldset($import, $collapsed) {
         '#options' => $options,
         '#description' => check_plain($publication->description),
       );
-
+      
     }
   }
+  
+  return $form;
+}
 
+/**
+ * Implementation of hook_user_import_form_update_user().
+ */
+function subscribed_user_import_form_update_user() {
+  $form['subscribed'] = array('title' => t('Subscribed'), 'description' => t('Affected: subscriptions.'));
   return $form;
 }
 
 /**
  * Implementation of hook_user_import_after_save().
  */
-function subscribed_user_import_after_save($settings, $account, $password, $fields) {
-
+function subscribed_user_import_after_save($settings, $account, $password, $fields, $updated) {
+/**
+ * @todo change to new update architecture
+ */   
   if (!module_exists('publication') || !module_exists('schedule') || !module_exists('identity_hash') || empty($settings['options']['subscribed'])) return;
-
+  
   $subscribed_settings = $settings['options']['subscribed'];
   $uid = $account->uid;
 
-  if (is_array($subscribed_settings)) {
+  if (is_array($subscribed_settings)) {  
+  
+    foreach($subscribed_settings as $type => $type_subscriptions) {
 
-    while (list($type, $type_subscriptions) = each($subscribed_settings)) {
+      $subscriptions = $type_subscriptions; 
 
-      $subscriptions = $type_subscriptions;
-
-      foreach ($type_subscriptions as $publication_id => $schedule) {
+      foreach($type_subscriptions as $publication_id => $schedule) {
         if (empty($schedule[0])) unset($subscriptions[$publication_id]);
       }
 
@@ -88,10 +93,9 @@ function subscribed_user_import_after_save($settings, $account, $password, $fiel
 
       if (!empty($publications) && !empty($subscriptions)) {
         subscribed_set_subscriptions($type, $uid, $publications, $subscriptions);
-        subscribed_set_subscriptions_terms($type, $uid, $publications, $subscriptions);
+        subscribed_set_subscriptions_terms($type, $uid, $publications, $subscriptions); 
         identity_hash_set_hash($uid);
       }
-
     }
   }
   return;

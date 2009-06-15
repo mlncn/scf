@@ -1,114 +1,149 @@
 <?php
-// $Id: user_import.install,v 1.6 2007/07/23 22:55:10 MegaGrunt Exp $
+// $Id: user_import.install,v 1.11 2009/03/25 11:31:09 MegaGrunt Exp $
 
 /**
- * @file
- * Import users from a comma separated file (csv).
+ * @file 
+ * Import and update users from a comma separated file (csv).
  */
 
+
 /**
- * Implementation of hook_schema().
+ * Implementation of hook_install()
  */
+function user_import_install() {
+  // Create tables.
+  drupal_install_schema('user_import');
+  return;
+}
+
+/**
+* Implementation of hook_schema(). 
+*/
 function user_import_schema() {
   $schema['user_import'] = array(
-    'fields' => array(
-      'import_id' => array(
+     'description' => t("Settings for each import, and import setting templates."),
+     'fields' => array(
+        'import_id' => array(
+        'description' => t("ID key of import or template."),
         'type' => 'serial',
         'unsigned' => TRUE,
         'not null' => TRUE,
         'disp-width' => '10'
       ),
       'name' => array(
+        'description' => t("Label of import template, only used if this is an import template."),
         'type' => 'varchar',
         'length' => '25',
         'not null' => TRUE,
         'default' => ''
       ),
-      'filename' => array(
+      'filename' => array( 
+        'description' => t("Name of file being used as source of data for import."),
         'type' => 'varchar',
         'length' => '50',
         'not null' => TRUE,
         'default' => ''
       ),
-      'oldfilename' => array(
+      'oldfilename' => array( 
+        'description' => t("Original name of file being used as source of data for import."), 
         'type' => 'varchar',
         'length' => '50',
         'not null' => TRUE,
         'default' => ''
       ),
-      'filepath' => array(
+      'filepath' => array( 
+        'description' => t("Path to file being used as source of data for import."), 
         'type' => 'text',
         'size' => 'small',
         'not null' => TRUE
       ),
-      'started' => array(
+      'started' => array(  
+        'description' => t("Datestamp of when import was started."), 
         'type' => 'int',
         'not null' => TRUE,
         'default' => 0,
         'disp-width' => '11'
       ),
-      'pointer' => array(
+      'pointer' => array( 
+        'description' => t("Pointer to where test/import last finished."), 
         'type' => 'int',
         'not null' => TRUE,
         'default' => 0,
         'disp-width' => '10'
       ),
-      'processed' => array(
+      'processed' => array(  
+        'description' => t("Number of users processed by import."), 
         'type' => 'int',
         'not null' => TRUE,
         'default' => 0,
         'disp-width' => '10'
       ),
-      'valid' => array(
+      'valid' => array(    
+        'description' => t("Number of users processed without errors."), 
         'type' => 'int',
         'not null' => TRUE,
         'default' => 0,
         'disp-width' => '10'
       ),
-      'first_line_skip' => array(
+      'first_line_skip' => array( 
+        'description' => t("Ignore the first line of the CSV file, which are usually field headings."), 
         'type' => 'int',
         'not null' => TRUE,
         'default' => 0,
         'disp-width' => '1'
       ),
-      'contact' => array(
+      'contact' => array( 
+        'description' => t("Enable the Contact preference of user accounts."), 
         'type' => 'int',
         'not null' => TRUE,
         'default' => 0,
         'disp-width' => '1'
       ),
-      'username_space' => array(
+      'username_space' => array( 
+        'description' => t("Add a space between elements of a user name."), 
         'type' => 'int',
         'not null' => TRUE,
         'default' => 0,
         'disp-width' => '1'
       ),
-      'send_email' => array(
+      'send_email' => array( 
+        'description' => t("Send welcome email to imported users."), 
         'type' => 'int',
         'not null' => TRUE,
         'default' => 0,
         'disp-width' => '1'
       ),
-      'field_match' => array(
+      'field_match' => array( 
+        'description' => t("Settings for how data matches to Drupal fields."), 
         'type' => 'text',
         'size' => 'big',
         'not null' => TRUE,
         'serialize' => TRUE
       ),
-      'roles' => array(
+      'roles' => array(      
+        'description' => t("Roles to give imported users."), 
         'type' => 'varchar',
         'length' => '255',
         'not null' => TRUE,
         'default' => '',
         'serialize' => TRUE
       ),
-      'options' => array(
+      'options' => array(   
+        'description' => t("Store of all other options for import. Most of the other settings in this table will be moved into here in future."), 
         'type' => 'text',
         'size' => 'big',
         'not null' => TRUE,
         'serialize' => TRUE
       ),
-      'setting' => array(
+      'setting' => array(    
+        'description' => t("Status of import, or whether it is an import template."), 
+        'type' => 'varchar',
+        'length' => '10',
+        'not null' => TRUE,
+        'default' => ''
+      ),
+      'current_processed' => array(    
+        'description' => t("Current number processed during batch api run."), 
         'type' => 'varchar',
         'length' => '10',
         'not null' => TRUE,
@@ -118,21 +153,25 @@ function user_import_schema() {
     'primary key' => array('import_id'),
   );
 
-  $schema['user_import_errors'] = array(
-    'fields' => array(
-      'import_id' => array(
+  $schema['user_import_errors'] = array(  
+    'description' => t("Record of errors encountered during an import."), 
+    'fields' => array(    
+      'import_id' => array( 
+        'description' => t("ID key of import or template."), 
         'type' => 'int',
         'not null' => TRUE,
         'default' => 0,
         'disp-width' => '10'
       ),
-      'data' => array(
+      'data' => array(  
+        'description' => t("Data (matched to fields) for user that failed to import due to error."), 
         'type' => 'text',
         'size' => 'big',
         'not null' => TRUE,
         'serialize' => TRUE
       ),
-      'errors' => array(
+      'errors' => array(  
+        'description' => t("Error(s) encountered for user that failed to import."), 
         'type' => 'text',
         'size' => 'big',
         'not null' => TRUE,
@@ -146,25 +185,10 @@ function user_import_schema() {
   return $schema;
 }
 
-/**
- * Implementation of hook_install().
- *
- * This will automatically install the database tables for the user import module for both the MySQL and PostgreSQL databases.
- *
- * If you are using another database, you will have to install the tables by hand, using the queries below as a reference.
- *
- * Note that the curly braces around table names are a drupal-specific feature to allow for automatic database table prefixing,
- * and will need to be removed.
- */
-function user_import_install() {
-  drupal_install_schema('user_import');
-}
-
 function user_import_update_1() {
-
-    _system_update_utf8(array('user_import', 'user_import_errors'));
-
-  return array();
+  $ret = array(); 
+  _system_update_utf8(array('user_import', 'user_import_errors'));
+  return $ret;
 }
 
 function user_import_update_2() {
@@ -175,15 +199,28 @@ function user_import_update_2() {
 
 function user_import_update_3() {
   $ret = array();
-  $ret[] = update_sql("ALTER TABLE {user_import} CHANGE iid import_id INT(10) UNSIGNED NOT NULL AUTO_INCREMENT");
-  $ret[] = update_sql("ALTER TABLE {user_import} CHANGE first_line first_line_skip INT(10) UNSIGNED NOT NULL default '0'");
-  $ret[] = update_sql("ALTER TABLE {user_import_errors} CHANGE iid import_id INT(10) UNSIGNED NOT NULL default '0'");
+  db_drop_primary_key($ret, 'user_import');
+  db_change_field($ret, 'user_import', 'iid', 'import_id', array('type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE, 'disp-width' => '10'), array('primary key' => array('import_id')));
+  db_change_field($ret, 'user_import', 'first_line', 'first_line_skip', array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0, 'disp-width' => '10'), array('primary key' => array('import_id')));
+	db_drop_index($ret, 'user_import_errors', 'import_id');
+  db_change_field($ret, 'user_import_errors', 'iid', 'import_id', array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0, 'disp-width' => '10'));
+	db_add_index($ret, 'user_import_errors', 'import_id', array('import_id'));
   return $ret;
 }
 
 function user_import_update_4() {
   $ret = array();
-  $ret[] = update_sql("ALTER TABLE {user_import_errors} CHANGE error errors longtext NOT NULL");
+	db_drop_index($ret, 'user_import_errors', 'import_id'); 
+  db_change_field($ret, 'user_import_errors', 'error', 'errors', array('type' => 'text', 'size' => 'big', 'not null' => TRUE, 'serialize' => TRUE));
+	db_add_index($ret, 'user_import_errors', 'import_id', array('import_id'));
+  return $ret;
+}
+
+function user_import_update_5() {
+  $ret = array();
+	db_drop_index($ret, 'user_import_errors', 'import_id'); 
+  db_change_field($ret, 'user_import_errors', 'errors', 'errors', array('type' => 'text', 'size' => 'big', 'not null' => TRUE, 'serialize' => TRUE));
+	db_add_index($ret, 'user_import_errors', 'import_id', array('import_id'));
   return $ret;
 }
 
@@ -194,8 +231,8 @@ function user_import_update_6001() {
 }
 
 /**
- * Implementation of hook_uninstall().
- */
+* Implementation of hook_uninstall().
+*/
 function user_import_uninstall() {
   drupal_uninstall_schema('user_import');
   variable_del('user_import_settings');
