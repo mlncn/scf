@@ -1,5 +1,5 @@
 <?php
-// $Id: rdf.views.inc,v 1.6 2009/03/02 03:08:17 arto Exp $
+// $Id: rdf.views.inc,v 1.8 2009/03/25 04:20:41 arto Exp $
 
 //////////////////////////////////////////////////////////////////////////////
 // Views API hooks
@@ -65,7 +65,7 @@ function rdf_views_data() {
     ),
   );
   
-  foreach (rdf_db_get_repository_names() as $name => $table) {
+  foreach (rdf_db_get_repository_tables() as $name => $table) {
     $info = rdf_db_load_repository($name);
     $data[$table] = array(
       // Table info.
@@ -190,7 +190,7 @@ function rdf_views_get_feeds() {
       }
 
       $feeds['views_' . $row->name] = array(
-        'type'        => 'http://purl.org/rss/1.0/',
+        'type'        => RDF_RSS_URI,
         'path'        => $feed_path,
         'title'       => $row->display_options['title'],
         'module'      => 'views',

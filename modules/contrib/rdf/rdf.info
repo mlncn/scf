@@ -5,9 +5,9 @@ package = RDF
 core = 6.x
 php = 5.2
 
-; Information added by drupal.org packaging script on 2009-03-02
-version = "6.x-1.0-alpha6"
+; Information added by drupal.org packaging script on 2009-03-25
+version = "6.x-1.0-alpha7"
 core = "6.x"
 project = "rdf"
-datestamp = "1235977263"
+datestamp = "1238022111"
 

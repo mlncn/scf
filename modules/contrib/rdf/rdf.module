@@ -1,11 +1,12 @@
 <?php
-// $Id: rdf.module,v 1.25 2009/03/02 06:16:21 arto Exp $
+// $Id: rdf.module,v 1.30 2009/03/25 04:20:41 arto Exp $
 
 //////////////////////////////////////////////////////////////////////////////
 // Module settings
 
-define('RDF_SCHEMA_URI', variable_get('rdf_schema_uri', url('rdf/schema', array('absolute' => TRUE)) .'/'));
+define('RDF_SCHEMA_URI',        rdf_get_schema_uri());
 define('RDF_SCHEMA_MODULE_URI', 'http://drupal.org/project/rdf#schema');
+define('RDF_RSS_URI',           'http://purl.org/rss/1.0/');
 
 //////////////////////////////////////////////////////////////////////////////
 // Core API hooks
@@ -38,6 +39,13 @@ function rdf_init() {
   // Integrate with FeedAPI and the Feed Element Mapper, if installed:
   if (module_exists('feedapi')) {
     module_load_include('inc', 'rdf', 'rdf.feedapi');
+  }
+
+  // Replace the theme's DOCTYPE with the RDFa DOCTYPE, if enabled:
+  if (variable_get('rdf_rdfa_doctype', FALSE)) {
+    // Implement hook_exit() to mark us as incompatible with aggressive caching:
+    function rdf_exit($destination = NULL) {}
+    ob_start('_rdf_ob_handler');
   }
 }
 
@@ -90,250 +98,8 @@ function rdf_perm() {
  * Implementation of hook_menu().
  */
 function rdf_menu() {
-  return array(
-    // Export site information
-    'rdf' => array(
-      'title' => 'RDF',
-      'type' => MENU_CALLBACK,
-      'access callback' => 'user_access',
-      'access arguments' => array('access RDF data'),
-      'page callback' => 'rdf_export_site',
-      'file' => 'rdf.pages.inc',
-    ),
-
-    'rdf/schema' => array(
-      'title' => 'RDF schema',
-      'type' => MENU_CALLBACK,
-      'access arguments' => array('access RDF data'),
-      'page callback' => 'rdf_export',
-      'page arguments' => array('rdf_schema_data', 'schema'),
-      'file' => 'rdf.pages.inc', // HACK
-    ),
-    'rdf/settings' => array(
-      'type' => MENU_CALLBACK,
-      'access callback' => 'rdf_menu_access_http',
-      'access arguments' => array('export site settings', 'import site settings'),
-      'page callback' => 'rdf_schema_export_settings',
-      'file' => 'rdf.pages.inc', // HACK
-    ),
-    'rdf/modules' => array(
-      'type' => MENU_CALLBACK,
-      'access callback' => 'rdf_menu_access_http',
-      'access arguments' => array('export enabled modules', 'import enabled modules'),
-      'page callback' => 'rdf_schema_export_modules',
-      'file' => 'rdf.pages.inc', // HACK
-    ),
-
-    // Export user information
-    'user/%/rdf' => array(
-      'title' => 'RDF',
-      'type' => MENU_CALLBACK,
-      'access callback' => 'user_access',
-      'access arguments' => array('access RDF data'),
-      'page callback' => 'rdf_export_entity',
-      'page arguments' => array('user', 1),
-      'file' => 'rdf.pages.inc',
-    ),
-
-    // Export node information
-    'node/%/rdf' => array(
-      'title' => 'RDF',
-      'type' => MENU_CALLBACK,
-      'access callback' => 'user_access',
-      'access arguments' => array('access RDF data'),
-      'page callback' => 'rdf_export_entity',
-      'page arguments' => array('node', 1),
-      'file' => 'rdf.pages.inc',
-    ),
-
-    // Administer >> Content management >> RDF data
-    'admin/content/rdf' => array(
-      'title' => 'RDF data',
-      'description' => 'Query, create, and delete RDF statements.',
-      'access arguments' => array('administer RDF data'),
-      'page callback' => 'drupal_get_form',
-      'page arguments' => array('rdf_admin_data'),
-      'file' => 'rdf.admin.inc',
-    ),
-    'admin/content/rdf/list' => array(
-      'title' => 'List',
-      'type' => MENU_DEFAULT_LOCAL_TASK,
-    ),
-    'admin/content/rdf/add' => array(
-      'title' => 'Add statement',
-      'type' => MENU_LOCAL_TASK,
-      'weight' => 1,
-      'access arguments' => array('administer RDF data'),
-      'page callback' => 'drupal_get_form',
-      'page arguments' => array('rdf_db_admin_data_form'),
-      'file' => 'rdf.admin.inc',
-    ),
-    'admin/content/rdf/import' => array(
-      'title' => 'Import data',
-      'type' => MENU_LOCAL_TASK,
-      'weight' => 20,
-      'access arguments' => array('import RDF data'),
-      'page callback' => 'drupal_get_form',
-      'page arguments' => array('rdf_import_admin_screen'),
-      'file' => 'rdf.admin.inc',
-    ),
-    'admin/content/rdf/export' => array(
-      'title' => 'Export data',
-      'type' => MENU_LOCAL_TASK,
-      'weight' => 30,
-      'access arguments' => array('export RDF data'),
-      'page callback' => 'drupal_get_form',
-      'page arguments' => array('rdf_export_admin_screen'),
-      'file' => 'rdf.admin.inc',
-    ),
-
-    // Administer >> Site configuration >> RDF settings
-    'admin/settings/rdf' => array(
-      'title' => 'RDF settings',
-      'description' => 'Settings for the RDF API.',
-      'access arguments' => array('administer site configuration'),
-      'page callback' => 'drupal_get_form',
-      'page arguments' => array('rdf_admin_settings'),
-      'file' => 'rdf.admin.inc',
-    ),
-
-    // Administer >> Site configuration >> RDF settings >> Mappings
-    'admin/settings/rdf/mappings' => array(
-      'title' => 'Mappings',
-      'access arguments' => array('administer site configuration'),
-      'page callback' => 'rdf_admin_mappings',
-      'file' => 'rdf.admin.inc',
-      'weight' => 10,
-    ),
-    'admin/settings/rdf/mappings/list' => array(
-      'title' => 'List',
-      'type' => MENU_DEFAULT_LOCAL_TASK,
-    ),
-    'rdf/autocomplete/resource' => array(
-      'type' => MENU_CALLBACK,
-      'access arguments' => array('administer RDF data'),
-      'page callback' => 'rdf_admin_autocomplete_resource',
-      'file' => 'rdf.admin.inc',
-    ),
-    'rdf/autocomplete/class' => array(
-      'type' => MENU_CALLBACK,
-      'access arguments' => array('administer RDF data'),
-      'page callback' => 'rdf_admin_autocomplete_class',
-      'file' => 'rdf.admin.inc',
-    ),
-    'rdf/autocomplete/property' => array(
-      'type' => MENU_CALLBACK,
-      'access arguments' => array('administer RDF data'),
-      'page callback' => 'rdf_admin_autocomplete_property',
-      'file' => 'rdf.admin.inc',
-    ),
-
-    // Administer >> Site configuration >> RDF settings >> Feeds
-    'admin/settings/rdf/feeds' => array(
-      'title' => 'Feeds',
-      'access arguments' => array('administer site configuration'),
-      'page callback' => 'rdf_admin_feeds',
-      'file' => 'rdf.admin.inc',
-      'weight' => 20,
-    ),
-    'admin/settings/rdf/feeds/list' => array(
-      'title' => 'List',
-      'type' => MENU_DEFAULT_LOCAL_TASK,
-    ),
-    'admin/settings/rdf/feeds/edit/%' => array(
-      'title' => 'Configure RDF feed',
-      'type' => MENU_CALLBACK,
-      'access arguments' => array('administer site configuration'),
-      'page callback' => 'drupal_get_form',
-      'page arguments' => array('rdf_admin_feed', 5),
-      'file' => 'rdf.admin.inc',
-    ),
-
-    // Administer >> Site configuration >> RDF settings >> Namespaces
-    'admin/settings/rdf/namespaces' => array(
-      'title' => 'Namespaces',
-      'access arguments' => array('administer site configuration'),
-      'page callback' => 'rdf_admin_namespaces',
-      'file' => 'rdf.admin.inc',
-      'weight' => 30,
-    ),
-    'admin/settings/rdf/namespaces/list' => array(
-      'title' => 'List',
-      'type' => MENU_DEFAULT_LOCAL_TASK,
-    ),
-    'admin/settings/rdf/namespaces/add' => array(
-      'title' => 'Add namespace',
-      'type' => MENU_LOCAL_TASK,
-      'weight' => 1,
-      'access arguments' => array('administer site configuration'),
-      'page callback' => 'rdf_db_admin_ns_edit',
-      'file' => 'rdf.admin.inc',
-    ),
-    'admin/settings/rdf/namespaces/edit' => array(
-      'title' => 'Edit namespace',
-      'type' => MENU_CALLBACK,
-      'access arguments' => array('administer site configuration'),
-      'page callback' => 'rdf_db_admin_ns_edit',
-      'file' => 'rdf.admin.inc',
-    ),
-    'admin/settings/rdf/namespaces/delete' => array(
-      'title' => 'Delete namespace',
-      'type' => MENU_CALLBACK,
-      'access arguments' => array('administer site configuration'),
-      'page callback' => 'drupal_get_form',
-      'page arguments' => array('rdf_db_admin_ns_delete'),
-      'file' => 'rdf.admin.inc',
-    ),
-
-    // Administer >> Site configuration >> RDF settings >> Contexts
-    'admin/settings/rdf/contexts' => array(
-      'title' => 'Contexts',
-      'access arguments' => array('administer site configuration'),
-      'page callback' => 'rdf_admin_contexts',
-      'file' => 'rdf.admin.inc',
-      'weight' => 40,
-    ),
-    'admin/settings/rdf/contexts/list' => array(
-      'title' => 'List',
-      'type' => MENU_DEFAULT_LOCAL_TASK,
-    ),
-
-    // Administer >> Site configuration >> RDF settings >> Repositories
-    'admin/settings/rdf/repositories' => array(
-      'title' => 'Repositories',
-      'access arguments' => array('administer RDF repositories'),
-      'page callback' => 'rdf_admin_repositories',
-      'file' => 'rdf.admin.inc',
-      'weight' => 50,
-    ),
-    'admin/settings/rdf/repositories/list' => array(
-      'title' => 'List',
-      'type' => MENU_DEFAULT_LOCAL_TASK,
-    ),
-    'admin/settings/rdf/repositories/rdf/add' => array(
-      'title' => 'Add local repository',
-      'type' => MENU_LOCAL_TASK,
-      'weight' => 1,
-      'access arguments' => array('administer RDF repositories'),
-      'page callback' => 'rdf_db_admin_db_edit',
-      'file' => 'rdf.admin.inc',
-    ),
-    'admin/settings/rdf/repositories/rdf/edit' => array(
-      'title' => 'Edit local repository',
-      'type' => MENU_CALLBACK,
-      'access arguments' => array('administer RDF repositories'),
-      'page callback' => 'rdf_db_admin_db_edit',
-      'file' => 'rdf.admin.inc',
-    ),
-    'admin/settings/rdf/repositories/rdf/delete' => array(
-      'title' => 'Delete local repository',
-      'type' => MENU_CALLBACK,
-      'access arguments' => array('administer RDF repositories'),
-      'page callback' => 'drupal_get_form',
-      'page arguments' => array('rdf_db_admin_db_delete'),
-      'file' => 'rdf.admin.inc',
-    ),
-  );
+  module_load_include('inc', 'rdf', 'rdf.menu');
+  return rdf_menu_build();
 }
 
 /**
@@ -714,7 +480,7 @@ function rdf_rdf_feeds() {
   $feeds = array(
     // node.module (front page feed)
     'node_feed' => array(
-      'type'        => 'http://purl.org/rss/1.0/',
+      'type'        => RDF_RSS_URI,
       'path'        => 'rss.xml',
       'title'       => t('Front page feed'),
       'module'      => 'node',
@@ -723,7 +489,7 @@ function rdf_rdf_feeds() {
     ),
     // taxonomy.module
     'taxonomy_term_feed' => array(
-      'type'        => 'http://purl.org/rss/1.0/',
+      'type'        => RDF_RSS_URI,
       'path'        => 'taxonomy/term/%/0/feed',
       'menu'        => 'taxonomy/term/%',
       'title'       => t('Taxonomy term feed'),
@@ -733,7 +499,7 @@ function rdf_rdf_feeds() {
     ),
     // blog.module
     'blog_feed_user' => array(
-      'type'        => 'http://purl.org/rss/1.0/',
+      'type'        => RDF_RSS_URI,
       'path'        => 'blog/%user/feed',
       'title'       => 'Users\' recent blog entries feed',
       'module'      => 'blog',
@@ -741,7 +507,7 @@ function rdf_rdf_feeds() {
       'enabled'     => !empty($enabled['blog_feed_user']),
     ),
     'blog_feed_last' => array(
-      'type'        => 'http://purl.org/rss/1.0/',
+      'type'        => RDF_RSS_URI,
       'path'        => 'blog/feed',
       'title'       => 'All recent blog entries feed',
       'module'      => 'blog',
@@ -750,7 +516,7 @@ function rdf_rdf_feeds() {
     ),
     // aggregator.module
     'aggregator_page_rss' => array(
-      'type'        => 'http://purl.org/rss/1.0/',
+      'type'        => RDF_RSS_URI,
       'path'        => 'aggregator/rss',
       'title'       => t('Aggregator feed'),
       'module'      => 'aggregator',
@@ -845,7 +611,7 @@ function rdf_rdf_namespaces() {
     'dcterms'  => 'http://purl.org/dc/terms/',
     'dcmitype' => 'http://purl.org/dc/dcmitype/',
     'foaf'     => 'http://xmlns.com/foaf/0.1/',
-    'rss'      => 'http://purl.org/rss/1.0/',
+    'rss'      => RDF_RSS_URI,
     'drupal'   => RDF_SCHEMA_URI,
   );
   foreach (rdf_schema_get_entities() as $entity) {
@@ -1005,6 +771,89 @@ function rdf_rdf_query($subject, $predicate, $object, $options = array()) {
 //////////////////////////////////////////////////////////////////////////////
 // Miscellaneous helpers
 
+function rdf_get_schema_uri() {
+  $uri = 'rdf/schema';
+  $uri = (function_exists('url') ? url($uri, array('absolute' => TRUE)) : $uri) . '/';
+  return variable_get('rdf_schema_uri', $uri);
+}
+
+function rdf_menu_access_user($account) {
+  return user_access('access RDF data') && user_view_access($account);
+}
+
+function rdf_menu_access_node($op, $node, $account = NULL) {
+  return user_access('access RDF data') && node_access($op, $node, $account);
+}
+
 function rdf_menu_access_http($perm_get, $perm_post) {
   return user_access($_SERVER['REQUEST_METHOD'] == 'POST' ? $perm_post : $perm_get);
+}
+
+//////////////////////////////////////////////////////////////////////////////
+// Output buffering callback
+
+function _rdf_ob_handler($buffer) {
+  static $mimetypes = array('text/html');
+  static $doctype   = "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML+RDFa 1.0//EN\"\n  \"http://www.w3.org/MarkUp/DTD/xhtml-rdfa-1.dtd\">\n";
+
+  // Only attempt RDFa modifications for HTML output:
+  if (in_array($mimetype = _rdf_ob_handler_get_content_type(), $mimetypes)) {
+    $buffer = _rdf_ob_handler_remove_doctype($buffer, $doctype);
+    $buffer = _rdf_ob_handler_insert_namespaces($buffer);
+    $buffer = $doctype . $buffer;
+  }
+  return $buffer;
+}
+
+function _rdf_ob_handler_get_content_type($default = NULL) {
+  static $regex = '!^Content-Type:\s*([\w\d\/\-]+)!i';
+  return _rdf_ob_handler_get_http_header($regex, $default);
+}
+
+function _rdf_ob_handler_get_http_header($regex, $default = NULL) {
+  // The last header is the one that counts:
+  //$headers = preg_grep($regex, explode("\n", drupal_get_headers()));
+  $headers = preg_grep($regex, headers_list());
+  if (!empty($headers) && preg_match($regex, array_pop($headers), $matches)) {
+    return $matches[1]; // found it
+  }
+  return $default; // no such luck
+}
+
+function _rdf_ob_handler_remove_doctype($buffer, &$doctype) {
+  $lines = $cutoff = 0;
+  $line  = strtok($buffer, "\n");
+
+  // Attempt to find the opening <html> tag in the first 15 lines:
+  while ($line !== FALSE && $lines++ < 15) {
+    if (($pos = strpos($line, '<html')) !== FALSE) {
+      // If we managed to find <html>, substitute the DOCTYPE; otherwise, the
+      // page output will be returned unmodified.
+      return substr($buffer, $cutoff += $pos);
+    }
+
+    $cutoff += strlen($line) + 1; // line length and "\n"
+    $line = strtok("\n");
+  }
+
+  $doctype = ''; // Don't prepend the new doctype
+  return $buffer;
+}
+
+function _rdf_ob_handler_insert_namespaces($buffer) {
+  $namespaces = rdf_get_namespaces('rdfa');
+
+  // Attempt to find the last character of the opening <html> tag:
+  if (!empty($namespaces) && ($html = strtok($buffer, '>'))) {
+    $buffer = substr($buffer, strlen($html) + 1);
+
+    // Insert the xmlns:prefix="uri" definitions at the end of the opening <html> tag:
+    $xmlns  = array();
+    foreach ($namespaces as $prefix => $uri) {
+      $xmlns[] = '      xmlns:' . $prefix . '="' . $uri . '"';
+    }
+    $html  .= "\n" . implode("\n", $xmlns) . '>';
+    return $html . $buffer;
+  }
+  return $buffer;
 }

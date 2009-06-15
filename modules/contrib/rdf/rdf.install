@@ -1,5 +1,5 @@
 <?php
-// $Id: rdf.install,v 1.11 2009/02/22 21:42:14 arto Exp $
+// $Id: rdf.install,v 1.12 2009/03/04 20:56:53 arto Exp $
 
 //////////////////////////////////////////////////////////////////////////////
 // Core API hooks
@@ -18,15 +18,15 @@ function rdf_install() {
   db_query("UPDATE {system} SET weight = -10 WHERE name = 'rdf' AND type = 'module'");
 
   drupal_install_schema('rdf');
-  variable_set('rdf_db_repository[local]', array('dc:title' => t('Local'), 'dc:description' => ''));
+  db_query("INSERT INTO {rdf_repositories} VALUES ('%s', 'rdf', 'local', 1, 1, 0, '%s')", 'local', serialize(array('title' => t('Local'), 'description' => '')));
 }
 
 /**
  * Implementation of hook_uninstall().
  */
 function rdf_uninstall() {
+  db_query("DELETE FROM {rdf_repositories} WHERE name = '%s'", 'local');
   drupal_uninstall_schema('rdf');
-  variable_del('rdf_db_repository[local]');
 }
 
 /**
@@ -57,17 +57,70 @@ function rdf_requirements($phase) {
  */
 function rdf_schema() {
   return array(
-    'rdf_namespaces' => array(
-      'description' => t(''),
+    // RDF repositories
+    'rdf_repositories' => array( // added in 6.x-1.0-alpha7
+      'description' => t("RDF repositories"),
       'fields' => array(
-        'prefix'  => array(
-          'description' => t('Namespace prefix.'),
+        'name' => array(
+          'description' => t("Repository name."),
           'type' => 'varchar',
           'length' => 64,
           'not null' => TRUE,
         ),
-        'uri'  => array(
-          'description' => t('Namespace URI.'),
+        'module' => array(
+          'description' => t("Repository owner module."),
+          'type' => 'varchar',
+          'length' => 255,
+          'not null' => TRUE,
+        ),
+        'type' => array(
+          'description' => t("Repository type ('system', 'local', or 'remote')."),
+          'type' => 'varchar',
+          'length' => 16,
+          'not null' => TRUE,
+        ),
+        'enabled' => array(
+          'description' => t("Repository enabled? ('0' or '1')."),
+          'type' => 'int',
+          'size' => 'tiny',
+          'not null' => TRUE,
+          'default' => 0,
+        ),
+        'mutable' => array(
+          'description' => t("Repository mutable? ('0' or '1')."),
+          'type' => 'int',
+          'size' => 'tiny',
+          'not null' => TRUE,
+          'default' => 0,
+        ),
+        'weight' => array(
+          'description' => t("Repository weight."),
+          'type' => 'int',
+          'size' => 'small',
+          'not null' => TRUE,
+          'default' => 0,
+        ),
+        'options' => array(
+          'description' => t("Repository options (serialized PHP)."),
+          'type' => 'text',
+          'size' => 'big',
+        ),
+      ),
+      'primary key' => array('name'),
+    ),
+
+    // RDF namespaces
+    'rdf_namespaces' => array(
+      'description' => t("RDF namespaces"),
+      'fields' => array(
+        'prefix' => array(
+          'description' => t("Namespace prefix."),
+          'type' => 'varchar',
+          'length' => 64,
+          'not null' => TRUE,
+        ),
+        'uri' => array(
+          'description' => t("Namespace URI."),
           'type' => 'varchar',
           'length' => 255,
           'not null' => TRUE,
@@ -78,17 +131,18 @@ function rdf_schema() {
       'indexes' => array('uri' => array('uri')),
     ),
 
+    // RDF resources (URIs)
     'rdf_resources' => array(
-      'description' => t(''),
+      'description' => t("RDF resources"),
       'fields' => array(
         'rid'  => array(
-          'description' => t('Resource ID.'),
+          'description' => t("Resource ID."),
           'type' => 'serial',
           'unsigned' => TRUE,
           'not null' => TRUE,
         ),
         'uri'  => array(
-          'description' => t('Resource URI.'),
+          'description' => t("Resource URI."),
           'type' => 'varchar',
           'length' => 255,
           'not null' => TRUE,
@@ -99,61 +153,62 @@ function rdf_schema() {
       'unique keys' => array('uri' => array('uri')),
     ),
 
+    // RDF statements
     'rdf_data' => array(
-      'description' => t(''),
+      'description' => t("RDF statements"),
       'fields' => array(
         'did'  => array(
-          'description' => t('The datum, or reified statement, identifier for this statement.'),
+          'description' => t("The datum, or reified statement, identifier for this statement."),
           'type' => 'serial',
           'unsigned' => TRUE,
           'not null' => TRUE,
         ),
         'uid'  => array(     // added in 6.x-1.0-alpha4
-          'description' => t('The user ID from {users}.uid.'),
+          'description' => t("The user ID from {users}.uid."),
           'type' => 'int',
           'unsigned' => TRUE,
         ),
-        'created'  => array( // added in 6.x-1.0-alpha4
-          'description' => t('The Unix timestamp when the statement was created.'),
+        'created' => array( // added in 6.x-1.0-alpha4
+          'description' => t("The Unix timestamp when the statement was created."),
           'type' => 'int',
           'unsigned' => TRUE,
         ),
         'gid'  => array(
-          'description' => t('The graph/context URI from {rdf_resources}.rid.'),
+          'description' => t("The graph/context URI from {rdf_resources}.rid."),
           'type' => 'int',
           'unsigned' => TRUE,
         ),
         'sid'  => array(
-          'description' => t('The subject URI from {rdf_resources}.rid.'),
+          'description' => t("The subject URI from {rdf_resources}.rid."),
           'type' => 'int',
           'unsigned' => TRUE,
           'not null' => TRUE,
           'default' => 0,
         ),
         'pid'  => array(
-          'description' => t('The predicate URI from {rdf_resources}.rid.'),
+          'description' => t("The predicate URI from {rdf_resources}.rid."),
           'type' => 'int',
           'unsigned' => TRUE,
           'not null' => TRUE,
           'default' => 0,
         ),
         'oid'  => array(
-          'description' => t('The object URI from {rdf_resources}.rid.'),
+          'description' => t("The object URI from {rdf_resources}.rid."),
           'type' => 'int',
           'unsigned' => TRUE,
         ),
         'tid'  => array(
-          'description' => t('The object literal datatype URI from {rdf_resources}.rid.'),
+          'description' => t("The object literal datatype URI from {rdf_resources}.rid."),
           'type' => 'int',
           'unsigned' => TRUE,
         ),
         'lang' => array(
-          'description' => t('The object literal language.'),
+          'description' => t("The object literal language."),
           'type' => 'varchar',
           'length' => 12,
         ),
         'data' => array(
-          'description' => t('The object literal data.'),
+          'description' => t("The object literal data."),
           'type' => 'text',
           'size' => 'big',
         ),
@@ -235,4 +290,88 @@ function rdf_update_6001() {
   }
 
   return $updates;
+}
+
+/**
+ * Creates the {rdf_repositories} table.
+ *
+ * @since 6.x-1.0-alpha7
+ */
+function rdf_update_6002() {
+  $updates = array();
+  db_create_table($updates, 'rdf_repositories',
+    array(
+      'fields' => array(
+        'name' => array(
+          'type' => 'varchar',
+          'length' => 64,
+          'not null' => TRUE,
+        ),
+        'module' => array(
+          'type' => 'varchar',
+          'length' => 255,
+          'not null' => TRUE,
+        ),
+        'type' => array(
+          'type' => 'varchar',
+          'length' => 16,
+          'not null' => TRUE,
+        ),
+        'enabled' => array(
+          'type' => 'int',
+          'size' => 'tiny',
+          'not null' => TRUE,
+          'default' => 0,
+        ),
+        'mutable' => array(
+          'type' => 'int',
+          'size' => 'tiny',
+          'not null' => TRUE,
+          'default' => 0,
+        ),
+        'weight' => array(
+          'type' => 'int',
+          'size' => 'small',
+          'not null' => TRUE,
+          'default' => 0,
+        ),
+        'options' => array(
+          'type' => 'text',
+          'size' => 'big',
+        ),
+      ),
+      'primary key' => array('name'),
+    )
+  );
+  return $updates;
+}
+
+/**
+ * Migrates RDF repository definitions from the {variable} table to the
+ * {rdf_repositories} table.
+ *
+ * @since 6.x-1.0-alpha7
+ */
+function rdf_update_6003() {
+  $updates = array();
+  $result = db_query("SELECT name, value FROM {variable} WHERE name LIKE 'rdf_db_repository[%]' ORDER BY name");
+  while ($variable = db_fetch_object($result)) {
+    if (preg_match('/^rdf_db_repository\[([^\]]+)\]$/', $variable->name, $matches)) {
+      $options = unserialize($variable->value);
+      $options = array('title' => @$options['dc:title'], 'description' => @$options['dc:description']); // any other options will be lost
+      $updates[] = $update = rdf_update_sql("INSERT INTO {rdf_repositories} (name, module, type, enabled, mutable, weight, options) VALUES ('" . db_escape_string($matches[1]) . "', 'rdf', 'local', 1, 1, 0, '%s')", serialize($options));
+      if (!empty($update['success'])) {
+        $updates[] = rdf_update_sql("DELETE FROM {variable} WHERE name = '" . db_escape_string($variable->name) . "'");
+      }
+    }
+  }
+  return $updates;
+}
+
+//////////////////////////////////////////////////////////////////////////////
+// Database API helpers
+
+function rdf_update_sql($sql) {
+  $arguments = array_slice(func_get_args(), 1);
+  return array('success' => (db_query($sql, $arguments) !== FALSE), 'query' => check_plain($sql));
 }

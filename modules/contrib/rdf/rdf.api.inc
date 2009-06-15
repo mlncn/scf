@@ -1,5 +1,5 @@
 <?php
-// $Id: rdf.api.inc,v 1.35 2009/03/02 03:58:25 arto Exp $
+// $Id: rdf.api.inc,v 1.37 2009/03/25 04:20:41 arto Exp $
 
 //////////////////////////////////////////////////////////////////////////////
 // RDF API settings
@@ -528,6 +528,7 @@ function rdf_unserialize_ntriples($text, array $options = array()) {
 
 function rdf_serialize_xml($data, array $options = array()) {
   $namespaces = array_merge(rdf_get_namespaces(), is_array(@$options['namespaces']) ? @$options['namespaces'] : array());
+  $namespaces = rdf_get_prefixes($data, $namespaces);
 
   $xml = new XMLWriter(); // requires PHP 5.1.2+
   $xml->openMemory();
@@ -536,9 +537,18 @@ function rdf_serialize_xml($data, array $options = array()) {
   $xml->startDocument('1.0', 'utf-8');
   $xml->startElement('rdf:RDF');
 
-  $namespaces = rdf_get_prefixes($data, $namespaces);
+  // Output a default namespace prefix, if one was specified:
+  $base_prefix = NULL;
+  if (!empty($options['base'])) {
+    $base_prefix = array_search($options['base'], $namespaces);
+    $xml->writeAttribute('xmlns', $options['base']);
+  }
+
+  // Output all namespace prefixes:
   foreach ($namespaces as $prefix => $uri) {
-    $xml->writeAttribute('xmlns:' . $prefix, $uri);
+    if (!$base_prefix || $base_prefix != $prefix) {
+      $xml->writeAttribute('xmlns:' . $prefix, $uri);
+    }
   }
 
   $bnode_map = array();
@@ -548,8 +558,7 @@ function rdf_serialize_xml($data, array $options = array()) {
 
     // Support the typed node element syntax where possible:
     foreach ($predicates as $predicate => &$objects) {
-      $qname = rdf_uri_to_qname($predicate);
-      if ($qname == 'rdf:type') {
+      if (($qname = rdf_uri_to_qname($predicate)) == 'rdf:type') {
         $type = rdf_uri_to_qname(array_shift($objects));
         if (empty($objects)) {
           unset($predicates[$predicate]);
@@ -559,7 +568,9 @@ function rdf_serialize_xml($data, array $options = array()) {
     }
     unset($objects);
 
-    $xml->startElement($type);
+    $qname = $base_prefix ? preg_replace('/^' . preg_quote($base_prefix, '/') . ':/', '', $type) : $type;
+    $xml->startElement($qname);
+
     if (RDF_BNode::match($subject)) {
       $xml->writeAttribute('rdf:nodeID', !isset($bnode_map[$subject]) ? ($bnode_map[$subject] = 'b' . ++$bnode_id) : $bnode_map[$subject]);
     }
@@ -569,9 +580,9 @@ function rdf_serialize_xml($data, array $options = array()) {
 
     foreach ($predicates as $predicate => $objects) {
       $qname = rdf_uri_to_qname($predicate);
-      $objects = is_array($objects) ? $objects : array($object);
+      $qname = $base_prefix ? preg_replace('/^' . preg_quote($base_prefix, '/') . ':/', '', $qname) : $qname;
 
-      foreach ($objects as $object) {
+      foreach (is_array($objects) ? $objects : array($object) as $object) {
 
         if (!is_object($object)) { // plain literal
           $xml->writeElement($qname, (string)$object);
@@ -899,13 +910,21 @@ function rdf_register_namespace($prefix, $uri) {
   $GLOBALS['rdf_namespaces'][$prefix] = $uri;
 }
 
-function rdf_get_namespaces() {
+function rdf_get_namespaces($op = NULL) {
   global $rdf_namespaces;
   if (empty($rdf_namespaces)) {
     $rdf_namespaces = module_invoke_all('rdf_namespaces');
     ksort($rdf_namespaces);
   }
-  return $rdf_namespaces;
+
+  switch ($op) {
+    case 'rdfa': // only RDFa-enabled namespaces
+      $defaults = array('rdf', 'dc', 'foaf');
+      $defaults = array_combine($defaults, $defaults);
+      return array_intersect_key($rdf_namespaces, array_filter(variable_get('rdf_rdfa_prefixes', $defaults), 'is_string'));
+    default:     // all namespaces
+      return $rdf_namespaces;
+  }
 }
 
 function rdf_get_contexts() {

@@ -1,5 +1,5 @@
 <?php
-// $Id: rdf.admin.inc,v 1.31 2009/03/02 06:45:51 arto Exp $
+// $Id: rdf.admin.inc,v 1.37 2009/03/23 12:32:08 arto Exp $
 
 //////////////////////////////////////////////////////////////////////////////
 // RDF settings form
@@ -22,9 +22,30 @@ function rdf_admin_settings() {
   }
   $form['formats']['rdf_format'] = array('#type' => 'radios', '#options' => $formats, '#default_value' => RDF_FORMAT);
 
+  // RDFa
+  $form['rdfa'] = array('#type' => 'fieldset', '#title' => t('RDFa'), '#collapsible' => TRUE, '#collapsed' => TRUE);
+  $form['rdfa']['rdf_rdfa_doctype'] = array(
+    '#type'          => 'radios',
+    '#title'         => t('Output an XHTML+RDFa DOCTYPE'),
+    '#default_value' => (int)variable_get('rdf_rdfa_doctype', FALSE),
+    '#options'       => array(FALSE => t('Disabled'), TRUE => t('Enabled')),
+    '#description'   => t('Whether to override the current theme\'s output and replace any existing <a href="http://en.wikipedia.org/wiki/Document_Type_Declaration">Document Type Declaration</a> with an <tt>XHTML+RDFa 1.0</tt> DOCTYPE that enables the use of <a href="http://en.wikipedia.org/wiki/RDFa">RDFa</a> metadata in Drupal content. Please note that this feature may be incompatible with <a href="@admin-performance">aggressive caching</a>. <em>This is an experimental feature, please use caution and <a href="http://drupal.org/node/add/project-issue/rdf">report any problems</a></em>.</a>.', array('@admin-performance' => url('admin/settings/performance'))),
+  );
+  $form['rdfa']['rdf_rdfa_prefixes'] = array(
+    '#type'          => 'checkboxes',
+    '#title'         => t('Enabled RDFa namespace prefixes'),
+    '#default_value' => array_keys(rdf_get_namespaces('rdfa')),
+    '#options'       => array_diff_key(array_combine($ns = array_keys(rdf_get_namespaces()), $ns), array('_' => '')),
+    '#description'   => t('Select which <a href="@admin-rdf-namespaces">namespace prefixes</a> will be available on RDFa-enabled pages.', array('@admin-rdf-namespaces' => url('admin/settings/rdf/namespaces'))),
+  );
+  if (!variable_get('rdf_rdfa_doctype', FALSE)) {
+    $form['rdfa']['rdf_rdfa_prefixes']['#attributes']['disabled'] = 'disabled';
+    $form['rdfa']['rdf_rdfa_disabled'] = array('#type' => 'hidden', '#value' => '1');
+  }
+
   // RDF Schema
-  $form['schema'] = array('#type' => 'fieldset', '#title' => t('RDF Schema'), '#collapsible' => TRUE, '#collapsed' => TRUE, '#weight' => 10);
-  $form['schema']['rdf_schema_uri'] = array(
+  $form['rdfs'] = array('#type' => 'fieldset', '#title' => t('RDF Schema'), '#collapsible' => TRUE, '#collapsed' => TRUE);
+  $form['rdfs']['rdf_schema_uri'] = array(
     '#type'          => 'textfield', 
     '#title'         => t('RDFS base URI'),
     '#default_value' => RDF_SCHEMA_URI,
@@ -65,6 +86,19 @@ function rdf_admin_settings() {
   );
 
   return array_merge_recursive(system_settings_form($form), array('#theme' => 'rdf_admin_settings', 'buttons' => array('#weight' => 99)));
+}
+
+function rdf_admin_settings_validate($form, &$form_state) {
+  extract($form_state['values'], EXTR_SKIP | EXTR_REFS);
+
+  if (!empty($rdf_rdfa_disabled)) {
+    // Ensure we don't muck up the default value when disabled:
+    unset($form_state['values']['rdf_rdfa_prefixes']);
+    unset($form_state['values']['rdf_rdfa_disabled']);
+  }
+  else {
+    $rdf_rdfa_prefixes = array_filter($rdf_rdfa_prefixes, 'is_string');
+  }
 }
 
 function theme_rdf_admin_settings($form) {
@@ -221,9 +255,9 @@ function rdf_db_admin_data_form_submit($form, &$form_state) {
   extract($form_state['values'], EXTR_SKIP | EXTR_REFS);
 
   // TODO: properly sanitize/expand/convert subject, predicate and object.
-  $subject   = rdf_uri($subject);
-  $predicate = rdf_uri($predicate);
-  $object    = rdf_is_valid_uri($object) ? rdf_uri($object) : $object;
+  $subject   = rdf_is_valid_curie($subject)   ? rdf_qname_to_uriref($subject)   : rdf_uri($subject);
+  $predicate = rdf_is_valid_curie($predicate) ? rdf_qname_to_uriref($predicate) : rdf_uri($predicate);
+  $object    = rdf_is_valid_uri($object)      ? rdf_uri($object) : $object;
 
   if (rdf_insert($subject, $predicate, $object, array('repository' => $repository))) {
     drupal_set_message(t('The statement has been added.'));
@@ -238,6 +272,10 @@ function rdf_db_admin_data_form_submit($form, &$form_state) {
 //////////////////////////////////////////////////////////////////////////////
 // RDF mappings management
 
+function theme_rdf_mapping($mapping) {
+  return empty($mapping) ? '-' : l(rdf_uri_to_qname($mapping, FALSE, $mapping), $mapping, array('attributes' => array('title' => $mapping)));
+}
+
 function rdf_admin_mappings() {
   // TODO: this should get refactored for extensibility, at some point.
 
@@ -249,8 +287,7 @@ function rdf_admin_mappings() {
     $rows[] = array(array('data' => t('Content types'), 'colspan' => 5, 'class' => 'category'));
     $mapping = NULL;
     foreach (node_get_types('names') as $node_type => $node_type_title) {
-      $mapping = variable_get('rdf_schema_class_' . $node_type, '');
-      $mapping = empty($mapping) ? '-' : l(rdf_uri_to_qname($mapping, FALSE, $mapping), $mapping, array('attributes' => array('title' => $mapping)));
+      $mapping = theme_rdf_mapping(variable_get('rdf_schema_class_' . $node_type, ''));
       $link    = l(t('edit'), 'admin/content/node-type/' . $node_type, array('query' => 'destination=' . drupal_urlencode($_GET['q'])));
       $rows[]  = array($node_type_title, $node_type, $mapping, $link, '');
     }
@@ -260,23 +297,31 @@ function rdf_admin_mappings() {
   }
 
   // Content fields
+  $rows[] = array(array('data' => t('Content fields'), 'colspan' => 5, 'class' => 'category'));
+  if (module_exists('node')) {
+    // Show the core field mappings that are currently hardcoded in the RSS output:
+    $rows[] = array(t('Title'),       'title',    theme_rdf_mapping('dc:title'), '-', '');
+    $rows[] = array(t('Body'),        'body',     theme_rdf_mapping('dc:description'), '-', '');
+    $rows[] = array(t('Language'),    'language', theme_rdf_mapping('dc:language'), '-', '');
+    $rows[] = array(t('Authored by'), 'name',     theme_rdf_mapping('dc:creator'), '-', '');
+    $rows[] = array(t('Authored on'), 'created',  theme_rdf_mapping('dc:date'), '-', '');
+  }
   if (module_exists('content')) {
-    $rows[] = array(array('data' => t('Content fields'), 'colspan' => 5, 'class' => 'category'));
     $mapping = NULL;
     foreach (content_fields() as $field_name => $field_info) {
       $link = l(t('edit'), 'admin/content/types/fields', array('fragment' => $field_name)); // FIXME: link
       if (($mapping = variable_get('rdf_schema_property_content_' . $field_name, ''))) {
-        $mapping = l(rdf_uri_to_qname($mapping, FALSE, $mapping), $mapping, array('attributes' => array('title' => $mapping)));
+        $mapping = theme_rdf_mapping($mapping);
         $rows[] = array($field_info['widget']['label'], $field_name, $mapping, $link, ''); 
       }
       // HACK: support CCK Date fields that have both a start and an end date:
       else if (variable_get('rdf_schema_property_content_' . $field_name . '[from]', '')) {
         $mappings = array();
-        if ($mapping = variable_get('rdf_schema_property_content_' . $field_name . '[from]', '')) {
-          $mappings[] = l(rdf_uri_to_qname($mapping, FALSE, $mapping), $mapping, array('attributes' => array('title' => $mapping)));
+        if (($mapping = variable_get('rdf_schema_property_content_' . $field_name . '[from]', ''))) {
+          $mappings[] = theme_rdf_mapping($mapping);
         }
-        if ($mapping = variable_get('rdf_schema_property_content_' . $field_name . '[to]', '')) {
-          $mappings[] = l(rdf_uri_to_qname($mapping, FALSE, $mapping), $mapping, array('attributes' => array('title' => $mapping)));
+        if (($mapping = variable_get('rdf_schema_property_content_' . $field_name . '[to]', ''))) {
+          $mappings[] = theme_rdf_mapping($mapping);
         }
         $rows[] = array($field_info['widget']['label'], $field_name, implode(', ', $mappings), $link, ''); 
       }
@@ -294,8 +339,7 @@ function rdf_admin_mappings() {
     $rows[] = array(array('data' => t('Taxonomy vocabularies'), 'colspan' => 5, 'class' => 'category'));
     $mapping = NULL;
     foreach (taxonomy_get_vocabularies() as $vid => $vocabulary) {
-      $mapping = variable_get('rdf_schema_property_vocabulary_' . $vid, '');
-      $mapping = empty($mapping) ? '-' : l(rdf_uri_to_qname($mapping, FALSE, $mapping), $mapping, array('attributes' => array('title' => $mapping)));
+      $mapping = theme_rdf_mapping(variable_get('rdf_schema_property_vocabulary_' . $vid, ''));
       $link    = l(t('edit'), 'admin/content/taxonomy/edit/vocabulary/' . $vid, array('query' => 'destination=' . drupal_urlencode($_GET['q'])));
       $rows[]  = array($vocabulary->name, '-', $mapping, $link, '');
     }
@@ -310,8 +354,7 @@ function rdf_admin_mappings() {
     $result = db_query('SELECT fid, title, name FROM {profile_fields} ORDER BY category, weight');
     $mapping = NULL;
     while ($field = db_fetch_object($result)) {
-      $mapping = variable_get('rdf_schema_property_profile_' . $field->fid, '');
-      $mapping = empty($mapping) ? '-' : l(rdf_uri_to_qname($mapping, FALSE, $mapping), $mapping, array('attributes' => array('title' => $mapping)));
+      $mapping = theme_rdf_mapping(variable_get('rdf_schema_property_profile_' . $field->fid, ''));
       $link    = l(t('edit'), 'admin/user/profile/edit/' . $field->fid, array('query' => 'destination=' . drupal_urlencode($_GET['q'])));
       $rows[]  = array($field->title, $field->name, $mapping, $link, '');
     }
@@ -693,17 +736,19 @@ function rdf_admin_contexts() {
 // RDF repository management
 
 function rdf_admin_repositories() {
-  $header = array(t('Name'), t('Statements'), t('Mutable'), t('Module'), array('data' => t('Operations'), 'colspan' => '2'));
+  $header = array(t('Name'), t('Module'), t('Statements'), t('Mutable'), array('data' => t('Operations'), 'colspan' => '2'));
 
   $rows = array();
   foreach (rdf_get_repositories() as $name => $info) {
-    $mutable = !empty($info['mutable']) && $name != 'default'; // FIXME
+    $module  = unserialize(db_result(db_query("SELECT info FROM {system} WHERE type = 'module' AND name = '%s'", $info['module'])));
+
+    $mutable = !empty($info['mutable']) && !in_array($name, array('system', 'local', 'default')); // FIXME
     $rows[] = array(
-      l($info['title'], 'admin/settings/rdf/repositories/' . $info['module'] . '/edit/' . $name,
+      !$mutable ? $info['title'] : l($info['title'], 'admin/settings/rdf/repositories/' . $info['module'] . '/edit/' . $name,
         array('attributes' => array('title' => @$info['dc:description']))),
+      $module ? $module['name'] : $info['module'],
       $name == 'system' ? t('n/a') : (empty($info['statements']) ? '-' : number_format($info['statements'])),
       !empty($info['mutable']) ? t('Yes') : t('No'),
-      $info['module'],
       !$mutable ? '' : l(t('edit'), 'admin/settings/rdf/repositories/' . $info['module'] . '/edit/' . $name),
       !$mutable ? '' : l(t('delete'), 'admin/settings/rdf/repositories/' . $info['module'] . '/delete/' . $name),
     );
@@ -744,7 +789,7 @@ function rdf_db_admin_db_form_validate($form, &$form_state) {
     form_set_error('name', t('The machine-readable name can only consist of lowercase letters, underscores, and numbers.', array('%name' => $name)));
   }
 
-  if (array_search($name, rdf_db_get_repository_names()) !== FALSE) { // FIXME
+  if (array_search($name, rdf_db_get_repository_tables()) !== FALSE) { // FIXME
     form_set_error('name', t('The machine-readable name %name is already used by another repository.', array('%name' => $name)));
   }
 }
@@ -753,15 +798,14 @@ function rdf_db_admin_db_form_submit($form, &$form_state) {
   extract($form_state['values'], EXTR_SKIP | EXTR_REFS);
 
   if (empty($key)) {
-    rdf_db_create_repository($name, array('dc:title' => $title, 'dc:description' => $description));
+    rdf_db_create_repository($name, array('title' => $title, 'description' => $description));
     drupal_set_message(t('The repository has been created.'));
   }
   else {
     if ($key != $name) {
       rdf_db_rename_repository($key, $name);
-      rdf_db_delete_repository_metadata($key);
     }
-    rdf_db_update_repository_metadata($name, array('dc:title' => $title, 'dc:description' => $description));
+    rdf_db_update_repository($name, array('title' => $title, 'description' => $description));
     drupal_set_message(t('The repository has been updated.'));
   }
 

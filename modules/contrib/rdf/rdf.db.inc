@@ -1,5 +1,5 @@
 <?php
-// $Id: rdf.db.inc,v 1.11 2009/03/02 06:02:55 arto Exp $
+// $Id: rdf.db.inc,v 1.15 2009/03/25 05:28:34 arto Exp $
 
 //////////////////////////////////////////////////////////////////////////////
 
@@ -27,7 +27,7 @@ function rdf_db_rdf_namespaces() {
  */
 function rdf_db_rdf_repositories() {
   $repos = array();
-  foreach (rdf_db_get_repository_names() as $name => $table) {
+  foreach (rdf_db_get_repository_tables() as $name => $table) {
     $repos[$name] = array(
       'title'      => rdf_db_load_repository($name)->title,
       'type'       => 'local',
@@ -52,7 +52,7 @@ function rdf_db_rdf_repositories() {
  */
 function rdf_db_rdf_contexts() {
   $contexts = array();
-  foreach (rdf_db_get_repository_names() as $name => $table) {
+  foreach (rdf_db_get_repository_tables() as $name => $table) {
     $result = db_query('SELECT DISTINCT g.uri g FROM {' . db_escape_table($table) . '} d INNER JOIN {rdf_resources} g ON d.gid = g.rid');
     while ($row = db_fetch_object($result)) {
       $contexts[$row->g] = TRUE;
@@ -65,7 +65,9 @@ function rdf_db_rdf_contexts() {
  * Implementation of hook_rdf_insert().
  */
 function rdf_db_rdf_insert($table, $subject, $predicate, $object, array $options = array()) {
-  $record = _rdf_db_make_record($subject, $predicate, $object, $options);
+  global $user;
+  $options = array_merge(array('uid' => $user->uid, 'created' => time()), $options);
+  $record  = _rdf_db_make_record($subject, $predicate, $object, $options);
 
   // Prevent duplicate record creation, at the administrator's discretion:
   if (variable_get('rdf_db_prevent_duplicates', FALSE)) {
@@ -116,82 +118,71 @@ function rdf_db_load_namespace($prefix) {
   return db_fetch_object(db_query("SELECT v.* FROM {rdf_namespaces} v WHERE v.prefix = '%s'", $prefix));
 }
 
-function rdf_db_get_repository_names() {
-  $names = array();
-  foreach (rdf_db_get_repository_tables() as $table) {
-    $name = substr($table, strlen(RDF_DB_TABLE_PREFIX));
-    $name = $name ? $name : 'local';
-    $names[$name] = $table;
-  }
-  return $names;
-}
-
 function rdf_db_get_repository_tables($refresh = FALSE) {
-  static $cache;
-  if (!is_array($cache) || $refresh) {
-    $tables = array(RDF_DB_TABLE_DEFAULT);
-
-    switch ($GLOBALS['db_type']) {
-      case 'mysql':
-      case 'mysqli':
-        $result = db_query("SHOW TABLES LIKE '{" . RDF_DB_TABLE_PREFIX . "}%'");
-        break;
-      case 'pgsql':
-        // TODO: this has NOT actually been tested:
-        $result = db_query(
-          "SELECT tablename FROM pg_tables WHERE tablename LIKE '{" . RDF_DB_TABLE_PREFIX . "}%' UNION " .
-          "SELECT viewname FROM pg_views WHERE viewname LIKE '{" . RDF_DB_TABLE_PREFIX . "}%'");
-        break;
-      default:
-        // Not implemented
-        break;
-    }
-
-    if (!empty($result)) {
-      $prefix_length = strlen(db_prefix_tables('{' . RDF_DB_TABLE_PREFIX . '}')) - strlen(RDF_DB_TABLE_PREFIX);
-      while ($row = db_fetch_array($result)) {
-        $table = reset($row); // first column
-        $tables[] = substr($table, $prefix_length);
+  static $tables;
+  if (!is_array($tables) || $refresh) {
+    $result = db_query("SELECT name FROM {rdf_repositories} WHERE module = 'rdf' AND type = 'local' AND name != 'local' ORDER BY weight ASC");
+    $tables = array('local' => RDF_DB_TABLE_DEFAULT);
+    while ($row = db_fetch_object($result)) {
+      if (db_table_exists($table = RDF_DB_TABLE_PREFIX . $row->name)) {
+        $tables[$row->name] = $table;
       }
     }
-
-    $cache = $tables;
   }
-  return $cache;
+  return $tables;
 }
 
 function rdf_db_load_repository($name) {
-  $metadata = variable_get('rdf_db_repository[' . $name . ']', array());
-  return (object)array('name' => $name, 'title' => @$metadata['dc:title'], 'description' => @$metadata['dc:description']);
+  static $repos = array();
+  if (!isset($repos[$name]) && ($row = db_fetch_array(db_query("SELECT * FROM {rdf_repositories} WHERE name = '%s'", $name)))) {
+    $row = (object)array_merge($row, unserialize($row['options']), $row); // $row intentionally doubled, for key ordering & safety
+    unset($row->options);
+    $repos[$name] = $row;
+  }
+  return isset($repos[$name]) ? $repos[$name] : NULL;
 }
 
-function rdf_db_create_repository($name, $metadata = array()) {
+function rdf_db_create_repository($name, array $options = array()) {
   $schema = rdf_db_get_schema(RDF_DB_TABLE_DEFAULT);
   db_create_table($results, db_escape_table(RDF_DB_TABLE_PREFIX . $name), $schema);
-  rdf_db_update_repository_metadata($name, $metadata);
+
+  $options = !empty($options) ? $options : array('title' => $name, 'description' => '');
+  foreach (array('dc:title' => 'title', 'dc:description' => 'description') as $old_key => $new_key) {
+    if (isset($options[$old_key])) {
+      $options[$new_key] = $options[$old_key];
+      unset($options[$old_key]);
+    }
+  }
+  drupal_write_record('rdf_repositories', $record = (object)array(
+    'name'    => $name,
+    'module'  => 'rdf',
+    'type'    => 'local',
+    'enabled' => TRUE,
+    'mutable' => TRUE,
+    'weight'  => 0,
+    'options' => serialize($options),
+  ));
+
   rdf_db_get_schema(db_escape_table(RDF_DB_TABLE_PREFIX . $name), TRUE); // clear the schema cache
   return $results[0]['success'];
 }
 
-function rdf_db_delete_repository($name) {
-  db_drop_table($results, db_escape_table(RDF_DB_TABLE_PREFIX . $name));
-  rdf_db_delete_repository_metadata($name);
-  return $results[0]['success'];
+function rdf_db_update_repository($name, array $options = array()) {
+  db_query("UPDATE {rdf_repositories} SET options = '%s' WHERE name = '%s'", serialize($options), $name);
 }
 
 function rdf_db_rename_repository($old_name, $new_name) {
   db_rename_table($results,
     db_escape_table(RDF_DB_TABLE_PREFIX . $old_name),
     db_escape_table(RDF_DB_TABLE_PREFIX . $new_name));
+  db_query("UPDATE {rdf_repositories} SET name = '%s' WHERE name = '%s'", $new_name, $old_name);
   return $results[0]['success'];
 }
 
-function rdf_db_update_repository_metadata($name, $metadata = array()) {
-  variable_set('rdf_db_repository[' . $name . ']', $metadata);
-}
-
-function rdf_db_delete_repository_metadata($name) {
-  variable_del('rdf_db_repository[' . $name . ']');
+function rdf_db_delete_repository($name) {
+  db_drop_table($results, db_escape_table(RDF_DB_TABLE_PREFIX . $name));
+  db_query("DELETE FROM {rdf_repositories} WHERE name = '%s'", $name);
+  return $results[0]['success'];
 }
 
 function rdf_db_count_repository_triples($name = NULL, $refresh = FALSE) {
@@ -243,17 +234,17 @@ function _rdf_db_make_record($subject, $predicate, $object, array $options = arr
   $is_literal = is_object($object) && ($object instanceof RDF_Literal);
 
   $record = (object)array();
-  $record->gid  = !empty($options['context']) ? _rdf_db_uri_to_id($options['context']) : NULL;
-  $record->gid  = !empty($options['graph']) ? _rdf_db_uri_to_id($options['graph']) : $record->gid;
-  $record->sid  = $subject ? _rdf_db_uri_to_id($subject) : NULL;
-  $record->pid  = $predicate ? _rdf_db_uri_to_id($predicate) : NULL;
-  $record->oid  = $object && $is_uri ? _rdf_db_uri_to_id((string)$object) : NULL;
-  $record->tid  = $object && rdf_get_datatype($object) ? _rdf_db_uri_to_id(rdf_qname_to_uri(rdf_get_datatype($object))) : NULL;
-  $record->lang = $object && $is_literal ? $object->language : NULL;
-  $record->data = $object && !$is_uri ? ($is_literal ? $object->value : (string)$object) : NULL;
+  $record->uid     = isset($options['uid']) ? $options['uid'] : NULL;
+  $record->created = isset($options['created']) ? $options['created'] : NULL;
+  $record->gid     = !empty($options['context']) ? _rdf_db_uri_to_id($options['context']) : NULL;
+  $record->gid     = !empty($options['graph']) ? _rdf_db_uri_to_id($options['graph']) : $record->gid;
+  $record->sid     = $subject ? _rdf_db_uri_to_id($subject) : NULL;
+  $record->pid     = $predicate ? _rdf_db_uri_to_id($predicate) : NULL;
+  $record->oid     = $object && $is_uri ? _rdf_db_uri_to_id((string)$object) : NULL;
+  $record->tid     = $object && rdf_get_datatype($object) ? _rdf_db_uri_to_id(rdf_qname_to_uri(rdf_get_datatype($object))) : NULL;
+  $record->lang    = $object && $is_literal ? $object->language : NULL;
+  $record->data    = $object && !$is_uri ? ($is_literal ? $object->value : (string)$object) : NULL;
 
-  $record->created = isset($options['created']) ? $options['created'] : time();
-  $record->uid = isset($options['uid']) ? $options['uid'] : $user->uid;
   return $record;
 }
 
@@ -311,6 +302,7 @@ function _rdf_db_delete_statements($table, $match, $limit = NULL, $offset = NULL
 }
 
 function _rdf_db_select_statements($table, $match, $limit = NULL, $offset = NULL) {
+  unset($match->uid, $match->created); // never match on optional meta-meta fields
   return _rdf_db_query_statements('SELECT did', $table, $match, $limit, $offset);
 }
 
