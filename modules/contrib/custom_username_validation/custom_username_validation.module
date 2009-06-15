@@ -1,0 +1,90 @@
+<?php
+// $Id: custom_username_validation.module,v 1.1.2.1 2009/03/24 17:16:56 schneck Exp $
+
+/**
+ * This module was sponsored by webrunners.net
+ */
+
+
+/**
+ * Validation function
+ *
+ * @param mixed $element Posted form structure
+ */
+function custom_username_validation_username_validate ($element) {
+
+  /** Get username from form elements */
+  $username = $element['#post']['name'];
+
+  /** If username not set, do not validate */
+  if (!$username)
+    return;
+  
+  /** If pattern not set in module settings, do not validate */
+  $pattern = variable_get('custom_username_validation_pattern', '');
+  if ($pattern == '')
+    return;  
+  
+  if (!@preg_match($pattern, $username))
+    form_set_error('name', variable_get('custom_username_validation_errormsg', ''));
+}
+
+
+
+/**
+ * Admin-Settings. Pattern and an error message can be set here.
+ */
+
+function custom_username_validation_admin() {
+
+  $form['custom_username_validation_pattern'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Pattern to match'),
+    '#default_value' => variable_get('custom_username_validation_pattern', ''),
+    '#description' => t("See PHP's preg_match() for details. Example: /^0049[1-9]{1}+[0-9]{1,10}$/")
+  );
+
+  $form['custom_username_validation_errormsg'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Error message'),
+    '#default_value' => variable_get('custom_username_validation_errormsg', t('Username format is invalid')),
+    '#description' => t("Error message that appears in form message collection")
+  );
+  
+  return system_settings_form($form);
+}
+
+/**
+ * **************************************************************
+ * Hooks
+ * **************************************************************
+ */
+
+/**
+* Implementation of hook_form_alter().
+*/
+
+function custom_username_validation_form_alter(&$form, &$form_state, $form_id) {
+  if ($form_id == 'user_register' || $form_id == 'user_edit') {
+    $form['#validate'] = array('custom_username_validation_username_validate');
+  }
+}
+
+/**
+* Implementation of hook_menu().
+*/
+function custom_username_validation_menu() {
+  $items = array();
+
+  $items['admin/settings/custom_username_validation'] = array(
+    'title' => t('Custom username validation'),
+    'description' => t('Set username pattern to match and an error message on matching fail'),
+    'access callback' => 'user_access',
+    'access arguments' => array('access administration pages'),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('custom_username_validation_admin'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+
+  return $items;
+}
