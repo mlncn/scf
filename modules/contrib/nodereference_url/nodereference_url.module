@@ -1,5 +1,5 @@
 <?php
-// $Id: nodereference_url.module,v 1.1 2009/01/22 02:25:29 quicksketch Exp $
+// $Id: nodereference_url.module,v 1.9 2009/05/17 00:57:38 quicksketch Exp $
 
 /**
  * @file
@@ -53,14 +53,16 @@ function nodereference_url_link($type, $object, $teaser = FALSE) {
   if ($type == 'node') {
     $fields = content_fields(NULL, $object->type);
     foreach ($fields as $field_name => $field) {
-      if ($field['widget']['type'] == 'nodereference_url' && !empty($field['widget']['node_link']['enabled'])) {
-        if ($field['referenceable_types'][$object->type]) {
-          $links[$field_name] = array(
-            'title' => $field['widget']['node_link']['title'],
-            'href' => 'node/add/'. str_replace('_', '-', $field['type_name']) .'/'. $object->nid,
-          );
-          if (!empty($field['widget']['node_link']['hover_title'])) {
-            $links[$field_name]['attributes']['title'] = $field['widget']['node_link']['hover_title'];
+      foreach(_nodereference_url_field_instances($field_name) as $target_type => $instance) {
+        if ($instance['widget']['type'] == 'nodereference_url' && !empty($instance['widget']['node_link']['enabled'])) {
+          if (!empty($field['referenceable_types'][$object->type]) && user_access('create ' . $target_type . ' content')) {
+            $links[$target_type .'_'. $field_name] = array(
+              'title' => $instance['widget']['node_link']['title'],
+              'href' => 'node/add/'. str_replace('_', '-', $instance['type_name']) .'/'. $object->nid,
+            );
+            if (!empty($instance['widget']['node_link']['hover_title'])) {
+              $links[$target_type .'_'. $field_name]['attributes']['title'] = $instance['widget']['node_link']['hover_title'];
+            }
           }
         }
       }
@@ -68,6 +70,20 @@ function nodereference_url_link($type, $object, $teaser = FALSE) {
   }
 
   return $links;
+}
+
+/**
+ * Helper function to retrieve all instances of a field.
+ */
+function _nodereference_url_field_instances($field_name) {
+  $info = _content_type_info();
+  $instances = array();
+  foreach(node_get_types('names') as $node_type => $node_type_name) {
+    if (isset($info['content types'][$node_type]['fields'][$field_name])) {
+      $instances[$node_type] = $info['content types'][$node_type]['fields'][$field_name];
+    }
+  }
+  return $instances;
 }
 
 /**
@@ -170,6 +186,7 @@ function nodereference_url_node_link_validate($element, &$form_state) {
 function nodereference_url_widget(&$form, &$form_state, $field, $items, $delta = 0) {
   $element = array('#tree' => TRUE);
 
+  // Check for an existing NID or pull it from the URL.
   if (isset($items[0]['nid']) && is_numeric($items[0]['nid'])) {
     $referenced_nid = $items[0]['nid'];
   }
@@ -177,9 +194,20 @@ function nodereference_url_widget(&$form, &$form_state, $field, $items, $delta =
     $referenced_nid = is_numeric(arg(3)) ? arg(3) : NULL;
   }
 
+  // Check that the NID is a valid reference.
+  if (isset($referenced_nid)) {
+    $valid_options = optionwidgets_options($field);
+    if (!isset($valid_options[$referenced_nid])) {
+      unset($referenced_nid);
+    }
+  }
+
+  // If no NID is available, use the fallback behavior.
   if (!isset($referenced_nid)) {
     // Page not found error.
-    if ($field['widget']['fallback'] == 'page_not_found') {
+    // Check for the form_build_id to prevent throwing a page not found on
+    // manual builds. See http://drupal.org/node/397606.
+    if ($field['widget']['fallback'] == 'page_not_found' && isset($form['form_build_id'])) {
       drupal_set_message(t('To create a new @type, a referenced piece of content must be specified in the link you followed.', array('@type' => node_get_types('name', $field['type_name']))), 'error');
       drupal_not_found();
       exit();
@@ -189,6 +217,7 @@ function nodereference_url_widget(&$form, &$form_state, $field, $items, $delta =
       $element = array(
         '#type' => 'nodereference_select',
         '#default_value' => $items,
+        '#after_build' => array('nodereference_url_process_select'),
       );
     }
     // Fallback to autocomplete.
@@ -206,7 +235,7 @@ function nodereference_url_widget(&$form, &$form_state, $field, $items, $delta =
   }
 
   if (isset($referenced_nid)) {
-    $element['nid']['nid'] = array(
+    $element[0]['nid'] = array(
       '#title' => $field['widget']['label'],
       '#type' => 'nodereference_url',
       '#field_name' => $field['field_name'],
@@ -226,7 +255,7 @@ function nodereference_url_widget(&$form, &$form_state, $field, $items, $delta =
  * The $fields array is in $form['#field_info'][$element['#field_name']].
  */
 function nodereference_url_process($element, $edit, $form_state, $form) {
-  $field_key  = $element['#columns'][0];
+  $field_key = $element['#columns'][0];
   $field = $form['#field_info'][$element['#field_name']];
 
   if (isset($element['#value']) && is_numeric($element['#value'])) {
@@ -241,6 +270,22 @@ function nodereference_url_process($element, $edit, $form_state, $form) {
     '#value' => isset($element['#value']) ? $element['#value'] : $element['#value'],
     '#parents' => $element['#parents'],
   );
+
+  return $element;
+}
+
+/**
+ * An #after_build function used to add an empty value to the list of options.
+ *
+ * Normally CCK would do this in optionwidgets_options(), but since the widget
+ * type "nodereference_url" isn't known by it, we have to add it manually.
+ */
+function nodereference_url_process_select($element, $form_state) {
+  if (isset($element['nid']['nid']['#options'])) {
+    $field = content_fields($element['#field_name'], $element['#type_name']);
+    $field['widget']['type'] = 'optionwidgets_select';
+    $element['nid']['nid']['#options'] = array('' => theme('optionwidgets_none', $field)) + $element['nid']['nid']['#options'];
+  }
 
   return $element;
 }
