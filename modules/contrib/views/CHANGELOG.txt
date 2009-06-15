@@ -1,4 +1,19 @@
 CHANGELOG for Views 2 for Drupal 6
+Views 2.5
+  Bugs fixed:
+    o #363817 by thePanz: Empty fields in table could still trigger separators.
+    o #388952 by nikita@protsenko.com: Ensure taxonomy term validator sets the validated title when available.
+    o #392176: Trim on word boundary would stop at newlines.
+    o #415706 by dww: Fix broken relationship in search that caused SQL error.
+    o #428742 by fralenuvol: Fix broken relationship causing sql error with multiple taxonomy term arguments.
+    o #428102 with help from deviantintegral: Broken option_definition() causes warnings.
+
+  Other changes:
+    o #379382 by neochief: Add option to strip tags during advanced rendering.
+    o #400914 by joachim: Add a link field to get to comments for a node that works just like the normal links.
+    o #402650 by drewish: Bulk export views alphabetically by view name.
+    o #349157 by yched: Support CCK build modes in node style.
+
 Views 2.4
   Bugs fixed:
     o #371466 by dereine: Fix incorrect link to comments.

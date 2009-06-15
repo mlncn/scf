@@ -1,5 +1,5 @@
 <?php
-// $Id: profile.action.inc,v 1.1.2.1 2009/04/08 19:50:13 kratib Exp $
+// $Id: profile.action.inc,v 1.1.2.2 2009/04/11 00:29:52 kratib Exp $
 
 function views_bulk_operations_profile_action_info() {
   if (!module_exists('profile')) return array();
@@ -15,11 +15,13 @@ function views_bulk_operations_profile_action_form($context) {
   foreach (profile_categories() as $category) {
     $fields = _profile_get_fields($category['name']);
     while ($field = db_fetch_object($fields)) {
-      $form[$field->name .'_check'] = array(
-        '#type' => 'checkbox',
-        '#title' => t('Edit field %title', array('%title' => $field->title)),
-      );
+      $options[$field->name .'_check'] = t('Edit field %title', array('%title' => $field->title));
     }
+    $form['editables'] = array(
+      '#type' => 'checkboxes',
+      '#options' => $options,
+      '#description' => t('In the checkboxes above, mark the fields whose values you want to edit below. To empty a field, mark it and leave its value blank.'),
+    );
     $form += profile_form_profile($context, NULL, $category['name']);
   }
   return $form;
@@ -36,7 +38,7 @@ function views_bulk_operations_profile_action_submit($form, $form_state) {
   foreach (profile_categories() as $category) {
     $fields = _profile_get_fields($category['name']);
     while ($field = db_fetch_object($fields)) {
-      $return[$field->name .'_check'] = $form_state['values'][$field->name .'_check'];
+      $return[$field->name .'_check'] = $form_state['values']['editables'][$field->name .'_check'];
       $return[$field->name] = $form_state['values'][$field->name];
     }
   }
