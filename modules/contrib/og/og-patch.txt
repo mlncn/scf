@@ -1,0 +1,35 @@
+Index: trunk/drupal/profiles/scf/modules/contrib/og/og.module
+===================================================================
+--- a/trunk/drupal/profiles/scf/modules/contrib/og/og.module
++++ b/trunk/drupal/profiles/scf/modules/contrib/og/og.module
+@@ -64,9 +64,17 @@
+     'title' => 'Leave group',
+   );
+-  
++  // Menu entry without token OG_CHANGE ISSUE: http://drupal.org/node/369232
++  $items['og/approve/%node/%user'] = array(
++    'type' => MENU_CALLBACK, 
++    'page callback' => 'og_approve',
++    'page arguments' => array(2, 3, 4),
++    'access callback' => 'og_is_group_admin', 
++    'access arguments' => array(2),
++    'title' => 'Approve membership request'
++  ); 
+   $items['og/approve/%node/%user/%'] = array(
+     'type' => MENU_CALLBACK, 
+     'page callback' => 'og_approve',
+-    'page arguments' => array(2, 3, 4),
++    'page arguments' => array(2, 3),
+     'access callback' => 'og_is_group_admin', 
+     'access arguments' => array(2),
+@@ -728,7 +736,7 @@
+   module_invoke_all('og', 'user delete', $gid, $uid, $args);
+ }
+-
+-function og_approve($node, $account, $token) {
+-  if (!og_check_token($token, $node->nid)) {
++// Allow null token. OG_CHANGE ISSUE: http://drupal.org/node/369232
++function og_approve($node, $account, $token=null) {
++  if ($token && !og_check_token($token, $node->nid)) {
+     drupal_set_message(t('Bad token. You seem to have followed an invalid link.'), 'error');
+     drupal_access_denied();

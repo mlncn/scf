@@ -3,9 +3,9 @@ description = "Enable access control for private posts and private groups."
 package = "Organic groups"
 dependencies[] = og
 core = 6.x
-; Information added by drupal.org packaging script on 2009-03-31
-version = "6.x-1.2"
+; Information added by drupal.org packaging script on 2009-05-16
+version = "6.x-2.x-dev"
 core = "6.x"
 project = "og"
-datestamp = "1238464894"
+datestamp = "1242432969"
 

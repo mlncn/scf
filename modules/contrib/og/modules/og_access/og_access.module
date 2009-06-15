@@ -1,5 +1,5 @@
 <?php
-// $Id: og_access.module,v 1.32 2009/03/16 17:51:13 weitzman Exp $
+// $Id: og_access.module,v 1.32.4.1 2009/04/09 21:14:20 weitzman Exp $
 
 // visibility states for private groups. site admin chooses in og_access_settings()
 define('OG_PRIVATE_GROUPS_NEVER', 0);
@@ -22,6 +22,34 @@ function og_access_menu() {
     'access arguments' => array('administer site configuration'),
   );
   return $items;
+}
+
+function og_access_nodeapi(&$node, $op, $teaser = NULL, $page = NULL) {
+  switch ($op) {
+    case 'load':
+      if (og_is_group_post_type($node->type)) {
+        $node->og_public = (bool)db_result(db_query("SELECT og_public FROM {og_access_post} WHERE nid = %d", $node->nid));
+      }
+      break;
+    case 'insert':
+      // Save og_public.
+      if (og_is_group_post_type($node->type)) {
+        drupal_write_record('og_access_post', $node);
+      }
+      break;
+    case 'update':
+      // Save og_public.
+      if (og_is_group_post_type($node->type)) {
+        drupal_write_record('og_access_post', $node, 'nid');
+      }
+      break;
+    case 'delete':
+      if (og_is_group_post_type($node->type)) {
+        $sql = "DELETE FROM {og_access_post} WHERE nid = %d";
+        db_query($sql, $node->nid);
+      }
+      break;
+  }
 }
 
 function og_access_settings() {
