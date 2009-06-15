@@ -9,8 +9,8 @@
 /**
  * Implementation of hook_install().
  */
-function form_tweak_install() {
-  $success = db_query("UPDATE {system} SET weight = 25 WHERE name = 'form_tweak'");
+function formtweak_install() {
+  $success = db_query("UPDATE {system} SET weight = 25 WHERE name = 'formtweak'");
   if ($success) {
     drupal_set_message(st('Form tweak module installed.'));
   }
@@ -22,7 +22,7 @@ function form_tweak_install() {
 /**
  * Implementation of hook_uninstall().
  */
-function form_tweak_uninstall() {
+function formtweak_uninstall() {
 //  $result = db_query("SELECT name FROM {variable} WHERE name LIKE 'author_field_%'");
 //  while ($row = db_fetch_object($result)) {
 //    variable_del($row->name);

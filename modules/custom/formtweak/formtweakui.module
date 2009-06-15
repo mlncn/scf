@@ -13,10 +13,10 @@
 /**
  * Implementation of hook_perm().
  */
-function form_tweak_ui_perm() {
+function formtweakui_perm() {
   return array('tweak forms');
 }
 
 if (user_access('tweak forms')) {
-  module_load_include('inc', 'form_tweak', 'form_tweak_ui.admin');
+  module_load_include('inc', 'formtweak', 'formtweakui.admin');
 }

@@ -9,13 +9,13 @@
 /**
  * Implementation of hook_install().
  */
-function form_tweak_ui_install() {
-  $success = db_query("UPDATE {system} SET weight = 25 WHERE name = 'form_tweak_ui'");
+function formtweakui_install() {
+  $success = db_query("UPDATE {system} SET weight = 25 WHERE name = 'formtweakui'");
   if ($success) {
     drupal_set_message(
       st('Form tweak user interface module installed.  Tweak forms inline or 
       <a href="@url">edit configuration files</a>',
-      array('@url' => url('admin/settings/form_tweak')))
+      array('@url' => url('admin/settings/formtweak')))
     );
   }
   else {
@@ -26,7 +26,7 @@ function form_tweak_ui_install() {
 /**
  * Implementation of hook_uninstall().
  */
-function form_tweak_ui_uninstall() {
+function formtweakui_uninstall() {
   drupal_set_message(t('Form tweak user interface module has been uninstalled.'));
 }
 

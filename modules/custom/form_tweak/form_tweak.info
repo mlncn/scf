@@ -1,6 +1,0 @@
-; $Id$
-name = Form tweak
-description = Make lots of useful little modifications to Drupal form pages.
-core = 6.x
-package = User interface
-
