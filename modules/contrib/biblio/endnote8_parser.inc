@@ -1,5 +1,5 @@
 <?php
-// $Id: endnote8_parser.inc,v 1.10.2.17 2009/02/23 22:04:11 rjerome Exp $
+// $Id: endnote8_parser.inc,v 1.10.2.18 2009/04/21 18:53:43 rjerome Exp $
 function en8_startElement($parser, $name, $attrs) {
   global $node, $element, $contributors, $contrib_count, $titles, $periodical, $dates, $urls, $keyword_count;
   switch ($name) {
@@ -185,11 +185,6 @@ function en8_characterData($parser, $data) {
       case 'reprint-status' :
         break;
       case 'keyword' :
-        $vid = variable_get('biblio_keyword_vocabulary', 0);
-        if ($vid  && variable_get('biblio_keyword_freetagging', 0)) {
-           //TODO: this will potentially cause problems exta commas in the tags string if all the data is not stored in one pass.
-          $node['taxonomy']['tags'][$vid] .= (empty($node['taxonomy']['tags'][$vid])) ? "\"$data\"" : ",\"$data\"";
-        }
         $node['biblio_keywords'][$keyword_count] .= $data;
         break;
       case 'dates' :

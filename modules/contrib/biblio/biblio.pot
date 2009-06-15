@@ -1,24 +1,28 @@
-# $Id: biblio.pot,v 1.1.2.1 2009/02/06 13:57:18 rjerome Exp $
+# $Id: biblio.pot,v 1.1.2.2 2009/04/28 01:14:07 rjerome Exp $
 #
 # LANGUAGE translation of Drupal (general)
 # Copyright YEAR NAME <EMAIL@ADDRESS>
 # Generated from files:
-#  biblio.admin.inc,v 1.9.2.41 2009/02/06 03:09:39 rjerome
-#  biblio_theme.inc,v 1.8.2.45 2009/02/06 03:09:39 rjerome
-#  biblio.module,v 1.123.2.88 2009/02/06 03:09:39 rjerome
-#  biblio.pages.inc,v 1.1.2.47 2009/02/06 03:09:39 rjerome
-#  biblio.import.export.inc,v 1.7.2.41 2009/02/06 03:09:39 rjerome
-#  biblio_style_apa.inc,v 1.9.2.8 2009/02/06 03:09:39 rjerome
-#  biblio_style_cse.inc,v 1.9.2.12 2009/02/06 03:09:39 rjerome
-#  ris_parser.inc,v 1.4.2.14 2009/02/06 03:09:39 rjerome
+#  biblio.admin.inc,v 1.9.2.60 2009/04/24 20:38:56 rjerome
+#  biblio.pages.inc,v 1.1.2.78 2009/04/27 20:47:17 rjerome
+#  biblio_theme.inc,v 1.8.2.67 2009/04/24 01:14:25 rjerome
+#  biblio.module,v 1.123.2.117 2009/04/23 12:26:04 rjerome
+#  biblio.views.inc: n/a
+#  biblio_handler_citation.inc: n/a
+#  biblio_handler_field_contributor.inc: n/a
+#  biblio.import.export.inc,v 1.7.2.55 2009/04/25 00:16:42 rjerome
 #  biblio.info,v 1.5.2.2 2009/02/06 03:09:39 rjerome
-#  biblio.install,v 1.30.2.73 2009/02/06 03:09:39 rjerome
+#  biblio_handler_field.inc: n/a
+#  biblio_style_apa.inc,v 1.9.2.13 2009/03/26 13:59:25 rjerome
+#  biblio_style_cse.inc,v 1.9.2.18 2009/03/26 13:59:25 rjerome
+#  ris_parser.inc,v 1.4.2.20 2009/04/21 18:53:43 rjerome
+#  biblio.install,v 1.30.2.87 2009/04/23 01:58:11 rjerome
 #
 #, fuzzy
 msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
-"POT-Creation-Date: 2009-02-06 08:46-0500\n"
+"POT-Creation-Date: 2009-04-27 20:40-0400\n"
 "PO-Revision-Date: YYYY-mm-DD HH:MM+ZZZZ\n"
 "Last-Translator: NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <EMAIL@ADDRESS>\n"
@@ -59,600 +63,672 @@ msgstr ""
 msgid "This option restricts the users capability to view biblio entries.  They will only be able to see the entries which they have created and own."
 msgstr ""
 
-#: biblio.admin.inc:76
-msgid "Block settings"
-msgstr ""
-
-#: biblio.admin.inc:81
-msgid "Title for the \"New Publications\" block"
-msgstr ""
-
-#: biblio.admin.inc:89
-msgid "Number of results in the \"New Publications\" block"
-msgstr ""
-
-#: biblio.admin.inc:93
-msgid "This sets the number of results that will be displayed in the \"New Publications\" block."
-msgstr ""
-
-#: biblio.admin.inc:97
-msgid "Order by"
-msgstr ""
-
-#: biblio.admin.inc:100
-msgid "Date Created"
-msgstr ""
-
-#: biblio.admin.inc:101
-msgid "Year Published"
-msgstr ""
-
-#: biblio.admin.inc:111
-msgid "Node ID"
-msgstr ""
-
-#: biblio.admin.inc:119
-msgid "Citekey"
-msgstr ""
-
-#: biblio.admin.inc:120
-msgid "You can alter citekey related settings here."
-msgstr ""
-
-#: biblio.admin.inc:124
-msgid "Auto generate citekeys if not given"
-msgstr ""
-
-#: biblio.admin.inc:127
-msgid "This option will cause \"citekey\" entries to be automatically generated if a value is not provided."
-msgstr ""
-
-#: biblio.admin.inc:131
-msgid "Citekey prefix"
-msgstr ""
-
-#: biblio.admin.inc:135
-msgid "This text will be combined with the field choosen below to form the auto generated citekey."
-msgstr ""
-
-#: biblio.admin.inc:139
-msgid "Primary Citekey  field"
-msgstr ""
-
-#: biblio.admin.inc:142
-msgid "Select the field to be used when generating citekeys."
-msgstr ""
-
-#: biblio.admin.inc:146
-msgid "Secondary Citekey field"
-msgstr ""
-
-#: biblio.admin.inc:149
-msgid "If the field above has no value this field will be used."
-msgstr ""
-
-#: biblio.admin.inc:155
-msgid "PHP code for citekey generation"
-msgstr ""
-
-#: biblio.admin.inc:157
-msgid "Advanced usage only: PHP code that returns the citekey. Should not include &lt;?php ?&gt; delimiters."
-msgstr ""
-
-#: biblio.admin.inc:165;169;174
-msgid "Footnotes"
-msgstr ""
-
-#: biblio.admin.inc:166
-msgid "You can integrate with the !url module here."
-msgstr ""
-
-#: biblio.admin.inc:169;174;279;284
-msgid "Depends on"
-msgstr ""
-
-#: biblio.admin.inc:169;279
-msgid "disabled"
-msgstr ""
-
-#: biblio.admin.inc:174;284
-msgid "enabled"
-msgstr ""
-
-#: biblio.admin.inc:179
-msgid "Integration with the footnotes module"
-msgstr ""
-
-#: biblio.admin.inc:183
-msgid "This will convert &lt;bib&gt; tags into &lt;fn&gt; tags.  This will cause intermingled &lt;bib&gt; and &lt;fn&gt; tags to be sequentially numbered.  For this to work, you must put the &lt;bib&gt; filter ahead of the &lt;fn&gt; filter in the filter chain.  If this option is not set, &lt;bib&gt; and &lt;fn&gt; tags will be handled separately."
-msgstr ""
-
-#: biblio.admin.inc:189 biblio_theme.inc:168 biblio.module:447
-msgid "Keywords"
-msgstr ""
-
-#: biblio.admin.inc:194
-msgid "Keyword separator"
-msgstr ""
-
-#: biblio.admin.inc:197
-msgid "Enter the character which will be used to separate multiple keywords in the keyword field"
-msgstr ""
-
-#: biblio.admin.inc:201
-msgid "Use keywords from biblio entries as taxonomy \"free tags\""
-msgstr ""
-
-#: biblio.admin.inc:204
-msgid "This option allows user to add keywords (free tags) to describe their documents. These keywords will be registered as taxonomy."
-msgstr ""
-
-#: biblio.admin.inc:209;389
-msgid "none"
-msgstr ""
-
-#: biblio.admin.inc:216
-msgid "Vocabulary"
-msgstr ""
-
-#: biblio.admin.inc:219
-msgid "Select vocabulary (category) to use for free tags."
-msgstr ""
-
-#: biblio.admin.inc:231
-msgid "Links"
-msgstr ""
-
-#: biblio.admin.inc:235
-msgid "Links open in new browser"
-msgstr ""
-
-#: biblio.admin.inc:238
-msgid "This causes related URLs to open in a new browser window"
-msgstr ""
-
-#: biblio.admin.inc:249
-msgid "Hyperlink titles using supplied URL if available"
-msgstr ""
-
-#: biblio.admin.inc:252
-msgid "Selecting this links the titles to the supplied URL (if available) rather than the \"node\" view."
-msgstr ""
-
-#: biblio.admin.inc:258
-msgid "OpenURL"
-msgstr ""
-
-#: biblio.admin.inc:259
-msgid "You can set an <a href=\"http://en.wikipedia.org/wiki/OpenURL\">openurl</a> link here"
-msgstr ""
-
-#: biblio.admin.inc:263
-msgid "OpenURL Base URL"
-msgstr ""
-
-#: biblio.admin.inc:266
-msgid "This sets your institution's base <a href=\"http://en.wikipedia.org/wiki/OpenURL\">OpenURL</a> gateway, which is used to generate OpenURL links. To implement a \"Universal\" OpenURL system, try using OCLC's <a href=\"http://www.oclc.org/productworks/urlresolver.htm\">OpenURL Resolver Registry</a> gateway: <a href=\"http://worldcatlibraries.org/registry/gateway\">http://worldcatlibraries.org/registry/gateway</a>"
-msgstr ""
-
-#: biblio.admin.inc:270
-msgid "OpenURL Image"
-msgstr ""
-
-#: biblio.admin.inc:273
-msgid "Enter a path to your image here, this image will be used as button which when clicked will find the entry via the OpenURL link"
-msgstr ""
-
-#: biblio.admin.inc:279;284;292
-msgid "Search"
-msgstr ""
-
-#: biblio.admin.inc:297
-msgid "Enable a search box on the biblio page."
-msgstr ""
-
-#: biblio.admin.inc:300
-msgid "Shows a search box on the biblio page that returns drupal search results in the biblio style."
-msgstr ""
-
-#: biblio.admin.inc:304
-msgid "Search button text"
-msgstr ""
-
-#: biblio.admin.inc:307 biblio.pages.inc:634;634
-msgid "Biblio search"
-msgstr ""
-
-#: biblio.admin.inc:308
-msgid "This allows you to customize the text on the search button, it defaults to \"Biblio search\"."
-msgstr ""
-
-#: biblio.admin.inc:313
-msgid "Re-/Index a biblio node when creating or updating."
-msgstr ""
-
-#: biblio.admin.inc:316
-msgid "A biblio node must be indexed for the drupal search to know its content. You need to check this option if you want to search for a biblio node that you just created or updated. Otherwise you must wait for the cron job to reindex nodes."
-msgstr ""
-
-#: biblio.admin.inc:322
-msgid "Sorting"
-msgstr ""
-
-#: biblio.admin.inc:323
-msgid "You can set the default sorting and ordering for the /biblio page here."
-msgstr ""
-
-#: biblio.admin.inc:327 biblio.pages.inc:436
-msgid "Sort by"
-msgstr ""
-
-#: biblio.admin.inc:330;342 biblio.pages.inc:455;495;744
+#: biblio.admin.inc:76;358;370 biblio.pages.inc:611;893
 msgid "Author"
 msgstr ""
 
-#: biblio.admin.inc:331;343;1203 biblio.pages.inc:459;485
+#: biblio.admin.inc:81
+msgid "Automatically delete orphaned authors"
+msgstr ""
+
+#: biblio.admin.inc:84
+msgid "Orphaned authors are those which are no longer linked to any entries as the result of a biblio update or delete."
+msgstr ""
+
+#: biblio.admin.inc:90
+msgid "Block settings"
+msgstr ""
+
+#: biblio.admin.inc:95
+msgid "Title for the \"New Publications\" block"
+msgstr ""
+
+#: biblio.admin.inc:103
+msgid "Number of results in the \"New Publications\" block"
+msgstr ""
+
+#: biblio.admin.inc:107
+msgid "This sets the number of results that will be displayed in the \"New Publications\" block."
+msgstr ""
+
+#: biblio.admin.inc:111
+msgid "Order by"
+msgstr ""
+
+#: biblio.admin.inc:114
+msgid "Date Created"
+msgstr ""
+
+#: biblio.admin.inc:115
+msgid "Year Published"
+msgstr ""
+
+#: biblio.admin.inc:125
+msgid "Node ID"
+msgstr ""
+
+#: biblio.admin.inc:133
+msgid "Citekey"
+msgstr ""
+
+#: biblio.admin.inc:134
+msgid "You can alter citekey related settings here."
+msgstr ""
+
+#: biblio.admin.inc:138
+msgid "Show citation key in results"
+msgstr ""
+
+#: biblio.admin.inc:141
+msgid "This will output the citekey as the first item in the citation string"
+msgstr ""
+
+#: biblio.admin.inc:145
+msgid "Auto generate citekeys if not given"
+msgstr ""
+
+#: biblio.admin.inc:148
+msgid "This option will cause \"citekey\" entries to be automatically generated if a value is not provided."
+msgstr ""
+
+#: biblio.admin.inc:152
+msgid "Citekey prefix"
+msgstr ""
+
+#: biblio.admin.inc:156
+msgid "This text will be combined with the field choosen below to form the auto generated citekey."
+msgstr ""
+
+#: biblio.admin.inc:160
+msgid "Primary Citekey  field"
+msgstr ""
+
+#: biblio.admin.inc:163
+msgid "Select the field to be used when generating citekeys."
+msgstr ""
+
+#: biblio.admin.inc:167
+msgid "Secondary Citekey field"
+msgstr ""
+
+#: biblio.admin.inc:170
+msgid "If the field above has no value this field will be used."
+msgstr ""
+
+#: biblio.admin.inc:176
+msgid "PHP code for citekey generation"
+msgstr ""
+
+#: biblio.admin.inc:178
+msgid "Advanced usage only: PHP code that returns the citekey. Should not include &lt;?php ?&gt; delimiters."
+msgstr ""
+
+#: biblio.admin.inc:186;190;195
+msgid "Footnotes"
+msgstr ""
+
+#: biblio.admin.inc:187
+msgid "You can integrate with the !url module here."
+msgstr ""
+
+#: biblio.admin.inc:190;195;307;312
+msgid "Depends on"
+msgstr ""
+
+#: biblio.admin.inc:190;307
+msgid "disabled"
+msgstr ""
+
+#: biblio.admin.inc:195;312
+msgid "enabled"
+msgstr ""
+
+#: biblio.admin.inc:200
+msgid "Integration with the footnotes module"
+msgstr ""
+
+#: biblio.admin.inc:204
+msgid "This will convert &lt;bib&gt; tags into &lt;fn&gt; tags.  This will cause intermingled &lt;bib&gt; and &lt;fn&gt; tags to be sequentially numbered.  For this to work, you must put the &lt;bib&gt; filter ahead of the &lt;fn&gt; filter in the filter chain.  If this option is not set, &lt;bib&gt; and &lt;fn&gt; tags will be handled separately."
+msgstr ""
+
+#: biblio.admin.inc:210 biblio_theme.inc:168 biblio.module:481;747
+msgid "Keywords"
+msgstr ""
+
+#: biblio.admin.inc:215
+msgid "Keyword separator"
+msgstr ""
+
+#: biblio.admin.inc:218
+msgid "Enter the character which will be used to separate multiple keywords in the keyword field"
+msgstr ""
+
+#: biblio.admin.inc:222
+msgid "Automatically remove orphaned keywords"
+msgstr ""
+
+#: biblio.admin.inc:225
+msgid "This option automatically deletes keywords which are no longer associated with any publications (primarily due to the due to the removal of a publication or editing a keyword)."
+msgstr ""
+
+#: biblio.admin.inc:229
+msgid "Use keywords from biblio entries as taxonomy \"free tags\""
+msgstr ""
+
+#: biblio.admin.inc:232
+msgid "This option allows user to add keywords (free tags) to describe their documents. These keywords will be registered as taxonomy."
+msgstr ""
+
+#: biblio.admin.inc:237;425
+msgid "none"
+msgstr ""
+
+#: biblio.admin.inc:244
+msgid "Vocabulary"
+msgstr ""
+
+#: biblio.admin.inc:247
+msgid "Select vocabulary (category) to use for free tags."
+msgstr ""
+
+#: biblio.admin.inc:259
+msgid "Links"
+msgstr ""
+
+#: biblio.admin.inc:263
+msgid "Links open in new browser"
+msgstr ""
+
+#: biblio.admin.inc:266
+msgid "This causes related URLs to open in a new browser window"
+msgstr ""
+
+#: biblio.admin.inc:277
+msgid "Hyperlink titles using supplied URL if available"
+msgstr ""
+
+#: biblio.admin.inc:280
+msgid "Selecting this links the titles to the supplied URL (if available) rather than the \"node\" view."
+msgstr ""
+
+#: biblio.admin.inc:286
+msgid "OpenURL"
+msgstr ""
+
+#: biblio.admin.inc:287
+msgid "You can set an <a href=\"http://en.wikipedia.org/wiki/OpenURL\">openurl</a> link here"
+msgstr ""
+
+#: biblio.admin.inc:291
+msgid "OpenURL Base URL"
+msgstr ""
+
+#: biblio.admin.inc:294
+msgid "This sets your institution's base <a href=\"http://en.wikipedia.org/wiki/OpenURL\">OpenURL</a> gateway, which is used to generate OpenURL links. To implement a \"Universal\" OpenURL system, try using OCLC's <a href=\"http://www.oclc.org/productworks/urlresolver.htm\">OpenURL Resolver Registry</a> gateway: <a href=\"http://worldcatlibraries.org/registry/gateway\">http://worldcatlibraries.org/registry/gateway</a>"
+msgstr ""
+
+#: biblio.admin.inc:298
+msgid "OpenURL Image"
+msgstr ""
+
+#: biblio.admin.inc:301
+msgid "Enter a path to your image here, this image will be used as button which when clicked will find the entry via the OpenURL link"
+msgstr ""
+
+#: biblio.admin.inc:307;312;320
+msgid "Search"
+msgstr ""
+
+#: biblio.admin.inc:325
+msgid "Enable a search box on the biblio page."
+msgstr ""
+
+#: biblio.admin.inc:328
+msgid "Shows a search box on the biblio page that returns drupal search results in the biblio style."
+msgstr ""
+
+#: biblio.admin.inc:332
+msgid "Search button text"
+msgstr ""
+
+#: biblio.admin.inc:335 biblio.pages.inc:761;761
+msgid "Biblio search"
+msgstr ""
+
+#: biblio.admin.inc:336
+msgid "This allows you to customize the text on the search button, it defaults to \"Biblio search\"."
+msgstr ""
+
+#: biblio.admin.inc:341
+msgid "Re-/Index a biblio node when creating or updating."
+msgstr ""
+
+#: biblio.admin.inc:344
+msgid "A biblio node must be indexed for the drupal search to know its content. You need to check this option if you want to search for a biblio node that you just created or updated. Otherwise you must wait for the cron job to reindex nodes."
+msgstr ""
+
+#: biblio.admin.inc:350
+msgid "Sorting"
+msgstr ""
+
+#: biblio.admin.inc:351
+msgid "You can set the default sorting and ordering for the /biblio page here."
+msgstr ""
+
+#: biblio.admin.inc:355 biblio.pages.inc:556
+msgid "Sort by"
+msgstr ""
+
+#: biblio.admin.inc:359;371;1397 biblio.pages.inc:601;897 biblio.views.inc:146;167 biblio_theme.inc:980
 msgid "Keyword"
 msgstr ""
 
-#: biblio.admin.inc:332;344 biblio.pages.inc:447 biblio_theme.inc:201;436 biblio.module:865
+#: biblio.admin.inc:360;372 biblio_theme.inc:202;723 biblio.module:1045
 msgid "Title"
 msgstr ""
 
-#: biblio.admin.inc:333;345 biblio.pages.inc:451;746 biblio.module:1058
+#: biblio.admin.inc:361;373 biblio.pages.inc:895 biblio.module:1265
 msgid "Type"
 msgstr ""
 
-#: biblio.admin.inc:334;346 biblio.pages.inc:443;745
+#: biblio.admin.inc:362;374 biblio.pages.inc:894
 msgid "Year"
 msgstr ""
 
-#: biblio.admin.inc:339
+#: biblio.admin.inc:367
 msgid "Show sort links"
 msgstr ""
 
-#: biblio.admin.inc:348
+#: biblio.admin.inc:376
 msgid "You turn the sorting links at the top of the /biblio page here."
 msgstr ""
 
-#: biblio.admin.inc:352
+#: biblio.admin.inc:380
+msgid "Show sort links as \"tabs\""
+msgstr ""
+
+#: biblio.admin.inc:383
+msgid "This changes the sort links from text links to tabs"
+msgstr ""
+
+#: biblio.admin.inc:387
 msgid "Order"
 msgstr ""
 
-#: biblio.admin.inc:355
+#: biblio.admin.inc:390
 msgid "Descending"
 msgstr ""
 
-#: biblio.admin.inc:356
+#: biblio.admin.inc:391
 msgid "Ascending"
 msgstr ""
 
-#: biblio.admin.inc:363
+#: biblio.admin.inc:398
 msgid "Styling"
 msgstr ""
 
-#: biblio.admin.inc:364
+#: biblio.admin.inc:399
 msgid "You can set the default style for the /biblio page here."
 msgstr ""
 
-#: biblio.admin.inc:375
-msgid "Node Layout"
-msgstr ""
-
-#: biblio.admin.inc:378
-msgid "Original"
-msgstr ""
-
-#: biblio.admin.inc:379
-msgid "Only Fulltext if available"
-msgstr ""
-
-#: biblio.admin.inc:380
-msgid "Tabular"
-msgstr ""
-
-#: biblio.admin.inc:382
-msgid "This alters the layout of the \"node\" (full) view."
-msgstr ""
-
-#: biblio.admin.inc:386
-msgid "Annotations"
-msgstr ""
-
-#: biblio.admin.inc:390
-msgid "notes"
-msgstr ""
-
-#: biblio.admin.inc:391
-msgid "custom1"
-msgstr ""
-
-#: biblio.admin.inc:392
-msgid "custom2"
-msgstr ""
-
-#: biblio.admin.inc:393
-msgid "custom3"
-msgstr ""
-
-#: biblio.admin.inc:394
-msgid "custom4"
-msgstr ""
-
-#: biblio.admin.inc:395
-msgid "custom5"
-msgstr ""
-
-#: biblio.admin.inc:396
-msgid "custom6"
-msgstr ""
-
-#: biblio.admin.inc:397
-msgid "custom7"
-msgstr ""
-
-#: biblio.admin.inc:399
-msgid "Select a field from which an annotation will be displayed below biblo entry in \"short\" listings"
-msgstr ""
-
-#: biblio.admin.inc:405
+#: biblio.admin.inc:403;929 biblio_handler_citation.inc:23 biblio_handler_field_contributor.inc:20
 msgid "Style"
 msgstr ""
 
-#: biblio.admin.inc:408
-msgid "This alters the layout of the \"list\" (short) view."
+#: biblio.admin.inc:406;932
+msgid "Set the bibliographic style of the \"list\" view."
+msgstr ""
+
+#: biblio.admin.inc:411
+msgid "Node Layout"
 msgstr ""
 
 #: biblio.admin.inc:414
-msgid "Syndication"
+msgid "Original"
 msgstr ""
 
 #: biblio.admin.inc:415
-msgid "You can set the RSS defaults here."
+msgid "Only Fulltext if available"
 msgstr ""
 
-#: biblio.admin.inc:419
-msgid "Allow RSS feeds of new biblio entries"
+#: biblio.admin.inc:416
+msgid "Tabular"
+msgstr ""
+
+#: biblio.admin.inc:418
+msgid "This alters the layout of the \"node\" (full) view."
 msgstr ""
 
 #: biblio.admin.inc:422
-msgid "This will create an rss feed of the 10 most recent biblio entries. It will be available at /biblio/rss.xml"
+msgid "Annotations"
 msgstr ""
 
 #: biblio.admin.inc:426
-msgid "Number of items in the RSS feed."
+msgid "notes"
+msgstr ""
+
+#: biblio.admin.inc:427
+msgid "custom1"
+msgstr ""
+
+#: biblio.admin.inc:428
+msgid "custom2"
+msgstr ""
+
+#: biblio.admin.inc:429
+msgid "custom3"
 msgstr ""
 
 #: biblio.admin.inc:430
-msgid "Limits the number of items in the /biblio/rss.xml feed to this number."
+msgid "custom4"
+msgstr ""
+
+#: biblio.admin.inc:431
+msgid "custom5"
+msgstr ""
+
+#: biblio.admin.inc:432
+msgid "custom6"
+msgstr ""
+
+#: biblio.admin.inc:433
+msgid "custom7"
+msgstr ""
+
+#: biblio.admin.inc:435
+msgid "Select a field from which an annotation will be displayed below biblo entry in \"short\" listings"
+msgstr ""
+
+#: biblio.admin.inc:443
+msgid "Syndication"
+msgstr ""
+
+#: biblio.admin.inc:444
+msgid "You can set the RSS defaults here."
+msgstr ""
+
+#: biblio.admin.inc:448
+msgid "Allow RSS feeds of new biblio entries"
+msgstr ""
+
+#: biblio.admin.inc:451
+msgid "This will create an rss feed of the 10 most recent biblio entries. It will be available at /biblio/rss.xml"
 msgstr ""
 
 #: biblio.admin.inc:455
+msgid "Number of items in the RSS feed."
+msgstr ""
+
+#: biblio.admin.inc:459
+msgid "Limits the number of items in the /biblio/rss.xml feed to this number."
+msgstr ""
+
+#: biblio.admin.inc:484
 msgid "On this page you can set type specific \"Titles\" and \"Hints\" which will display on the input form. "
 msgstr ""
 
-#: biblio.admin.inc:457
+#: biblio.admin.inc:486
 msgid "Checking the \"Visible\" box will add the field to the input form, checking \"Required\" will force the user to supply a value for this field and the weight value changes the order which it is rendered on the form with smaller values floating to the top of the form. "
 msgstr ""
 
-#: biblio.admin.inc:458
+#: biblio.admin.inc:487
 msgid "Fields which are grayed out on this page have been set to \"common\" on the "
 msgstr ""
 
-#: biblio.admin.inc:460
+#: biblio.admin.inc:489
 msgid " page."
 msgstr ""
 
-#: biblio.admin.inc:463
+#: biblio.admin.inc:492
 msgid "Checking the \"Common\" box will add the field to all the different publication types. Checking \"Required\" will force the user to supply a value for the field, checking \"Autocomplete\" will enable AJAX type auto complete look up for the field when the user is entering data and the weight value changes the order which it is rendered on the form with smaller values floating to the top of the form. "
 msgstr ""
 
-#: biblio.admin.inc:465
+#: biblio.admin.inc:494
 msgid "Finally, for each author field you can choose a set of author roles. Assigning different roles to authors within the same field, e.g. primary and secondary authors within the authors field, allows to theme them differently."
 msgstr ""
 
-#: biblio.admin.inc:470 biblio.module:710
+#: biblio.admin.inc:499 biblio.module:829
 msgid "Help"
 msgstr ""
 
-#: biblio.admin.inc:592;957;1138;1238
+#: biblio.admin.inc:544
+msgid "Field settings related to @type publications"
+msgstr ""
+
+#: biblio.admin.inc:553
+msgid "Field settings common to all publication types"
+msgstr ""
+
+#: biblio.admin.inc:631;1011;1260;1433;1468
 msgid "Save"
 msgstr ""
 
-#: biblio.admin.inc:675
+#: biblio.admin.inc:714
 msgid "The changes have been saved."
 msgstr ""
 
-#: biblio.admin.inc:688;695;981 biblio.pages.inc:999;1031
+#: biblio.admin.inc:727;734;1030 biblio.pages.inc:1135;1168
 msgid "edit"
 msgstr ""
 
-#: biblio.admin.inc:688
+#: biblio.admin.inc:727
 msgid "hide"
 msgstr ""
 
-#: biblio.admin.inc:688
+#: biblio.admin.inc:727
 msgid "show"
 msgstr ""
 
-#: biblio.admin.inc:695;984
+#: biblio.admin.inc:734;1033
 msgid "delete"
 msgstr ""
 
-#: biblio.admin.inc:700;994
+#: biblio.admin.inc:739;1043
 msgid "Type Id"
 msgstr ""
 
-#: biblio.admin.inc:701;714;940
+#: biblio.admin.inc:740;755;994
 msgid "Type Name"
 msgstr ""
 
-#: biblio.admin.inc:702;997
+#: biblio.admin.inc:741;1046
 msgid "Operations"
 msgstr ""
 
-#: biblio.admin.inc:707;1000 biblio.module:644
+#: biblio.admin.inc:745;748;1048;1050 biblio.module:640
 msgid "Add New Type"
 msgstr ""
 
-#: biblio.admin.inc:708 biblio.module:653
+#: biblio.admin.inc:746;749 biblio.module:649
 msgid "Reset all types to defaults"
 msgstr ""
 
-#: biblio.admin.inc:722;949;996
+#: biblio.admin.inc:763;1003;1045
 msgid "Description"
 msgstr ""
 
-#: biblio.admin.inc:729;957
+#: biblio.admin.inc:770;1011
 msgid "Create New Type"
 msgstr ""
 
-#: biblio.admin.inc:781
+#: biblio.admin.inc:822
 msgid "There are @count biblio entries of this type, you should change the type of these entries before proceeding otherwise they will be deleted"
 msgstr ""
 
-#: biblio.admin.inc:789
+#: biblio.admin.inc:830
 msgid "Are you sure you want to delete the custom biblio type:  %title ? "
 msgstr ""
 
-#: biblio.admin.inc:791;1257
+#: biblio.admin.inc:832;1084;1453
 msgid "This action cannot be undone."
 msgstr ""
 
-#: biblio.admin.inc:791;1161;1241;1258 biblio.module:506
+#: biblio.admin.inc:832;1085;1327;1361;1436;1454 biblio.module:737;540
 msgid "Delete"
 msgstr ""
 
-#: biblio.admin.inc:791;808;1259
+#: biblio.admin.inc:832;849;1086;1455
 msgid "Cancel"
 msgstr ""
 
-#: biblio.admin.inc:808
+#: biblio.admin.inc:849
 msgid "Are you sure you want to reset ALL the field definitions to the defaults? "
 msgstr ""
 
-#: biblio.admin.inc:808
+#: biblio.admin.inc:849
 msgid "By doing this, you will loose all customizations you have made to the field titles, <b><u>this action cannot be undone</u></b>!"
 msgstr ""
 
-#: biblio.admin.inc:808
+#: biblio.admin.inc:849
 msgid "Reset!"
 msgstr ""
 
-#: biblio.admin.inc:829 biblio.module:465
+#: biblio.admin.inc:870 biblio.module:499
 msgid "My publications"
 msgstr ""
 
-#: biblio.admin.inc:829
+#: biblio.admin.inc:870
 msgid "Profile pages"
 msgstr ""
 
-#: biblio.admin.inc:834
+#: biblio.admin.inc:875
 msgid "Allow users to override these settings on their \"My account\" page"
 msgstr ""
 
-#: biblio.admin.inc:836
+#: biblio.admin.inc:877
 msgid "If this is selected, a form similar to this section will be available to the user when they edit their own account information.  This will allow them to override the global preferences set here."
 msgstr ""
 
-#: biblio.admin.inc:842
+#: biblio.admin.inc:883
 msgid "Show my publications on my profile page"
 msgstr ""
 
-#: biblio.admin.inc:842
+#: biblio.admin.inc:883
 msgid "Show publications on users profile pages"
 msgstr ""
 
-#: biblio.admin.inc:845
+#: biblio.admin.inc:886
 msgid "Selecting this will create a listing of your publications on your profile page"
 msgstr ""
 
-#: biblio.admin.inc:845
+#: biblio.admin.inc:886
 msgid "This sets the site wide default, users may change this in their profile"
 msgstr ""
 
-#: biblio.admin.inc:855
+#: biblio.admin.inc:896
 msgid "Show \"My publications\" item in the navigation menu"
 msgstr ""
 
-#: biblio.admin.inc:870
-msgid "(none)"
+#: biblio.admin.inc:911;1116
+msgid "(None)"
 msgstr ""
 
-#: biblio.admin.inc:877
+#: biblio.admin.inc:918
 msgid "Link My Profile with this Author from the Biblio database"
 msgstr ""
 
-#: biblio.admin.inc:880
+#: biblio.admin.inc:922
 msgid "This will link your profile to the selected author from the biblio database, then all publications containing this author to be displayed on your \"Publications\" tab."
 msgstr ""
 
-#: biblio.admin.inc:995
+#: biblio.admin.inc:925
+msgid "System default"
+msgstr ""
+
+#: biblio.admin.inc:1044
 msgid "Contributor Type"
 msgstr ""
 
-#: biblio.admin.inc:1040
+#: biblio.admin.inc:1082
+msgid "Are you sure you want to delete the author type: %title ?"
+msgstr ""
+
+#: biblio.admin.inc:1122
 msgid "Drupal User ID"
 msgstr ""
 
-#: biblio.admin.inc:1048
+#: biblio.admin.inc:1130
 msgid "Complete Name"
 msgstr ""
 
-#: biblio.admin.inc:1057
+#: biblio.admin.inc:1139
 msgid "Prefix"
 msgstr ""
 
-#: biblio.admin.inc:1066
+#: biblio.admin.inc:1148
 msgid "First Name"
 msgstr ""
 
-#: biblio.admin.inc:1075
+#: biblio.admin.inc:1157
 msgid "Initials"
 msgstr ""
 
-#: biblio.admin.inc:1084
+#: biblio.admin.inc:1166
 msgid "Last Name"
 msgstr ""
 
-#: biblio.admin.inc:1093
+#: biblio.admin.inc:1175
 msgid "Suffix"
 msgstr ""
 
-#: biblio.admin.inc:1102 biblio_theme.inc:658
+#: biblio.admin.inc:1184 biblio_theme.inc:949
 msgid "Affiliation"
 msgstr ""
 
-#: biblio.admin.inc:1120
+#: biblio.admin.inc:1211
 msgid "Author Merge"
 msgstr ""
 
-#: biblio.admin.inc:1121
-msgid "Select other author names which will be merged with this one.  You should only do this if you are sure the other authors represent the same author as the one being edited."
-msgstr ""
-
-#: biblio.admin.inc:1128
-msgid "Similar authors"
-msgstr ""
-
-#: biblio.admin.inc:1180
-msgid "No items selected."
+#: biblio.admin.inc:1212
+msgid "Select other author names which will be merged.  Merging removes all the selected authors, then replaces any references to these authors with the author being edited above.  You should only do this if you are sure the other authors represent the same author as the one being edited. <B>THIS CANNOT BE UNDONE!</B>"
 msgstr ""
 
 #: biblio.admin.inc:1220
+msgid "Similar authors"
+msgstr ""
+
+#: biblio.admin.inc:1227;1289
+msgid "Merge"
+msgstr ""
+
+#: biblio.admin.inc:1233
+msgid "Author Link"
+msgstr ""
+
+#: biblio.admin.inc:1234
+msgid "Select other author names which will be linked.  Linking relates all the selected authors to the author being edited above, and and keeps each instance in the database.  You should only do this if you are sure the other authors represent the same author as the one being edited. "
+msgstr ""
+
+#: biblio.admin.inc:1242
+msgid "This author has already been linked to these authors"
+msgstr ""
+
+#: biblio.admin.inc:1251
+msgid "Other authors which could be linked to this author"
+msgstr ""
+
+#: biblio.admin.inc:1336;1370
+msgid "No items selected."
+msgstr ""
+
+#: biblio.admin.inc:1379
+msgid "%count orphaned keywords have been deleted."
+msgstr ""
+
+#: biblio.admin.inc:1415
 msgid "Keyword Merge"
 msgstr ""
 
-#: biblio.admin.inc:1221
+#: biblio.admin.inc:1416
 msgid "Select other keywords which will be merged with the one above.  You should only do this if you are sure the other keywords represent the same keyword as the one being edited."
 msgstr ""
 
-#: biblio.admin.inc:1228
+#: biblio.admin.inc:1423
 msgid "Similar keywords"
 msgstr ""
 
-#: biblio.admin.inc:1255
-msgid "Are you sure you want to delete the keyord: %title from ALL publications?"
+#: biblio.admin.inc:1451
+msgid "Are you sure you want to delete the keyword: %title from ALL publications?"
 msgstr ""
 
 #: biblio.import.export.inc:46
@@ -668,268 +744,328 @@ msgid "File Type"
 msgstr ""
 
 #: biblio.import.export.inc:74
-msgid "EndNote Tagged"
+msgid "Select type"
 msgstr ""
 
-#: biblio.import.export.inc:75
-msgid "RIS"
-msgstr ""
-
-#: biblio.import.export.inc:76
-msgid "EndNote 7 XML (and previous versions)"
-msgstr ""
-
-#: biblio.import.export.inc:77
-msgid "EndNote 8 XML (and versions upto X2)"
-msgstr ""
-
-#: biblio.import.export.inc:78 biblio_theme.inc:508;510
+#: biblio.import.export.inc:75 biblio_theme.inc:796;798 biblio.module:1017
 msgid "BibTex"
 msgstr ""
 
-#: biblio.import.export.inc:89
+#: biblio.import.export.inc:76
+msgid "EndNote Tagged"
+msgstr ""
+
+#: biblio.import.export.inc:77
+msgid "EndNote 7 XML (and previous versions)"
+msgstr ""
+
+#: biblio.import.export.inc:78
+msgid "EndNote 8 XML (and newer versions)"
+msgstr ""
+
+#: biblio.import.export.inc:79
+msgid "MARC"
+msgstr ""
+
+#: biblio.import.export.inc:80
+msgid "RIS"
+msgstr ""
+
+#: biblio.import.export.inc:85
+msgid "Batch Process"
+msgstr ""
+
+#: biblio.import.export.inc:87
+msgid "You should use batch processing if your import file contains more than about 20 records, or if you are experiencing script timeouts during import"
+msgstr ""
+
+#: biblio.import.export.inc:97
 msgid "Taxonomy Settings"
 msgstr ""
 
-#: biblio.import.export.inc:90
+#: biblio.import.export.inc:98
 msgid "Typically you don't have to do anything here, however if you wish, you may select terms to be assigned to imported records. This effectively adds a keyword to all entries being imported."
 msgstr ""
 
-#: biblio.import.export.inc:95
-msgid "Select taxonomy term to assigned to imported entries"
-msgstr ""
-
-#: biblio.import.export.inc:98
-msgid "There are currently no vocabularies assigned to the biblio node type, please go the the !url page to fix this"
-msgstr ""
-
-#: biblio.import.export.inc:98
-msgid "admin/content/taxonomy"
+#: biblio.import.export.inc:103
+msgid "Select taxonomy term to be assigned to imported entries"
 msgstr ""
 
 #: biblio.import.export.inc:106
+msgid "There are currently no vocabularies assigned to the biblio node type, please go the the !url page to fix this"
+msgstr ""
+
+#: biblio.import.export.inc:106
+msgid "admin/content/taxonomy"
+msgstr ""
+
+#: biblio.import.export.inc:114
 msgid "<b>NOTE:</b> Keyword \"free tagging\" is turned on, consequently all incomming keywords will be added to the <b>@name</b> vocabulary as specified in the \"Keyword\" section of the !url page."
 msgstr ""
 
-#: biblio.import.export.inc:106;108
+#: biblio.import.export.inc:114;116
 msgid "admin/settings/biblio"
 msgstr ""
 
-#: biblio.import.export.inc:108
+#: biblio.import.export.inc:116
 msgid "<b>NOTE:</b> Keyword \"free tagging\" is turned off, consequently keywords will <b>NOT</b> be added to the vocabulary as specified in the Taxonomy section of the !url page."
 msgstr ""
 
-#: biblio.import.export.inc:113;144;154 biblio.module:455;546
+#: biblio.import.export.inc:121;153;163 biblio.module:489;580
 msgid "Import"
 msgstr ""
 
-#: biblio.import.export.inc:129
+#: biblio.import.export.inc:137
 msgid "The uploaded file exceeds the upload_max_filesize directive in php.ini."
 msgstr ""
 
-#: biblio.import.export.inc:131
+#: biblio.import.export.inc:139
 msgid "The uploaded file exceeds the MAX_FILE_SIZE directive that was specified in the HTML form."
 msgstr ""
 
-#: biblio.import.export.inc:133
+#: biblio.import.export.inc:141
 msgid "The uploaded file was only partially uploaded."
 msgstr ""
 
-#: biblio.import.export.inc:135
+#: biblio.import.export.inc:143
 msgid "No file was uploaded."
 msgstr ""
 
-#: biblio.import.export.inc:137
+#: biblio.import.export.inc:145
 msgid "Missing a temporary folder."
 msgstr ""
 
-#: biblio.import.export.inc:139
+#: biblio.import.export.inc:147
 msgid "Failed to write file to disk."
 msgstr ""
 
-#: biblio.import.export.inc:141
+#: biblio.import.export.inc:149
 msgid "File upload stopped by extension."
 msgstr ""
 
-#: biblio.import.export.inc:145
+#: biblio.import.export.inc:154
 msgid "You must select a file type"
 msgstr ""
 
-#: biblio.import.export.inc:157
+#: biblio.import.export.inc:167
 msgid "@file was uploaded"
 msgstr ""
 
-#: biblio.import.export.inc:187
+#: biblio.import.export.inc:197
 msgid "Parsing file..."
 msgstr ""
 
-#: biblio.import.export.inc:188
+#: biblio.import.export.inc:198
 msgid "Saving nodes..."
 msgstr ""
 
-#: biblio.import.export.inc:202
+#: biblio.import.export.inc:213
 msgid "File was NOT successfully uploaded"
 msgstr ""
 
-#: biblio.import.export.inc:238
+#: biblio.import.export.inc:249
 msgid "Import finished with an error."
 msgstr ""
 
-#: biblio.import.export.inc:255
+#: biblio.import.export.inc:275
+msgid "Error occurred: Failed to open "
+msgstr ""
+
+#: biblio.import.export.inc:287
 msgid "POT Export"
 msgstr ""
 
-#: biblio.import.export.inc:256
-msgid "Here you may export a \".pot\" file which contains the titles and hints from the database which are not normally captured by traslation extrators)"
+#: biblio.import.export.inc:288
+msgid "Here you may export a \".pot\" file which contains the titles and hints from the database which are not normally captured by translation extractors)"
 msgstr ""
 
-#: biblio.import.export.inc:260;266
+#: biblio.import.export.inc:292;298
 msgid "Export translation data"
 msgstr ""
 
-#: biblio.import.export.inc:293
+#: biblio.import.export.inc:325
 msgid "Parsing file"
 msgstr ""
 
-#: biblio.import.export.inc:235
+#: biblio.import.export.inc:766
+msgid "Could not open crossref.org for XML input"
+msgstr ""
+
+#: biblio.import.export.inc:246
 msgid "One node saved."
 msgid_plural "@count nodes saved."
 msgstr[0] ""
 msgstr[1] ""
 
-#: biblio.pages.inc:261
+#: biblio.pages.inc:281
 msgid "These publications by %author are part of the works listed at %sitename"
 msgstr ""
 
-#: biblio.pages.inc:424
+#: biblio.pages.inc:324
+msgid "These publications, containing the keyword: %keyword, are part of the works listed at %sitename"
+msgstr ""
+
+#: biblio.pages.inc:457
 msgid "Export @count results"
 msgstr ""
 
-#: biblio.pages.inc:426
+#: biblio.pages.inc:459
 msgid "Found @count results"
 msgstr ""
 
-#: biblio.pages.inc:429
-msgid "Click a second time to reverse the sort order"
-msgstr ""
-
-#: biblio.pages.inc:479
-msgid "Taxonomy Term"
-msgstr ""
-
-#: biblio.pages.inc:490
-msgid "Drupal User"
-msgstr ""
-
-#: biblio.pages.inc:498
-msgid "First letter of last name"
-msgstr ""
-
-#: biblio.pages.inc:501
-msgid "First letter of title"
-msgstr ""
-
-#: biblio.pages.inc:506
-msgid "<em> and</em> <strong>%a</strong> is <strong>%b</strong>"
-msgstr ""
-
-#: biblio.pages.inc:506
-msgid "<strong>%a</strong> is <strong>%b</strong>"
-msgstr ""
-
-#: biblio.pages.inc:509
-msgid "Search results for "
-msgstr ""
-
-#: biblio.pages.inc:512;516
-msgid "Filters"
-msgstr ""
-
-#: biblio.pages.inc:529
-msgid "Reset Search"
-msgstr ""
-
-#: biblio.pages.inc:531
-msgid "Clear All Filters"
-msgstr ""
-
-#: biblio.pages.inc:551;731 biblio_theme.inc:145 biblio.module:1159;1167
+#: biblio.pages.inc:492;877 biblio_theme.inc:145 biblio.module:1417;1425
 msgid "In Press"
 msgstr ""
 
-#: biblio.pages.inc:552;732 biblio_theme.inc:148 biblio.module:1160;1168
+#: biblio.pages.inc:493;878 biblio_theme.inc:148 biblio.module:1418;1426
 msgid "Submitted"
 msgstr ""
 
-#: biblio.pages.inc:582
-msgid "No Keywords"
-msgstr ""
-
-#: biblio.pages.inc:603
+#: biblio.pages.inc:504
 msgid "No items found"
 msgstr ""
 
-#: biblio.pages.inc:605
+#: biblio.pages.inc:506
 msgid "!modify_link or !remove_link your filters and try again."
 msgstr ""
 
-#: biblio.pages.inc:605
+#: biblio.pages.inc:506
 msgid "Modify"
 msgstr ""
 
-#: biblio.pages.inc:605
+#: biblio.pages.inc:506
 msgid "remove"
 msgstr ""
 
-#: biblio.pages.inc:655
+#: biblio.pages.inc:533
+msgid "Click a second time to reverse the sort order"
+msgstr ""
+
+#: biblio.pages.inc:536;552
+msgid "!title"
+msgstr ""
+
+#: biblio.pages.inc:593
+msgid "Taxonomy Term"
+msgstr ""
+
+#: biblio.pages.inc:606
+msgid "Drupal User"
+msgstr ""
+
+#: biblio.pages.inc:615
+msgid "First letter of last name"
+msgstr ""
+
+#: biblio.pages.inc:619
+msgid "First letter of title"
+msgstr ""
+
+#: biblio.pages.inc:630
+msgid "<em> and</em> <strong>%a</strong> is <strong>%b</strong>"
+msgstr ""
+
+#: biblio.pages.inc:630
+msgid "<strong>%a</strong> is <strong>%b</strong>"
+msgstr ""
+
+#: biblio.pages.inc:633
+msgid "Search results for "
+msgstr ""
+
+#: biblio.pages.inc:636;640
+msgid "Filters"
+msgstr ""
+
+#: biblio.pages.inc:654
+msgid "Reset Search"
+msgstr ""
+
+#: biblio.pages.inc:656
+msgid "Clear All Filters"
+msgstr ""
+
+#: biblio.pages.inc:708
+msgid "No Keywords"
+msgstr ""
+
+#: biblio.pages.inc:776
 msgid "You must include at least one positive keyword with @count characters or more."
 msgstr ""
 
-#: biblio.pages.inc:747
+#: biblio.pages.inc:896
 msgid "Term"
 msgstr ""
 
-#: biblio.pages.inc:770
+#: biblio.pages.inc:921
 msgid "Show only items where"
 msgstr ""
 
-#: biblio.pages.inc:803;826
+#: biblio.pages.inc:950;973
 msgid "Refine"
 msgstr ""
 
-#: biblio.pages.inc:803;825 biblio.module:693
+#: biblio.pages.inc:950;972 biblio.module:812
 msgid "Filter"
 msgstr ""
 
-#: biblio.pages.inc:805;843
+#: biblio.pages.inc:952;990
 msgid "Undo"
 msgstr ""
 
-#: biblio.pages.inc:806;846
+#: biblio.pages.inc:953;993
 msgid "Reset"
 msgstr ""
 
-#: biblio.pages.inc:907
+#: biblio.pages.inc:1039
 msgid "Sorry, citekey @cite not found"
 msgstr ""
 
-#: biblio.pages.inc:966
+#: biblio.pages.inc:1087
 msgid " (whose last name starts with the letter \"@letter\") "
 msgstr ""
 
-#: biblio.pages.inc:983
-msgid "There are a total of @count authors !header_ext in the database"
-msgstr ""
-
-#: biblio.pages.inc:1006
+#: biblio.pages.inc:1142
 msgid " (which start with the letter \"@letter\") "
 msgstr ""
 
-#: biblio.pages.inc:1023
-msgid "There are a total of @count keywords !header_ext in the database"
+#: biblio.views.inc:41;96;127;158 biblio.module:263 biblio.info:0;0
+msgid "Biblio"
 msgstr ""
 
-#: biblio_style_apa.inc:33 biblio_style_cse.inc:32
+#: biblio.views.inc:51
+msgid "Biblio Citation"
+msgstr ""
+
+#: biblio.views.inc:52
+msgid "Display the complete citation for a given node"
+msgstr ""
+
+#: biblio.views.inc:115
+msgid "Contributors"
+msgstr ""
+
+#: biblio.views.inc:116
+msgid "Filter by any kind of contributor."
+msgstr ""
+
+#: biblio.views.inc:147
+msgid "Filter by any keyword."
+msgstr ""
+
+#: biblio.views.inc:168
+msgid "Display the keyword from a Biblio node"
+msgstr ""
+
+#: biblio_handler_citation.inc:26 biblio_handler_field_contributor.inc:23
+msgid "Define the layout of author lists."
+msgstr ""
+
+#: biblio_handler_field.inc:33
+msgid "biblio settings"
+msgstr ""
+
+#: biblio_style_apa.inc:53 biblio_style_cse.inc:52
 msgid "Anonymous"
 msgstr ""
 
@@ -937,11 +1073,11 @@ msgstr ""
 msgid "Find It Via OpenURL!"
 msgstr ""
 
-#: biblio_theme.inc:113;205 biblio.module:851
+#: biblio_theme.inc:113;206 biblio.module:1033
 msgid "Publication Type"
 msgstr ""
 
-#: biblio_theme.inc:114 biblio.module:439
+#: biblio_theme.inc:114 biblio.module:473;671
 msgid "Authors"
 msgstr ""
 
@@ -989,371 +1125,443 @@ msgstr ""
 msgid "Notes"
 msgstr ""
 
-#: biblio_theme.inc:258 biblio.module:555
+#: biblio_theme.inc:177;276 biblio.module:1146;1152
+msgid "Full Text"
+msgstr ""
+
+#: biblio_theme.inc:269 biblio.module:589
 msgid "Export"
 msgstr ""
 
-#: biblio_theme.inc:369
+#: biblio_theme.inc:656
 msgid "and"
 msgstr ""
 
-#: biblio_theme.inc:369
+#: biblio_theme.inc:656
 msgid "where"
 msgstr ""
 
-#: biblio_theme.inc:374
+#: biblio_theme.inc:661
 msgid "is"
 msgstr ""
 
-#: biblio_theme.inc:436;439
+#: biblio_theme.inc:723;726
 msgid "Field Name"
 msgstr ""
 
-#: biblio_theme.inc:436;439
+#: biblio_theme.inc:723;726
 msgid "Hint"
 msgstr ""
 
-#: biblio_theme.inc:436
+#: biblio_theme.inc:723
 msgid "Visible"
 msgstr ""
 
-#: biblio_theme.inc:436;439
+#: biblio_theme.inc:723;726
 msgid "Required"
 msgstr ""
 
-#: biblio_theme.inc:436;439;537;538
+#: biblio_theme.inc:723;726;825;826
 msgid "Weight"
 msgstr ""
 
-#: biblio_theme.inc:439
+#: biblio_theme.inc:726
 msgid "Default Title"
 msgstr ""
 
-#: biblio_theme.inc:439
+#: biblio_theme.inc:726 biblio.module:607
 msgid "Common"
 msgstr ""
 
-#: biblio_theme.inc:439
+#: biblio_theme.inc:726
 msgid "Autocomplete"
 msgstr ""
 
-#: biblio_theme.inc:452
+#: biblio_theme.inc:740
 msgid "Download"
 msgstr ""
 
-#: biblio_theme.inc:492;494
+#: biblio_theme.inc:780;782
 msgid "Tagged"
 msgstr ""
 
-#: biblio_theme.inc:492
+#: biblio_theme.inc:780
 msgid "Click to get the EndNote Tagged output "
 msgstr ""
 
-#: biblio_theme.inc:494
+#: biblio_theme.inc:782
 msgid "Click to download the EndNote Tagged formatted file"
 msgstr ""
 
-#: biblio_theme.inc:508
+#: biblio_theme.inc:796
 msgid "Click to get the BibTEX output "
 msgstr ""
 
-#: biblio_theme.inc:510
+#: biblio_theme.inc:798
 msgid "Click to download the BibTEX formatted file"
 msgstr ""
 
-#: biblio_theme.inc:524;526
+#: biblio_theme.inc:812;814
 msgid "XML"
 msgstr ""
 
-#: biblio_theme.inc:524
+#: biblio_theme.inc:812
 msgid "Click to get the XML output "
 msgstr ""
 
-#: biblio_theme.inc:526
+#: biblio_theme.inc:814
 msgid "Click to download the XML formatted file"
 msgstr ""
 
-#: biblio_theme.inc:537;538 biblio.module:1050
+#: biblio_theme.inc:825;826 biblio.module:1257
 msgid "Name"
 msgstr ""
 
-#: biblio_theme.inc:538
+#: biblio_theme.inc:826
 msgid "Role"
 msgstr ""
 
-#: biblio_theme.inc:580;584;590
+#: biblio_theme.inc:868;872;878;884
 msgid "Show ALL"
 msgstr ""
 
-#: biblio_theme.inc:658
+#: biblio_theme.inc:949
 msgid "Author Name"
 msgstr ""
 
-#: biblio_theme.inc:672
-msgid "No orphaned authors available."
+#: biblio_theme.inc:963
+msgid "There are no orphaned authors in the database."
+msgstr ""
+
+#: biblio_theme.inc:993
+msgid "There are no orphaned keywords in the database."
 msgstr ""
 
 #: ris_parser.inc:47
 msgid "Untitled"
 msgstr ""
 
-#: biblio.module:196
+#: biblio.module:219
 msgid "General:"
 msgstr ""
 
-#: biblio.module:197
+#: biblio.module:220
 msgid "By default, the !url page will list all of the entries in the database sorted by Year in descending order. If you wish to sort by \"Title\" or \"Type\",  you may do so by clicking on the appropriate links at the top of the page.  To reverse the sort order, simply click the link a second time."
 msgstr ""
 
-#: biblio.module:201
+#: biblio.module:224
 msgid "Filtering Search Results:"
 msgstr ""
 
-#: biblio.module:202
+#: biblio.module:225
 msgid "If you wish to filter the results, click on the \"Filter\" tab at the top of the page.  To add a filter, click the radio button to the left of the filter type you wish to apply, then select the filter criteria from the drop down list on the right, then click the filter button."
 msgstr ""
 
-#: biblio.module:203
+#: biblio.module:226
 msgid "It is possible to create complex filters by returning to the <i>Filter</i> tab and adding additional filters.  Simply follow the steps outlined above and press the \"Refine\" button."
 msgstr ""
 
-#: biblio.module:204
+#: biblio.module:227
 msgid "All filters can be removed by clicking the <i>Clear All Filters</i> link at the top of the result page, or on the <i>Filter</i> tab they can be removed one at a time using the <i>Undo</i> button, or you can remove them all using the <i>Clear All</i> button."
 msgstr ""
 
-#: biblio.module:205
+#: biblio.module:228
 msgid "You may also construct URLs which filter.  For example, /biblio/year/2005 will show all of the entries for 2005.  /biblio/year/2005/author/smith will show all of entries from 2005 for smith."
 msgstr ""
 
-#: biblio.module:206
+#: biblio.module:229
 msgid "Exporting Search Results:"
 msgstr ""
 
-#: biblio.module:207
+#: biblio.module:230
 msgid "Assuming this option has been enabled by the administrator, you can export search results directly into EndNote.  The link at the top of the result page will export all of the search results, and the links on individual entries will export the information related to that single entry."
 msgstr ""
 
-#: biblio.module:208
+#: biblio.module:231
 msgid "The information is exported in EndNote \"Tagged\" format similar to this..."
 msgstr ""
 
-#: biblio.module:208
+#: biblio.module:231
 msgid "\r\n                  %0  Book\r\n                  %A  John Smith\r\n                  %D  1959\r\n                  %T  The Works of John Smith\r\n                  ..."
 msgstr ""
 
-#: biblio.module:214
+#: biblio.module:237
 msgid "Clicking on one of the export links should cause your browser to ask you whether you want to Open, or Save To Disk, the file endnote.enw.  If you choose to open it, Endnote should start and ask you which library you would like store the results in.  Alternatively, you can save the file to disk and manually import it into EndNote."
 msgstr ""
 
-#: biblio.module:231
+#: biblio.module:254
 msgid "Manages a list of scholarly papers on your site"
 msgstr ""
 
-#: biblio.module:234
+#: biblio.module:257
 msgid "This allows you to add a bibliographic entry to the database"
 msgstr ""
 
-#: biblio.module:240 biblio.info:0;0
-msgid "Biblio"
-msgstr ""
-
-#: biblio.module:242
+#: biblio.module:265
 msgid "Manages bibliographies"
 msgstr ""
 
-#: biblio.module:338
+#: biblio.module:373
 msgid "edit this entry"
 msgstr ""
 
-#: biblio.module:373
+#: biblio.module:408
 msgid "You did not supply an associated biblio author."
 msgstr ""
 
-#: biblio.module:515
+#: biblio.module:524;689
+msgid "Edit author information"
+msgstr ""
+
+#: biblio.module:549
 msgid "Publications"
 msgstr ""
 
-#: biblio.module:525
+#: biblio.module:559
 msgid "Biblio settings"
 msgstr ""
 
-#: biblio.module:541
+#: biblio.module:575
 msgid "Preferences"
 msgstr ""
 
-#: biblio.module:564
-msgid "Author Types"
-msgstr ""
-
-#: biblio.module:573
-msgid "Orphaned Authors"
-msgstr ""
-
-#: biblio.module:577
-msgid "Delete orphaned biblio authors."
-msgstr ""
-
-#: biblio.module:584;593
-msgid "Add New Author Type"
-msgstr ""
-
-#: biblio.module:611
+#: biblio.module:598
 msgid "Fields"
 msgstr ""
 
-#: biblio.module:620
+#: biblio.module:616
 msgid "Publication Types"
 msgstr ""
 
-#: biblio.module:688
+#: biblio.module:680;756;807
 msgid "List"
 msgstr ""
 
-#: biblio.module:819
+#: biblio.module:699
+msgid "Orphaned Authors"
+msgstr ""
+
+#: biblio.module:703
+msgid "Delete orphaned biblio authors."
+msgstr ""
+
+#: biblio.module:709
+msgid "Author Types"
+msgstr ""
+
+#: biblio.module:719;728
+msgid "Add New Author Type"
+msgstr ""
+
+#: biblio.module:765
+msgid "Edit keyword information"
+msgstr ""
+
+#: biblio.module:775
+msgid "Orphaned Keywords"
+msgstr ""
+
+#: biblio.module:779
+msgid "Delete orphaned biblio keywords."
+msgstr ""
+
+#: biblio.module:942
 msgid "Keyword and Collection Settings (Taxonomy)"
 msgstr ""
 
-#: biblio.module:884
+#: biblio.module:987
+msgid "DOI Lookup"
+msgstr ""
+
+#: biblio.module:994
+msgid "DOI"
+msgstr ""
+
+#: biblio.module:997
+msgid "Enter a DOI name in the form: <b>10.1000/123456</b>"
+msgstr ""
+
+#: biblio.module:1004;1351;1353
+msgid "Populate using DOI"
+msgstr ""
+
+#: biblio.module:1010
+msgid "Paste"
+msgstr ""
+
+#: biblio.module:1020
+msgid "Paste a BibTex entry here"
+msgstr ""
+
+#: biblio.module:1027;1368
+msgid "Populate using BibTex"
+msgstr ""
+
+#: biblio.module:1064
 msgid "Other Biblio Fields"
 msgstr ""
 
-#: biblio.module:946;952
-msgid "Full Text"
+#: biblio.module:1102
+msgid "Separate keywords using the \" @sep \" character"
 msgstr ""
 
-#: biblio.module:956
+#: biblio.module:1156
 msgid "You may enter a full text or HTML version of the publication here."
 msgstr ""
 
-#: biblio.module:996
+#: biblio.module:1202
 msgid "Enter a single name per line using a format such as \"Smith, John K\" or \"John K Smith\" or \"J.K. Smith\""
 msgstr ""
 
-#: biblio.module:1026
+#: biblio.module:1233
 msgid "More @title"
 msgstr ""
 
-#: biblio.module:1027
+#: biblio.module:1234
 msgid "If there aren't enough boxes above, click here to add more."
 msgstr ""
 
-#: biblio.module:1152
+#: biblio.module:1364
+msgid "This does not appear to be a valid DOI name, it should start with \"10.\" "
+msgstr ""
+
+#: biblio.module:1374
+msgid "There does not appear to be any bibtex data to work with "
+msgstr ""
+
+#: biblio.module:1402
 msgid "Year of Publication must be a number between 1 and @thisyear or the words \"In Press\" or \"Submitted\" "
 msgstr ""
 
-#: biblio.module:1301
+#: biblio.module:1410
+msgid "No single keyword can be greater than 255 characters in length, the word: @kw exceeds this length"
+msgstr ""
+
+#: biblio.module:1562
 msgid "Home"
 msgstr ""
 
-#: biblio.module:1313
+#: biblio.module:1574
 msgid "Most recent publications"
 msgstr ""
 
-#: biblio.module:1344;1361
+#: biblio.module:1604;1622
 msgid "Recently Added Publications"
 msgstr ""
 
-#: biblio.module:1363
+#: biblio.module:1606
+msgid "more..."
+msgstr ""
+
+#: biblio.module:1624
 msgid "This feed lists the %num most recently added publications on %site"
 msgstr ""
 
-#: biblio.module:1536
+#: biblio.module:1680
 msgid "Citekey @cite not found"
 msgstr ""
 
-#: biblio.module:1551
+#: biblio.module:1695
 msgid "You can cite references directly into texts with <code>&lt;bib&gt;<i>citekey</i>&lt;/bib&gt; <b><i>or</i></b> [bib]<i>citekey</i>[/bib]</code>. This will be replaced with a running number (the publication reference) and the publication referenced by the citekey within the &lt;bib&gt; tags will be printed at the bottom of the page (the reference)."
 msgstr ""
 
-#: biblio.module:1554
+#: biblio.module:1698
 msgid "Use &lt;bib&gt;<i>citekey</i>&lt;/bib&gt; <b><i>or</i></b> [bib]<i>citekey</i>[/bib] to insert automatically numbered references."
 msgstr ""
 
-#: biblio.module:1571
+#: biblio.module:1715
 msgid "Biblio module references &lt;bib&gt; <i>or</i> [bib]"
 msgstr ""
 
-#: biblio.module:1587
+#: biblio.module:1731
 msgid "Use &lt;bib&gt;citekey&lt;/bib&gt; or [bib]citebkey[/bib]to insert automatically numbered references."
 msgstr ""
 
-#: biblio.module:1640
+#: biblio.module:1784
 msgid "References"
 msgstr ""
 
-#: biblio.module:1947
+#: biblio.module:2096
 msgid "Biblio: Publication year"
 msgstr ""
 
-#: biblio.module:1948
+#: biblio.module:2097
 msgid "Biblio: Authors"
 msgstr ""
 
-#: biblio.module:1949
+#: biblio.module:2098
 msgid "Biblio: Type ID (e.g.: 100)"
 msgstr ""
 
-#: biblio.module:1950
+#: biblio.module:2099
 msgid "Biblio: Type Name (e.g.: book)"
 msgstr ""
 
-#: biblio.module:314
+#: biblio.module:347
 msgid "administer biblio"
 msgstr ""
 
-#: biblio.module:315
+#: biblio.module:348
 msgid "create biblio"
 msgstr ""
 
-#: biblio.module:316
+#: biblio.module:349
 msgid "edit all biblio entries"
 msgstr ""
 
-#: biblio.module:317
+#: biblio.module:350
 msgid "edit own biblio entries"
 msgstr ""
 
-#: biblio.module:318
+#: biblio.module:351
+msgid "edit biblio authors"
+msgstr ""
+
+#: biblio.module:352
 msgid "import from file"
 msgstr ""
 
-#: biblio.module:319
+#: biblio.module:353
 msgid "show export links"
 msgstr ""
 
-#: biblio.module:320
+#: biblio.module:354
 msgid "show download links"
 msgstr ""
 
-#: biblio.module:321
+#: biblio.module:355
+msgid "show own download links"
+msgstr ""
+
+#: biblio.module:356
 msgid "show filter tab"
 msgstr ""
 
-#: biblio.module:322
+#: biblio.module:357
 msgid "show sort links"
 msgstr ""
 
-#: biblio.module:323
+#: biblio.module:358
 msgid "view full text"
 msgstr ""
 
-#: biblio.module:484;490;498;533;628;636;661;668;703;717;725;732
+#: biblio.module:518;532;567;624;632;657;664;822;836;844;851
 msgid ""
 msgstr ""
 
-#: biblio.module:526
+#: biblio.module:560
 msgid "Configure default behavior of the biblio module."
 msgstr ""
 
-#: biblio.module:675
+#: biblio.module:794
 msgid "Autocomplete "
 msgstr ""
 
-#: biblio.module:682
+#: biblio.module:801
 msgid "Javascript Contributors Form"
 msgstr ""
 
-#: biblio.module:741
+#: biblio.module:860
 msgid "RSS feed"
 msgstr ""
 
@@ -1377,79 +1585,79 @@ msgstr ""
 msgid "This is the collection that all biblio entries will be a part of if no other collection is selected. Deleting this term will render all your biblio entries inaccessable. (You've been warned!)"
 msgstr ""
 
-#: biblio.install:812
+#: biblio.install:818
 msgid "Relational table linking keywords to biblio nodes"
 msgstr ""
 
-#: biblio.install:819
+#: biblio.install:825
 msgid "Primary Key: The {biblio_keyword_data}.kid of the keyword of the node "
 msgstr ""
 
-#: biblio.install:826;894
+#: biblio.install:832;900
 msgid "The {node}.nid of the node."
 msgstr ""
 
-#: biblio.install:833;880
+#: biblio.install:839;886
 msgid "Primary Key: The {node}.vid of the node."
 msgstr ""
 
-#: biblio.install:844
+#: biblio.install:850
 msgid "Stores the keywords related to nodes."
 msgstr ""
 
-#: biblio.install:850
+#: biblio.install:856
 msgid "Primary Key: The id of the keyword assigned to the node "
 msgstr ""
 
-#: biblio.install:857
+#: biblio.install:863
 msgid "The keyword"
 msgstr ""
 
-#: biblio.install:866
+#: biblio.install:872
 msgid "Relational table grouping biblio nodes into collections"
 msgstr ""
 
-#: biblio.install:873
+#: biblio.install:879
 msgid "Primary Key: The {biblio_collection_data}.cid of the collection"
 msgstr ""
 
-#: biblio.install:887
+#: biblio.install:893
 msgid "The parent id of the collection"
 msgstr ""
 
-#: biblio.install:904
+#: biblio.install:910
 msgid "Descriptions of the collections."
 msgstr ""
 
-#: biblio.install:911
+#: biblio.install:917
 msgid "Primary Key: The id of the collection "
 msgstr ""
 
-#: biblio.install:918
+#: biblio.install:924
 msgid "The name of the collection"
 msgstr ""
 
-#: biblio.install:925
+#: biblio.install:931
 msgid "The description of the collection"
 msgstr ""
 
-#: biblio.install:934
+#: biblio.install:940
 msgid "Relational table linking possible duplicate biblio nodes"
 msgstr ""
 
-#: biblio.install:941
+#: biblio.install:947
 msgid "Primary Key: The {biblio}.nid of the original node "
 msgstr ""
 
-#: biblio.install:948
+#: biblio.install:954
 msgid "The {biblio}.nid of the newly imported node which may be a duplicate."
 msgstr ""
 
-#: biblio.install:955
+#: biblio.install:961
 msgid "The type of duplicate 0=biblio, 1=author."
 msgstr ""
 
-#: biblio.install:976
+#: biblio.install:982
 msgid "A collection of data to cache."
 msgstr ""
 
@@ -2125,5 +2333,4 @@ msgstr ""
 
 msgid "Advisor"
 msgstr ""
-
 

@@ -4,9 +4,9 @@ description = Maintains biblographic lists.
 core = 6.x
 package = Biblio
 
-; Information added by drupal.org packaging script on 2009-04-01
-version = "6.x-1.2"
+; Information added by drupal.org packaging script on 2009-04-29
+version = "6.x-1.4"
 core = "6.x"
 project = "biblio"
-datestamp = "1238610648"
+datestamp = "1241039720"
 

@@ -1,5 +1,5 @@
 <?php
-//$Id: biblio.contributors.inc,v 1.1.2.27 2009/03/24 01:46:56 rjerome Exp $
+//$Id: biblio.contributors.inc,v 1.1.2.28 2009/04/07 01:13:43 rjerome Exp $
 /**
  * @param $aid
  * @return unknown_type
@@ -102,7 +102,7 @@ function _save_contributors($contributors, $nid, $vid, $update = FALSE) {
     foreach ($authors as $key => $author) {
       if ($update && !empty($author['cid']))  $author['cid'] = null; // null out the cid so we don't do a global change
       if (empty ($author['cid']) && !empty ($md5))
-      $author['cid'] = array_search($author['md5'], $md5);
+        $author['cid'] = array_search($author['md5'], $md5);
       if (empty ($author['cid'])) {
         if (!drupal_write_record('biblio_contributor_data', $author)) return false;
         $cid = db_last_insert_id('biblio_contributor_data', 'cid');
@@ -121,6 +121,7 @@ function _save_contributors($contributors, $nid, $vid, $update = FALSE) {
       if (!drupal_write_record('biblio_contributor', $link_array)) return false;
     }
   }
+  db_query("UPDATE {biblio_contributor_data} SET aka = cid WHERE aka = 0 OR aka IS NULL");
   return true; // successfully saved all contributors
 }
 /*

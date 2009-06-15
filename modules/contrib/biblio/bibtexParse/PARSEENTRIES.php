@@ -543,7 +543,7 @@ class PARSEENTRIES
   }
 
 
-  function bib2node($terms = array(), $batch = FALSE, $session_id = NULL, $start = 0, $limit = 0){
+  function bib2node($terms = array(), $batch = FALSE, $session_id = NULL, $save = TRUE, $start = 0, $limit = 0){
     //list($preamble, $strings, $entries, $undefinedStrings) = $this->returnArrays();
     $limit = ($limit) ? $limit : count($this->entries);
     if (($start + $limit) > count($this->entries)) $limit = count($this->entries) - $start;
@@ -646,10 +646,6 @@ class PARSEENTRIES
       $node['biblio_abst_e']          = (!empty($entry['abstract'])) ? $entry['abstract'] : NULL;
       if (!empty($entry['keywords'])){
         if (strpos($entry['keywords'],';')) $entry['keywords'] = str_replace(';',',',$entry['keywords']);
-        $vid = variable_get('biblio_keyword_vocabulary', 0);
-        if ($vid  && variable_get('biblio_keyword_freetagging', 0)) {
-          $node['taxonomy']['tags'][$vid] .= $entry['keywords'];
-        }
         $node['biblio_keywords'] = explode(',', $entry['keywords']);
       }
       $node['biblio_isbn']            = (!empty($entry['isbn'])) ? $entry['isbn'] : NULL;
@@ -659,7 +655,7 @@ class PARSEENTRIES
         if (!isset($node['taxonomy'])) $node['taxonomy'] = array();
         $node['taxonomy'] = array_merge($terms,$node['taxonomy']);
       }
-      $nids[] = biblio_save_node($node, $batch, $session_id);
+      $nids[] = biblio_save_node($node, $batch, $session_id, $save);
     }
     return (!empty($nids)) ? $nids : NULL;
   }

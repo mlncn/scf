@@ -1,5 +1,5 @@
 <?php
-// $Id: tagged_parser.inc,v 1.8.2.17 2009/02/23 22:04:12 rjerome Exp $
+// $Id: tagged_parser.inc,v 1.8.2.18 2009/04/21 18:53:43 rjerome Exp $
 /**
  *   Copyright (C) 2006  Ron Jerome
  *
@@ -107,10 +107,6 @@ function _endnote_tagged_import($file, $terms = array(), $batch = FALSE, $sessio
               $node['biblio_secondary_title'] = $value;
               break;
             case '%K' :
-              $vid = variable_get('biblio_keyword_vocabulary', 0);
-              if ($vid && variable_get('biblio_keyword_freetagging', 0)) {
-                $node['taxonomy']['tags'][$vid] .= (empty($node['taxonomy']['tags'][$vid])) ? "\"$value\"" : ",\"$value\"";
-              }
               $node['biblio_keywords'][] = $value;
               break;
             case '%L' :
