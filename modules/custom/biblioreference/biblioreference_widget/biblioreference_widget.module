@@ -60,7 +60,7 @@ function biblioreference_widget_elements() {
   return array(
     'biblioreference_autocomplete' => array(
       '#input' => TRUE,
-      '#columns' => array('name'),
+      '#columns' => array('nid'),
       '#delta' => 0,
       '#process' => array('biblioreference_widget_autocomplete_process'),
       '#autocomplete_path' => FALSE,
@@ -158,7 +158,7 @@ function biblioreference_widget_widget(&$form, &$form_state, $field, $items, $de
  * Substitute in the node title for the node nid.
  */
 function biblioreference_widget_autocomplete_value($element, $edit = FALSE) {
-  $field_key  = $element['#columns'][0];
+  $field_key = $element['#columns'][0];
   if (!empty($element['#default_value'][$field_key])) {
     $nid = $element['#default_value'][$field_key];
     $value = biblioreference_autocomplete_form_value($nid);
@@ -241,7 +241,7 @@ function biblioreference_widget_autocomplete_validate($element, &$form_state) {
       // @TODO make a _biblioreference_widget_potential_references
       // that knows exactly what we're outputting
       // or ideally put the nid in a hidden field
-      $reference = _nodereference_widget_potential_references($field, $value, 'equals', NULL, 1);
+      $reference = _nodereference_potential_references($field, $value, 'equals', NULL, 1);
       if (empty($reference)) {
         form_error($element[$field_key], t('%name: found no valid post with that title.', array('%name' => t($field['widget']['label']))));
       }

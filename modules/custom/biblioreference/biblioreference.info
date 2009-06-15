@@ -5,5 +5,6 @@ dependencies[] = biblio
 dependencies[] = content
 dependencies[] = nodereference
 dependencies[] = search
+dependencies[] = entrez
 ; search only provides some helper functions, but requiring a core module to be enabled seems a fair trade for avoiding code duplication
 package = Biblio

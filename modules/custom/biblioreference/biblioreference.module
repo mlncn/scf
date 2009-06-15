@@ -11,25 +11,12 @@
  * In addition to nodereference, we used noderefcreate.module (not in CVS)
  * as a module showing what must be taken to create a new nodereference widget.
  */
-
-// functions in this include will move to gopubmed.module when Zaloni commits
-require_once('pubmed_import.inc');
   
 /**
  * Implementation of hook_menu().
  */
 function biblioreference_menu() {
   $items = array();
-  // @TODO - this should probably be in a separate module
-  $items['admin/settings/biblio/import_pubmed'] = array(
-    'title' => t('Import Pubmed'),
-    'page callback' => 'drupal_get_form',
-    'page arguments' => array('biblioreference_pubmed_import_form'),
-    'access arguments' => array('create biblio'),  // not using the somewhat silly biblio_access wrapper function
-    'file' => 'pubmed_import.inc',
-    'type' => MENU_LOCAL_TASK,
-    'weight' => 8,
-  );
 
   // @TODO - other location for menu?  change access arg.  admin include?
   $items['admin/settings/biblio/biblioreference'] = array(
@@ -41,7 +28,7 @@ function biblioreference_menu() {
     'type' => MENU_LOCAL_TASK,
     'weight' => 7,
   );
-  
+
   $items['admin/settings/biblio/biblioreference/wipe'] = array(
     'title' => 'Clear index',
     'page callback' => 'drupal_get_form',
@@ -88,7 +75,6 @@ function biblioreference_autocomplete($field_name, $string = '') {
   drupal_json($matches);
 }
 
-
 /**
  * Menu callback for biblioreference add citation.
  */
@@ -97,9 +83,9 @@ function biblioreference_add_citation() {
   $output .= '<h2>' . t('Reference Source') . '</h2>';
   $output .= '<ul>';
   $output .= '<li><h3>';
-  $output .= t('Import Citations from PubMed');
+  $output .= t('Import Citations from PubMed by ID');
   $output .= '</h3>';
-  $output .= drupal_get_form('biblioreference_pubmed_import_form');
+  $output .= drupal_get_form('entrez_pubmed_id_import_form');
   $output .= '</li>';
   $output .= '<li><h3>';
   $output .= t('<a href="@url">Create a Reference that is not in PubMed</a>', array('@url' => url('node/add/biblio')));
@@ -384,60 +370,16 @@ function biblioreference_form_user_profile_form_alter(&$form, $form_state) {
   unset($form['profile']);
 }
 
-/**
- * Implementation of hook_form_alter().
- */
-function biblioreference_form_alter(&$form, $form_state, $form_id) {
-  // Run through all the elements on a node add/edit form
-  if (isset($form['type'])) {
-    $node = $form['#node'];
-    if ($form['type']['#value'] .'_node_form' == $form_id) {
-      $fields = content_fields();
-      foreach ($form as $key => $item) {
-        if (is_array($item)) {
-          $type = $item['#type'];
-          if ($type == 'fieldset') { // loop through all the subitems.
-            foreach ($form[$key] as $subkey => $subitem) {
-              biblioreference_alter_item($form[$key], $subkey, $subitem, $fields);
-            }
-          }
-          else {
-            biblioreference_alter_item($form, $key, $item, $fields);
-          }
-        }
-      }
-    }
-  }
-}
-
-/**
- * .
- */
-function biblioreference_alter_item(&$form, $key, $item, $fields) {
-  $field_name = strstr($key, 'field_');
-  if (isset($fields[$field_name]) && $fields[$field_name]['type'] == 'nodereference') {
-    $type = $form['type']['#value'];
-    $field = content_fields($field_name, $form['type']['#value']);
-    if ($field['widget']['type'] == 'biblioreference_autocomplete') {
-      // Add link to add new citation
-      $suffix = '<div class="pdbiblio-add-new">';
-      if (user_access('create biblio')) $suffix .= t('If your reference is not in PD Biblio,  <a href="@url" target="_BLANK">add a new reference to PDBiblio</a> from PubMed or by entering it manually. After creating the reference, return here and add it to your response.', array('@url' => url('biblioreference/add/citation')));
-      $suffix .= '</div>';
-      $form[$key]['#suffix'] = $suffix;
-    }
-  }
-}
-
 ////////////////////////////////////////////////////////////////////////////
 // Indexing related functions (for faster, more comprehensive autocomplete)
 ////////////////////////////////////////////////////////////////////////////
 
 /**
- * Implements hook_cron().
+ * Implements hook_update_index().
  */
-function biblioreference_cron() {
+function biblioreference_update_index() {
   $sql = 'SELECT * FROM {node} AS n JOIN {biblio} AS b USING (nid) '
-       . 'WHERE b.nid NOT IN '
+       . 'WHERE n.status = 1 AND b.nid NOT IN '
        . '(SELECT bk.nid FROM {biblioreference_keyword} AS bk) '
        . 'OR n.changed >= %d';
   $result = db_query_range($sql, variable_get('cron_last', 0), 0,
@@ -470,6 +412,14 @@ function biblioreference_cron() {
      * separately (see above). Here the 'unsafe' function can be used.
      */
     _db_query($sql);
+  }
+
+  // Remove data of unpublished nodes from the index.
+  $sql = "DELETE FROM biblioreference_keyword "
+       . "WHERE biblioreference_keyword.nid IN "
+       . "(SELECT node.nid FROM node WHERE status = 0 AND type = 'biblio')";
+  if (!_db_query($sql)) {
+    watchdog('biblioreference', 'Failed to remove unpublished biblio items from the autocomplete index.', array(), WATCHDOG_ERROR);
   }
 }
 
@@ -549,12 +499,12 @@ function biblioreference_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
       break;
     case 'insert':
       if (variable_get('biblio_index', 0)) {
-        biblioreference_cron();
+        biblioreference_update_index();
       }
       break;
     case 'update':
       if (variable_get('biblio_index', 0)) {
-        biblioreference_cron();
+        biblioreference_update_index();
       }
       break;
   }
