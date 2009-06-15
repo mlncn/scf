@@ -8,9 +8,9 @@ package = Faceted Search
 
 
 
-; Information added by drupal.org packaging script on 2009-01-05
+; Information added by drupal.org packaging script on 2009-05-02
 version = "6.x-1.x-dev"
 core = "6.x"
 project = "cck_facets"
-datestamp = "1231113761"
+datestamp = "1241222716"
 

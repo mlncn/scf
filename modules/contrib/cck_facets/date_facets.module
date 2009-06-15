@@ -1,5 +1,5 @@
 <?php
-// $Id: date_facets.module,v 1.8 2009/01/04 20:06:55 davidlesieur Exp $
+// $Id: date_facets.module,v 1.10 2009/05/01 22:12:33 davidlesieur Exp $
 
 /**
  * @file
@@ -10,6 +10,7 @@ module_load_include('inc', 'cck_facets');
 
 // TODO: Support 'todate' column.
 // TODO: Timezone handling.
+// TODO: Support for CCK Date granularity.
 
 /**
  * Implementation of hook_cck_facets_collect().
@@ -73,9 +74,10 @@ function date_facets_cck_facets_collect(&$facets, $field, $domain, $env, $arg = 
             // Iterate through the field's multiple values.
             foreach ($arg->{$field['field_name']} as $item) {
               $timestamp = array_shift($item); // Take the item's main column.
-              $year = gmdate('Y', $timestamp);
-              $month = gmdate('n', $timestamp);
-              $day = gmdate('j', $timestamp);
+              $date = date_make_date($timestamp, $field['timezone_db'], $field['type'], $field['granularity']);
+              $year = date_format_date($date, 'custom', 'Y');
+              $month = date_format_date($date, 'custom', 'n');
+              $day = date_format_date($date, 'custom', 'j');
               
               $active_path = array(
                 new datestamp_facet_category($field, $year, NULL, NULL),
@@ -217,17 +219,17 @@ class date_facet_category extends cck_facet_category {
   function get_label($html = FALSE) {
     if (isset($this->_value['day'])) {
       // Format date with YYYY-MM-DD.
-      $timestamp = gmmktime(0, 0, 0, $this->_value['month'], $this->_value['day'], $this->_value['year']);
+      $timestamp = gmmktime(0, 0, 0, (int)$this->_value['month'], (int)$this->_value['day'], (int)$this->_value['year']);
       $format = variable_get('date_facets_format_ymd', 'm/d/Y');
     }
     elseif (isset($this->_value['month'])) {
       // Format date with YYYY-MM.
-      $timestamp = gmmktime(0, 0, 0, $this->_value['month'], 1, $this->_value['year']);
+      $timestamp = gmmktime(0, 0, 0, (int)$this->_value['month'], 1, (int)$this->_value['year']);
       $format = variable_get('date_facets_format_ym', 'm/Y');
     }
     elseif (isset($this->_value['year'])) {
       // Format date with YYYY.
-      $timestamp = gmmktime(0, 0, 0, 1, 1, $this->_value['year']);
+      $timestamp = gmmktime(0, 0, 0, 1, 1, (int)$this->_value['year']);
       $format = variable_get('date_facets_format_y', 'Y');
     }
     if ($timestamp) {

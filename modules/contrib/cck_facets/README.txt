@@ -1,4 +1,4 @@
-$Id: README.txt,v 1.10 2009/01/04 22:24:18 davidlesieur Exp $
+$Id: README.txt,v 1.11 2009/05/01 20:22:10 davidlesieur Exp $
 
 README file for the CCK Facets Drupal module package.
 
@@ -18,6 +18,7 @@ The supported CCK field types are:
 - User Reference
 - Date
 - Datestamp
+- Computed Field
 
 
 Requirements
@@ -41,10 +42,13 @@ Installation
 3. Enable any of the following modules, depending on the types of CCK fields you
    wish to expose as facets:
 
-   - CCK Text Facets (for Text fields)
-   - CCK Number Facets (for Number fields)
-   - CCK Reference Facets (for Node Reference or User Reference fields)
-   - CCK Date Facets (for Date or Datestamp fields)
+   - CCK Text Facets (for Text fields).
+   - CCK Number Facets (for Number fields).
+   - CCK Reference Facets (for Node Reference or User Reference fields).
+   - CCK Date Facets (for Date or Datestamp fields).
+   - CCK Computed Facets (for Computed fields). Note that in order to be
+     accessible to CCK Computed Facets, a computed field must be configured to
+     store its values in the database.
 
    Only the above types of fields are supported at the moment.
 

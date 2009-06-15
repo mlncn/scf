@@ -1,12 +1,10 @@
-; $Id: number_facets.info,v 1.5 2008/09/03 23:06:52 davidlesieur Exp $
-name = CCK Number Facets
-description = "Exposes CCK Number fields as facets."
+; $Id: computed_facets.info,v 1.1 2009/05/01 20:22:10 davidlesieur Exp $
+name = CCK Computed Facets
+description = "Exposes CCK Computed fields as facets."
 core = 6.x
-dependencies[] = number
+dependencies[] = computed_field
 dependencies[] = cck_facets
 package = Faceted Search
-
-
 ; Information added by drupal.org packaging script on 2009-05-02
 version = "6.x-1.x-dev"
 core = "6.x"
